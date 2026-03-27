@@ -1,56 +1,14 @@
 import {
   createUniqueEmail,
   expect,
+  fetchJson,
+  patchSoberProfile,
   test,
   waitForBaseUrlReady,
   waitForHydration,
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-import type { Page } from '@playwright/test'
-
-type ApiResponse = {
-  ok: boolean
-  status: number
-  data: Record<string, unknown> | null
-}
-
-async function fetchJson(page: Page, url: string, init?: RequestInit): Promise<ApiResponse> {
-  return page.evaluate(
-    async ({ url: u, init: i }) => {
-      const response = await fetch(u, i ?? undefined)
-      let data = null
-      try {
-        data = await response.json()
-      } catch {
-        data = null
-      }
-      return { ok: response.ok, status: response.status, data }
-    },
-    { url, init: init as Record<string, unknown> | undefined },
-  )
-}
-
-async function patchProfile(page: Page, body: Record<string, unknown>): Promise<ApiResponse> {
-  return page.evaluate(async (payload) => {
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(payload),
-    })
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-    return { ok: response.ok, status: response.status, data }
-  }, body)
-}
 
 test.describe('profile API', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -131,7 +89,7 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Patch User', email, password: 'password123' })
 
     const slug = `api-patch-${Date.now()}`
-    const result = await patchProfile(page, {
+    const result = await patchSoberProfile(page, {
       displayName: 'Updated Name',
       publicSlug: slug,
       sobrietyStartedAt: '2024-06-15',
@@ -163,7 +121,7 @@ test.describe('profile API', () => {
     const email1 = createUniqueEmail('slug-dup-1')
     await registerAndLogin(page, { name: 'User1', email: email1, password: 'password123' })
     const slug = `dup-slug-${Date.now()}`
-    await patchProfile(page, { displayName: 'User1', publicSlug: slug })
+    await patchSoberProfile(page, { displayName: 'User1', publicSlug: slug })
 
     // Register second user in new context
     const page2 = await browser.newPage()
@@ -173,7 +131,7 @@ test.describe('profile API', () => {
     await registerAndLogin(page2, { name: 'User2', email: email2, password: 'password123' })
 
     // Try to use the same slug
-    const result = await patchProfile(page2, { displayName: 'User2', publicSlug: slug })
+    const result = await patchSoberProfile(page2, { displayName: 'User2', publicSlug: slug })
     expect(result.ok).toBe(false)
     expect(result.status).toBeGreaterThanOrEqual(400)
 
@@ -190,7 +148,7 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Start Again User', email, password: 'password123' })
 
     // Set initial sobriety date
-    await patchProfile(page, {
+    await patchSoberProfile(page, {
       displayName: 'Start Again User',
       publicSlug: `start-again-${Date.now()}`,
       sobrietyStartedAt: '2024-01-01',
@@ -228,7 +186,7 @@ test.describe('profile API', () => {
 
     const futureDate = new Date()
     futureDate.setFullYear(futureDate.getFullYear() + 1)
-    const futureDateIso = futureDate.toISOString().split('T')[0]!
+    const futureDateIso = futureDate.toISOString().split('T')[0] ?? ''
 
     const result = await page.evaluate(
       async (body) => {
@@ -259,7 +217,7 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Public API User', email, password: 'password123' })
 
     const slug = `public-api-${Date.now()}`
-    await patchProfile(page, {
+    await patchSoberProfile(page, {
       displayName: 'Public API User',
       publicSlug: slug,
       sobrietyStartedAt: '2024-03-15',
@@ -298,7 +256,7 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Private User', email, password: 'password123' })
 
     const slug = `private-api-${Date.now()}`
-    await patchProfile(page, {
+    await patchSoberProfile(page, {
       displayName: 'Private User',
       publicSlug: slug,
       pageVisibility: 'private',

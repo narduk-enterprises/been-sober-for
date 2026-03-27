@@ -1,6 +1,9 @@
 import {
   createUniqueEmail,
   expect,
+  patchSoberProfile,
+  startAgainViaApi,
+  getSoberProfile,
   test,
   waitForBaseUrlReady,
   waitForHydration,
@@ -8,82 +11,6 @@ import {
   registerAndLogin,
   logoutViaApi,
 } from './fixtures'
-
-import type { Page } from '@playwright/test'
-
-/**
- * Helper to update the sober profile via the API.
- */
-async function patchProfileViaApi(
-  page: Page,
-  body: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; data: Record<string, unknown> | null }> {
-  return page.evaluate(async (payload) => {
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-
-    return { ok: response.ok, status: response.status, data }
-  }, body)
-}
-
-/**
- * Helper to start again via the API.
- */
-async function startAgainViaApi(
-  page: Page,
-  body: { startedAt: string; confirmed: boolean },
-): Promise<{ ok: boolean; status: number; data: Record<string, unknown> | null }> {
-  return page.evaluate(async (payload) => {
-    const response = await fetch('/api/profile/start-again', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-
-    return { ok: response.ok, status: response.status, data }
-  }, body)
-}
-
-/**
- * Helper to get profile via the API.
- */
-async function getProfileViaApi(
-  page: Page,
-): Promise<{ ok: boolean; status: number; data: Record<string, unknown> | null }> {
-  return page.evaluate(async () => {
-    const response = await fetch('/api/profile')
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-    return { ok: response.ok, status: response.status, data }
-  })
-}
 
 test.describe('profile flow (full user journey)', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -117,7 +44,7 @@ test.describe('profile flow (full user journey)', () => {
     sobrietyDate.setDate(sobrietyDate.getDate() - 42)
     const sobrietyIso = sobrietyDate.toISOString().split('T')[0]!
 
-    const patchResult = await patchProfileViaApi(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'QA Tester',
       publicSlug: slug,
       sobrietyStartedAt: sobrietyIso,
@@ -162,7 +89,7 @@ test.describe('profile flow (full user journey)', () => {
     expect(startAgainResult.ok).toBe(true)
 
     // 10. Verify the counter is updated
-    const profileResult = await getProfileViaApi(page)
+    const profileResult = await getSoberProfile(page)
     expect(profileResult.ok).toBe(true)
     expect(profileResult.data).toMatchObject({
       sobrietyStartedAt: newDateIso,
@@ -183,7 +110,7 @@ test.describe('profile flow (full user journey)', () => {
 
     // Set profile to private
     const slug = `private-${Date.now()}`
-    await patchProfileViaApi(page, {
+    await patchSoberProfile(page, {
       displayName: 'Visibility Tester',
       publicSlug: slug,
       pageVisibility: 'private',

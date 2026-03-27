@@ -1,34 +1,13 @@
 import {
   createUniqueEmail,
   expect,
+  patchSoberProfile,
   test,
   waitForBaseUrlReady,
   waitForHydration,
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-import type { Page } from '@playwright/test'
-
-async function patchProfile(page: Page, body: Record<string, unknown>) {
-  return page.evaluate(async (payload) => {
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(payload),
-    })
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-    return { ok: response.ok, status: response.status, data }
-  }, body)
-}
 
 test.describe('public profile page', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -60,7 +39,7 @@ test.describe('public profile page', () => {
     await registerAndLogin(page, { name: 'Public Page User', email, password: 'password123' })
 
     const slug = `public-page-${Date.now()}`
-    const patchResult = await patchProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Sober Hero',
       publicSlug: slug,
       sobrietyStartedAt: '2024-01-01',
@@ -104,7 +83,7 @@ test.describe('public profile page', () => {
     await registerAndLogin(page, { name: 'Private User', email, password: 'password123' })
 
     const slug = `private-page-${Date.now()}`
-    await patchProfile(page, {
+    await patchSoberProfile(page, {
       displayName: 'Private User',
       publicSlug: slug,
       pageVisibility: 'private',
@@ -132,7 +111,7 @@ test.describe('public profile page', () => {
     await registerAndLogin(page, { name: 'Title User', email, password: 'password123' })
 
     const slug = `title-test-${Date.now()}`
-    await patchProfile(page, {
+    await patchSoberProfile(page, {
       displayName: 'Title User',
       publicSlug: slug,
       sobrietyStartedAt: '2024-01-01',

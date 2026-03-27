@@ -10,8 +10,15 @@ async function setCalculatorDate(
 ) {
   const dateInput = page.getByRole('textbox', { name: /sober start date$/i })
   await dateInput.fill(isoDate)
-  // Small wait for Vue computed to process
-  await page.waitForTimeout(200)
+  // Wait for Vue computed to process and render the result
+  await page.waitForFunction(
+    (iso) => {
+      const input = document.querySelector<HTMLInputElement>('#sober-start')
+      return input?.value === iso
+    },
+    isoDate,
+    { timeout: 3_000 },
+  )
 }
 
 function isoDateDaysAgo(daysAgo: number): string {
