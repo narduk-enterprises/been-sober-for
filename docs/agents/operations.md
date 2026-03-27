@@ -135,14 +135,28 @@ Important config notes:
 
 ## GitHub Copilot agent environment
 
-Coding agents (for example the **provisioned-app-build** workflow) use the
-GitHub Actions **environment `copilot`**. Populate it from a **narrow Doppler
-config** on this project (often **`prd_copilot`** or **`copilot`**, not all of
-`prd`):
+Coding agents (for example **provisioned-app-build** and **cli-visual-qa**) use
+the GitHub Actions **environment `copilot`**. Agentic workflows declare
+`environment: copilot` so `${{ secrets.COPILOT_GITHUB_TOKEN }}` and related keys
+resolve from that environment.
+
+Populate it from a **narrow Doppler config** on this project (often
+**`prd_copilot`** or **`copilot`**, not all of `prd`). Keep
+**`COPILOT_GITHUB_TOKEN`** in Doppler under that config; the sync script includes
+it in the **minimal** set pushed to GitHub.
+
+GitHub Agentic Workflows run an **activation** job that validates
+`COPILOT_GITHUB_TOKEN` before jobs that use `environment: copilot`. That
+activation job does not attach the environment, so it only reads **repository**
+secrets for that variable. `sync:copilot-secrets` therefore sets
+`COPILOT_GITHUB_TOKEN` on the **`copilot` environment** and **mirrors the same
+value** to the **repository** secret of the same name (other keys stay
+environment-only).
 
 ```bash
 # From a template or tooling checkout with the script (see tools/AGENTS.md)
 pnpm run sync:copilot-secrets -- <doppler-project-slug>
+pnpm run sync:copilot-secrets -- <doppler-project-slug> --doppler-config=prd_copilot
 ```
 
 Doppler `GITHUB_*` keys become **`GH_*`** on GitHub. Document required **names**

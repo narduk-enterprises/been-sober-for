@@ -20,6 +20,10 @@ permissions:
   issues: read
   pull-requests: read
 
+# Secrets such as COPILOT_GITHUB_TOKEN: GitHub Actions environment `copilot`
+# (sync from Doppler `prd_copilot` / `copilot` via `pnpm run sync:copilot-secrets`).
+environment: copilot
+
 # AI engine to use for this workflow
 engine: copilot
 

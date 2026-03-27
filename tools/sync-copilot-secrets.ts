@@ -18,6 +18,10 @@
  * GitHub forbids secret names starting with GITHUB_. This tool renames those to GH_*
  * when pushing (e.g. GITHUB_TOKEN_PACKAGES_READ → GH_TOKEN_PACKAGES_READ). Use the
  * GH_* name in copilot-setup-steps.yml.
+ *
+ * COPILOT_GITHUB_TOKEN is also written as a repository secret (same value) so
+ * GitHub Agentic Workflows' activation job can validate it (activation has no
+ * `environment:`; other jobs use the `copilot` environment).
  */
 
 import { spawnSync } from 'node:child_process'
@@ -27,6 +31,7 @@ import { runCommand } from './command'
 const MINIMAL_COPILOT_DOPPLER_KEYS = new Set([
   'CLOUDFLARE_ACCOUNT_ID',
   'CLOUDFLARE_API_TOKEN',
+  'COPILOT_GITHUB_TOKEN',
   'GITHUB_TOKEN_PACKAGES_READ',
   'NODE_AUTH_TOKEN',
 ])
@@ -192,6 +197,20 @@ function ghSecretSet(repo: string, envName: string, secretName: string, value: s
   }
 }
 
+/** Repository-level secret (no `--env`). Needed for gh-aw: the activation job validates COPILOT_GITHUB_TOKEN before jobs that declare `environment: copilot`. */
+function ghRepoSecretSet(repo: string, secretName: string, value: string): void {
+  const r = spawnSync('gh', ['secret', 'set', secretName, '--repo', repo], {
+    input: value,
+    encoding: 'utf-8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  if (r.status !== 0) {
+    const err = (r.stderr || r.stdout || '').toString().trim()
+    console.error(`❌ gh secret set ${secretName} (repo) failed: ${err}`)
+    process.exit(1)
+  }
+}
+
 function main(): void {
   const argv = process.argv.slice(2).filter((a) => a !== '--')
   const { slug, org, githubRepo, dopplerConfig, ghEnv, dryRun, allSecrets } = parseArgs(argv)
@@ -264,6 +283,10 @@ function main(): void {
     const suffix = githubKey !== dopplerKey ? ` → ${githubKey}` : ''
     console.log(`  … ${dopplerKey}${suffix}`)
     ghSecretSet(repo, ghEnv, githubKey, value)
+    if (githubKey === 'COPILOT_GITHUB_TOKEN') {
+      console.log(`  … ${githubKey} (repo, for gh-aw activation job)`)
+      ghRepoSecretSet(repo, githubKey, value)
+    }
   }
 
   console.log('✅ Sync complete.')

@@ -21,7 +21,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"658a28fb52a36573e16f95dc603add2b8957eec84dacdf7e4951bad91f1efa53","compiler_version":"v0.63.1","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc50b19767443b99242bd4a65504b36ea1f272fbf677d91b0a7541cc0261452","compiler_version":"v0.63.1","strict":true,"agent_id":"copilot"}
 
 name: "CLI visual QA (Playwright + screenshots + DOM)"
 "on":
@@ -236,6 +236,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
+    environment: copilot
     permissions:
       contents: read
       issues: read
@@ -863,6 +864,7 @@ jobs:
       - safe_outputs
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
+    environment: copilot
     permissions:
       contents: read
       issues: write
@@ -965,6 +967,7 @@ jobs:
     needs: agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
+    environment: copilot
     permissions:
       contents: read
       issues: write

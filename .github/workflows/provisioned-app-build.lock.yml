@@ -21,7 +21,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"825690c07ab4a5aa3592ec1dd381a3990de6d972e767c1fe1cd90a013d4cd2c9","compiler_version":"v0.63.1","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"21e9fe2465e6460fd8b6551adaf2dae07d0ea3c9e511f4609249cc59507dbd08","compiler_version":"v0.63.1","strict":true,"agent_id":"copilot"}
 
 name: "provisioned-app-build"
 "on":
@@ -239,6 +239,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
+    environment: copilot
     permissions:
       contents: read
       issues: read
@@ -904,6 +905,7 @@ jobs:
       - safe_outputs
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
+    environment: copilot
     permissions:
       contents: write
       issues: write
@@ -1025,6 +1027,7 @@ jobs:
       - agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.agent.outputs.detection_success == 'true'
     runs-on: ubuntu-slim
+    environment: copilot
     permissions:
       contents: write
       issues: write
