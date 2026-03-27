@@ -128,7 +128,12 @@ const breakdown = computed(() => {
           description="Use the calendar, or type MM/DD/YYYY (or YYYY-MM-DD). We update the count as you go."
         >
           <div class="flex max-w-md flex-col gap-3 sm:flex-row sm:items-center">
-            <UInput id="sober-start" v-model="startDate" type="date" class="w-full sm:max-w-[11rem]" />
+            <UInput
+              id="sober-start"
+              v-model="startDate"
+              type="date"
+              class="w-full sm:max-w-[11rem]"
+            />
             <UInput
               v-model="typedDate"
               type="text"
@@ -142,7 +147,10 @@ const breakdown = computed(() => {
             />
           </div>
         </UFormField>
-        <div v-if="soberDays !== null && breakdown" class="mt-8 rounded-2xl bg-primary-50/80 px-4 py-6 text-center dark:bg-primary-950/35">
+        <div
+          v-if="soberDays !== null && breakdown"
+          class="mt-8 rounded-2xl bg-primary-50/80 px-4 py-6 text-center dark:bg-primary-950/35"
+        >
           <p class="text-primary-700 dark:text-primary-300 text-sm font-medium">
             You have been sober for
           </p>
@@ -157,14 +165,20 @@ const breakdown = computed(() => {
             {{ breakdown.days }} day<span v-if="breakdown.days !== 1">s</span>
           </p>
           <p class="text-muted mx-auto mt-5 max-w-sm text-sm leading-relaxed">
-            Want to keep this count on a shareable page? Create a free account—your date and profile stay
-            private until you choose to share.
+            Want to keep this count on a shareable page? Create a free account—your date and profile
+            stay private until you choose to share.
           </p>
           <div class="mt-5 flex flex-wrap justify-center gap-2">
             <UButton to="/register" color="primary" size="lg" icon="i-lucide-plus"
               >Save this on my page</UButton
             >
-            <UButton to="/example" color="neutral" variant="outline" size="lg" icon="i-lucide-user-round">
+            <UButton
+              to="/example"
+              color="neutral"
+              variant="outline"
+              size="lg"
+              icon="i-lucide-user-round"
+            >
               View example profile
             </UButton>
           </div>

@@ -304,6 +304,43 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
+function extractSyncManagedRepoNamesFromSource(source: string): string[] {
+  const startMarker = 'export const MANAGED_REPOS = ['
+  const endMarker = '] satisfies readonly ManagedRepo[]'
+  const startIndex = source.indexOf(startMarker)
+  const endIndex = source.indexOf(endMarker, startIndex)
+  if (startIndex === -1 || endIndex === -1) return []
+
+  const arrayBody = source.slice(startIndex + startMarker.length, endIndex)
+  const objects: string[] = []
+  let depth = 0
+  let objectStart = -1
+
+  for (let index = 0; index < arrayBody.length; index += 1) {
+    const char = arrayBody[index]
+    if (char === '{') {
+      if (depth === 0) objectStart = index
+      depth += 1
+      continue
+    }
+
+    if (char !== '}') continue
+
+    depth -= 1
+    if (depth === 0 && objectStart !== -1) {
+      objects.push(arrayBody.slice(objectStart, index + 1))
+      objectStart = -1
+    }
+  }
+
+  return objects
+    .filter((objectText) => /\bsyncManaged:\s*true\b/.test(objectText))
+    .filter((objectText) => /\bisActive:\s*true\b/.test(objectText))
+    .map((objectText) => objectText.match(/\bname:\s*'([^']+)'/)?.[1] ?? null)
+    .filter((name): name is string => Boolean(name))
+    .sort((left, right) => left.localeCompare(right))
+}
+
 async function checkFleetManifestParity(): Promise<CheckResult> {
   const manifestPath = firstExistingPath(
     TEMPLATE_REPO_DIR_HINTS.map((dir) =>
@@ -344,21 +381,31 @@ async function checkFleetManifestParity(): Promise<CheckResult> {
     }
   }
 
-  const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
-    getSyncManagedRepos?: () => Array<{ name: string }>
+  let expectedRepos: string[] = []
+  try {
+    const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
+      getSyncManagedRepos?: () => Array<{ name: string }>
+    }
+    if (typeof managedReposModule.getSyncManagedRepos === 'function') {
+      expectedRepos = managedReposModule
+        .getSyncManagedRepos()
+        .map((repo) => repo.name)
+        .sort((left, right) => left.localeCompare(right))
+    }
+  } catch {}
+
+  if (expectedRepos.length === 0) {
+    expectedRepos = extractSyncManagedRepoNamesFromSource(readFileSync(managedReposPath, 'utf8'))
   }
-  if (typeof managedReposModule.getSyncManagedRepos !== 'function') {
+
+  if (expectedRepos.length === 0) {
     return {
       status: 'fail',
-      summary: 'managed-repos module does not export getSyncManagedRepos()',
+      summary: 'could not resolve sync-managed repos from managed-repos.ts',
       detail: managedReposPath,
     }
   }
 
-  const expectedRepos = managedReposModule
-    .getSyncManagedRepos()
-    .map((repo) => repo.name)
-    .sort((left, right) => left.localeCompare(right))
   const actualRepos = [...new Set(manifest.repos)].sort((left, right) => left.localeCompare(right))
   const missing = expectedRepos.filter((repo) => !actualRepos.includes(repo))
   const extra = actualRepos.filter((repo) => !expectedRepos.includes(repo))

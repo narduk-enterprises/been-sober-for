@@ -112,7 +112,10 @@ const avatarAlt = computed(() => {
       {{ profile.shortMessage }}
     </p>
 
-    <div v-if="showQrBlock" class="mt-8 flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md">
+    <div
+      v-if="showQrBlock"
+      class="mt-8 flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md"
+    >
       <BsfQrCode :url="profileUrl" :size="qrPixelSize" />
     </div>
 

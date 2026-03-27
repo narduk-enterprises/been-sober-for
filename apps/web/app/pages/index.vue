@@ -4,9 +4,7 @@ definePageMeta({ layout: 'marketing' })
 const runtimeConfig = useRuntimeConfig()
 const publicConfig = runtimeConfig.public
 const appName =
-  publicConfig.appName && publicConfig.appName.length > 0
-    ? publicConfig.appName
-    : 'BeenSoberFor'
+  publicConfig.appName && publicConfig.appName.length > 0 ? publicConfig.appName : 'BeenSoberFor'
 
 const pageTitle = `${appName} | Simple Sobriety Day Counter`
 const pageDescription =
