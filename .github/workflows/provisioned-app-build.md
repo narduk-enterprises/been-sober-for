@@ -35,6 +35,9 @@ tools:
 # Network access
 network: defaults
 
+# Default gh-aw agent timeout is 20m; full builds benefit from 30m.
+timeout-minutes: 30
+
 # Outputs - what APIs and tools can the AI use?
 safe-outputs:
   create-issue:

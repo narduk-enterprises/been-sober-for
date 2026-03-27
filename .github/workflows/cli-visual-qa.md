@@ -26,6 +26,9 @@ tools:
 
 network: defaults
 
+# Agent job default is 20m; Playwright + install + screenshots needs more headroom.
+timeout-minutes: 30
+
 safe-outputs:
   create-issue:
     max: 2
