@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
   expect,
@@ -8,52 +7,7 @@ import {
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-/** Register a new user, set up their profile, and navigate to the dashboard. */
-async function registerAndSetupProfile(
-  page: Page,
-  options: {
-    displayName: string
-    sobrietyStartedAt: string
-    slug?: string
-    shortMessage?: string
-    pageVisibility?: 'private' | 'unlisted' | 'public'
-  },
-) {
-  const email = createUniqueEmail('dashboard')
-  await registerAndLogin(page, {
-    name: options.displayName,
-    email,
-    password: 'password123',
-  })
-
-  // Patch profile via API
-  const body: Record<string, unknown> = {
-    displayName: options.displayName,
-    sobrietyStartedAt: options.sobrietyStartedAt,
-  }
-  if (options.slug) body.publicSlug = options.slug
-  if (options.shortMessage) body.shortMessage = options.shortMessage
-  if (options.pageVisibility) body.pageVisibility = options.pageVisibility
-
-  await page.evaluate(
-    async ({ body }) => {
-      const resp = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify(body),
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-      return resp.json()
-    },
-    { body },
-  )
-
-  return { email }
-}
+import { registerAndSetupProfile } from './helpers'
 
 test.describe('dashboard', () => {
   test.beforeAll(async ({ browser, baseURL }) => {

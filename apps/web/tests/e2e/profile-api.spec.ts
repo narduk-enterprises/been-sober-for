@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
   expect,
@@ -8,40 +7,7 @@ import {
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-async function patchProfileViaApi(
-  page: Page,
-  body: Record<string, unknown>,
-): Promise<{ status: number; payload: unknown }> {
-  return page.evaluate(async (body) => {
-    const resp = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(body),
-    })
-    const text = await resp.text()
-    let payload = null
-    try {
-      payload = text ? JSON.parse(text) : null
-    } catch {
-      payload = null
-    }
-    return { status: resp.status, payload }
-  }, body)
-}
-
-async function getProfileViaApi(page: Page) {
-  return page.evaluate(async () => {
-    const resp = await fetch('/api/profile', {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-    if (!resp.ok) throw new Error(await resp.text())
-    return resp.json()
-  })
-}
+import { patchProfileRaw, patchProfileViaApi, getProfileViaApi } from './helpers'
 
 test.describe('profile API validation', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -67,7 +33,7 @@ test.describe('profile API validation', () => {
     await page.goto('/')
     await waitForHydration(page)
 
-    const result = await patchProfileViaApi(page, { displayName: 'Test' })
+    const result = await patchProfileRaw(page, { displayName: 'Test' })
     expect(result.status).toBe(401)
   })
 
@@ -78,7 +44,7 @@ test.describe('profile API validation', () => {
     const email = createUniqueEmail('patchmin')
     await registerAndLogin(page, { name: 'Patch Min', email, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, {})
+    const result = await patchProfileRaw(page, {})
     expect(result.status).toBe(400)
   })
 
@@ -90,7 +56,7 @@ test.describe('profile API validation', () => {
     await registerAndLogin(page, { name: 'Patch Long', email, password: 'password123' })
 
     const longName = 'A'.repeat(81)
-    const result = await patchProfileViaApi(page, { displayName: longName })
+    const result = await patchProfileRaw(page, { displayName: longName })
     expect(result.status).toBe(400)
   })
 
@@ -101,7 +67,7 @@ test.describe('profile API validation', () => {
     const email = createUniqueEmail('patchshort')
     await registerAndLogin(page, { name: 'Patch Short', email, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, { displayName: 'Test', publicSlug: 'ab' })
+    const result = await patchProfileRaw(page, { displayName: 'Test', publicSlug: 'ab' })
     expect(result.status).toBe(400)
   })
 
@@ -113,7 +79,7 @@ test.describe('profile API validation', () => {
     await registerAndLogin(page, { name: 'Patch Long Slug', email, password: 'password123' })
 
     const longSlug = 'a'.repeat(33)
-    const result = await patchProfileViaApi(page, { displayName: 'Test', publicSlug: longSlug })
+    const result = await patchProfileRaw(page, { displayName: 'Test', publicSlug: longSlug })
     expect(result.status).toBe(400)
   })
 
@@ -124,7 +90,7 @@ test.describe('profile API validation', () => {
     const email = createUniqueEmail('patchreserved')
     await registerAndLogin(page, { name: 'Patch Reserved', email, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, { displayName: 'Test', publicSlug: 'dashboard' })
+    const result = await patchProfileRaw(page, { displayName: 'Test', publicSlug: 'dashboard' })
     // Should be 400 (invalid slug) or 409 (conflict)
     expect([400, 409]).toContain(result.status)
   })
@@ -135,7 +101,7 @@ test.describe('profile API validation', () => {
 
     // Create first user with a slug
     const email1 = createUniqueEmail('patchdup1')
-    await registerAndLogin(page, { name: 'Dup User 1', email1, password: 'password123' })
+    await registerAndLogin(page, { name: 'Dup User 1', email: email1, password: 'password123' })
 
     const uniqueSlug = `dup-${Date.now().toString(36)}`
     await patchProfileViaApi(page, { displayName: 'Dup User 1', publicSlug: uniqueSlug })
@@ -154,7 +120,7 @@ test.describe('profile API validation', () => {
     })
     await registerAndLogin(page, { name: 'Dup User 2', email: email2, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, {
+    const result = await patchProfileRaw(page, {
       displayName: 'Dup User 2',
       publicSlug: uniqueSlug,
     })
@@ -169,7 +135,7 @@ test.describe('profile API validation', () => {
     await registerAndLogin(page, { name: 'Patch Msg', email, password: 'password123' })
 
     const longMessage = 'A'.repeat(281)
-    const result = await patchProfileViaApi(page, {
+    const result = await patchProfileRaw(page, {
       displayName: 'Patch Msg',
       shortMessage: longMessage,
     })
@@ -184,7 +150,7 @@ test.describe('profile API validation', () => {
     await registerAndLogin(page, { name: 'Patch Vis', email, password: 'password123' })
 
     for (const vis of ['private', 'unlisted', 'public']) {
-      const result = await patchProfileViaApi(page, {
+      const result = await patchProfileRaw(page, {
         displayName: 'Patch Vis',
         pageVisibility: vis,
       })
@@ -199,7 +165,7 @@ test.describe('profile API validation', () => {
     const email = createUniqueEmail('patchbadvis')
     await registerAndLogin(page, { name: 'Bad Vis', email, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, {
+    const result = await patchProfileRaw(page, {
       displayName: 'Bad Vis',
       pageVisibility: 'invalid_value',
     })
@@ -213,7 +179,7 @@ test.describe('profile API validation', () => {
     const email = createUniqueEmail('patchbadlayout')
     await registerAndLogin(page, { name: 'Bad Layout', email, password: 'password123' })
 
-    const result = await patchProfileViaApi(page, {
+    const result = await patchProfileRaw(page, {
       displayName: 'Bad Layout',
       shareLayout: 'totally_invalid',
     })

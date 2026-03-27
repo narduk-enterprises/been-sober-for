@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
   expect,
@@ -8,51 +7,7 @@ import {
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-async function patchProfileViaApi(page: Page, body: Record<string, unknown>) {
-  return page.evaluate(
-    async ({ body }) => {
-      const resp = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify(body),
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-      return resp.json()
-    },
-    { body },
-  )
-}
-
-async function getProfileViaApi(page: Page) {
-  return page.evaluate(async () => {
-    const resp = await fetch('/api/profile', {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-    if (!resp.ok) throw new Error(await resp.text())
-    return resp.json()
-  })
-}
-
-async function fetchPublicProfile(
-  page: Page,
-  slug: string,
-): Promise<{ status: number; payload: unknown }> {
-  return page.evaluate(async (slug) => {
-    const resp = await fetch(`/api/public/profile/${slug}`)
-    const text = await resp.text()
-    let payload = null
-    try {
-      payload = text ? JSON.parse(text) : null
-    } catch {
-      payload = null
-    }
-    return { status: resp.status, payload }
-  }, slug)
-}
+import { patchProfileViaApi, fetchPublicProfile } from './helpers'
 
 test.describe('public profile', () => {
   test.beforeAll(async ({ browser, baseURL }) => {

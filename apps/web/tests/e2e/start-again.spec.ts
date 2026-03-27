@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
   expect,
@@ -8,58 +7,7 @@ import {
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-async function patchProfileViaApi(page: Page, body: Record<string, unknown>) {
-  return page.evaluate(
-    async ({ body }) => {
-      const resp = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify(body),
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-      return resp.json()
-    },
-    { body },
-  )
-}
-
-async function getProfileViaApi(page: Page) {
-  return page.evaluate(async () => {
-    const resp = await fetch('/api/profile', {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-    if (!resp.ok) throw new Error(await resp.text())
-    return resp.json()
-  })
-}
-
-async function startAgainViaApi(
-  page: Page,
-  body: { startedAt: string; confirmed: boolean },
-): Promise<{ status: number; payload: unknown }> {
-  return page.evaluate(async (body) => {
-    const resp = await fetch('/api/profile/start-again', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(body),
-    })
-    const text = await resp.text()
-    let payload = null
-    try {
-      payload = text ? JSON.parse(text) : null
-    } catch {
-      payload = null
-    }
-    return { status: resp.status, payload }
-  }, body)
-}
+import { patchProfileViaApi, getProfileViaApi, startAgainRaw } from './helpers'
 
 test.describe('start again flow', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -177,7 +125,7 @@ test.describe('start again flow', () => {
     newDate.setDate(newDate.getDate() - 5)
     const newDateStr = newDate.toISOString().split('T')[0]!
 
-    const result = await startAgainViaApi(page, {
+    const result = await startAgainRaw(page, {
       startedAt: newDateStr,
       confirmed: true,
     })
@@ -199,7 +147,7 @@ test.describe('start again flow', () => {
     futureDate.setDate(futureDate.getDate() + 30)
     const futureDateStr = futureDate.toISOString().split('T')[0]!
 
-    const result = await startAgainViaApi(page, {
+    const result = await startAgainRaw(page, {
       startedAt: futureDateStr,
       confirmed: true,
     })
@@ -217,7 +165,7 @@ test.describe('start again flow', () => {
     pastDate.setDate(pastDate.getDate() - 5)
     const dateStr = pastDate.toISOString().split('T')[0]!
 
-    const result = await startAgainViaApi(page, {
+    const result = await startAgainRaw(page, {
       startedAt: dateStr,
       confirmed: false,
     })
@@ -232,7 +180,7 @@ test.describe('start again flow', () => {
     pastDate.setDate(pastDate.getDate() - 5)
     const dateStr = pastDate.toISOString().split('T')[0]!
 
-    const result = await startAgainViaApi(page, {
+    const result = await startAgainRaw(page, {
       startedAt: dateStr,
       confirmed: true,
     })

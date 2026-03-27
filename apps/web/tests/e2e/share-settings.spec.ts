@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
   expect,
@@ -8,34 +7,7 @@ import {
   warmUpApp,
   registerAndLogin,
 } from './fixtures'
-
-async function patchProfileViaApi(page: Page, body: Record<string, unknown>) {
-  return page.evaluate(
-    async ({ body }) => {
-      const resp = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify(body),
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-      return resp.json()
-    },
-    { body },
-  )
-}
-
-async function getProfileViaApi(page: Page) {
-  return page.evaluate(async () => {
-    const resp = await fetch('/api/profile', {
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-    if (!resp.ok) throw new Error(await resp.text())
-    return resp.json()
-  })
-}
+import { patchProfileViaApi, getProfileViaApi } from './helpers'
 
 test.describe('share settings page', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
