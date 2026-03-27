@@ -1,0 +1,29 @@
+name: gh-aw compile
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**/*.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**/*.md"
+
+concurrency:
+  group: gh-aw-compile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-aw
+        run: curl -sSL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
+
+      - name: Compile agentic workflows
+        run: $HOME/.local/share/gh/extensions/gh-aw/gh-aw compile --validate
+
+      - name: Fail if generated files drifted
+        run: git diff --exit-code -- .github/aw/actions-lock.json .github/workflows

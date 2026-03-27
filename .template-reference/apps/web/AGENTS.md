@@ -9,6 +9,9 @@ deployed as a Cloudflare Worker.
 - **Do not duplicate layer-provided files.** Check the "Layer Inventory" section
   in the root [AGENTS.md](../../../AGENTS.md) before creating new composables,
   plugins, middleware, or server utils.
+- **Do not patch `layers/narduk-nuxt-layer/` from a downstream app.** Layer
+  changes belong in `narduk-nuxt-template` and will be overwritten here by
+  template sync or `update-layer`.
 - All Cloudflare Workers hard constraints apply here (no Node.js modules, Web
   Crypto only, Drizzle ORM only).
 - Every page must call `useSeo()` and a `useSchemaOrg()` helper.

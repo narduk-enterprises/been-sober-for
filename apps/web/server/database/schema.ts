@@ -6,4 +6,5 @@
  * generated from app-schema.ts, not from this file.
  */
 export * from '#layer/server/database/schema'
+export * from '#server/database/auth-bridge-schema'
 export * from './app-schema'

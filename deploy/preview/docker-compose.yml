@@ -1,0 +1,25 @@
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/preview/Dockerfile
+      secrets:
+        - source: github_token
+          target: github_token
+    command:
+      - bash
+      - -lc
+      - |
+        pnpm --dir apps/web run db:ready
+        pnpm --dir apps/web exec nuxt dev --host 0.0.0.0 --port "$${NUXT_PORT}"
+    environment:
+      NODE_ENV: development
+      NUXT_PORT: 3000
+      SITE_URL: ${SITE_URL:-http://127.0.0.1:${PREVIEW_HOST_PORT:-3000}}
+    ports:
+      - 127.0.0.1:${PREVIEW_HOST_PORT:-3000}:3000
+    restart: unless-stopped
+
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN

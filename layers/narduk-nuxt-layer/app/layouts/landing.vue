@@ -2,7 +2,7 @@
 /**
  * A standard, unconstrained layout designed for full-bleed landing pages.
  * Unlike the default layout, it opts out of the max-w-7xl px-4 container,
- * allowing英雄 (hero) sections and content blocks to stretch edge-to-edge.
+ * allowing hero sections and content blocks to stretch edge-to-edge.
  */
 </script>
 

@@ -1,6 +1,6 @@
 {
   "source": "control-plane/apps/web/server/data/managed-repos.ts",
-  "repoCount": 30,
+  "repoCount": 31,
   "repos": [
     "ai-media-gen",
     "austin-texas-net",
@@ -15,6 +15,7 @@
     "flashcard-pro",
     "imessage-dictionary",
     "lucys-loomies",
+    "myboat",
     "nagolnagemluapleira",
     "napkinbets",
     "narduk-ai",

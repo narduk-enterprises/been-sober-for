@@ -117,6 +117,21 @@ export function defineSharedNotificationsContract(
       expect(notification).toHaveProperty('createdAt')
     })
 
+    test('mark-all-read clears unread count', async ({ page }) => {
+      await page.goto('/')
+      await waitForHydration(page)
+
+      await loginAsAdmin(page)
+
+      const countBefore = await fetchUnreadCountViaApi(page)
+      expect(countBefore).toBeGreaterThan(0)
+
+      await markAllNotificationsReadViaApi(page)
+
+      const countAfter = await fetchUnreadCountViaApi(page)
+      expect(countAfter).toBe(0)
+    })
+
     test('PATCH /api/notifications/:id marks single notification as read', async ({ page }) => {
       await page.goto('/')
       await waitForHydration(page)
@@ -143,21 +158,6 @@ export function defineSharedNotificationsContract(
 
       const countAfter = await fetchUnreadCountViaApi(page)
       expect(countAfter).toBeLessThanOrEqual(countBefore - 1)
-    })
-
-    test('mark-all-read clears unread count', async ({ page }) => {
-      await page.goto('/')
-      await waitForHydration(page)
-
-      await loginAsAdmin(page)
-
-      const countBefore = await fetchUnreadCountViaApi(page)
-      expect(countBefore).toBeGreaterThan(0)
-
-      await markAllNotificationsReadViaApi(page)
-
-      const countAfter = await fetchUnreadCountViaApi(page)
-      expect(countAfter).toBe(0)
     })
 
     test('DELETE /api/notifications/:id requires authentication', async ({ page }) => {

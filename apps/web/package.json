@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "db:ready": "pnpm run db:migrate && pnpm run db:seed",
     "predev": "pnpm run db:ready",
-    "dev": "doppler run --config dev -- nuxt dev",
+    "dev": "(doppler run -- nuxt dev || nuxt dev)",
     "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
     "db:migrate": "bash ../../tools/db-migrate.sh been-sober-for-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle",
     "db:seed": "wrangler d1 execute been-sober-for-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
@@ -31,7 +31,9 @@
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
     "qrcode": "^1.5.4",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@supabase/auth-js": "^2.100.1",
+    "@supabase/supabase-js": "^2.100.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",

@@ -17,9 +17,28 @@
  *   />
  */
 
+type ConfirmColor =
+  | 'error'
+  | 'info'
+  | 'primary'
+  | 'secondary'
+  | 'success'
+  | 'warning'
+  | 'neutral'
+
+const ICON_TONE_CLASSES: Record<ConfirmColor, string> = {
+  error: 'bg-error/10 text-error',
+  info: 'bg-info/10 text-info',
+  neutral: 'bg-neutral/10 text-neutral',
+  primary: 'bg-primary/10 text-primary',
+  secondary: 'bg-secondary/10 text-secondary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+}
+
 const modelValue = defineModel<boolean>({ default: false })
 
-const _props = withDefaults(
+const props = withDefaults(
   defineProps<{
     /** Modal title. */
     title?: string
@@ -32,7 +51,7 @@ const _props = withDefaults(
     /** Cancel button label. */
     cancelLabel?: string
     /** Confirm button color. */
-    confirmColor?: 'error' | 'info' | 'primary' | 'secondary' | 'success' | 'warning' | 'neutral'
+    confirmColor?: ConfirmColor
     /** Whether the confirm button shows a loading spinner. */
     loading?: boolean
     /** Whether the modal can be closed by clicking outside or pressing Escape. */
@@ -51,10 +70,11 @@ const _props = withDefaults(
 )
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
   confirm: []
   cancel: []
 }>()
+
+const iconToneClass = computed(() => ICON_TONE_CLASSES[props.confirmColor])
 
 function handleConfirm() {
   emit('confirm')
@@ -67,42 +87,42 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal v-model:open="modelValue" :dismissible="dismissible">
-    <template #content>
-      <div class="p-6 space-y-4">
-        <!-- Header -->
-        <div class="flex items-start gap-3">
-          <div
-            v-if="icon"
-            class="shrink-0 flex size-10 items-center justify-center rounded-full bg-error/10 text-error"
-          >
-            <UIcon :name="icon" class="size-5" />
-          </div>
-          <div>
-            <h3 class="font-semibold text-default text-lg">{{ title }}</h3>
-            <p v-if="message" class="mt-1 text-sm text-muted">{{ message }}</p>
-          </div>
+  <UModal v-model:open="modelValue" :dismissible="props.dismissible" :close="false">
+    <template #header>
+      <div class="flex items-start gap-3">
+        <div
+          v-if="props.icon"
+          :class="iconToneClass"
+          class="flex size-10 shrink-0 items-center justify-center rounded-full"
+        >
+          <UIcon :name="props.icon" class="size-5" />
         </div>
-
-        <!-- Extra content slot -->
-        <slot />
-
-        <!-- Actions -->
-        <div class="flex justify-end gap-2 pt-2">
-          <UButton
-            color="neutral"
-            variant="soft"
-            :label="cancelLabel"
-            :disabled="loading"
-            @click="handleCancel"
-          />
-          <UButton
-            :color="confirmColor"
-            :label="confirmLabel"
-            :loading="loading"
-            @click="handleConfirm"
-          />
+        <div class="space-y-1">
+          <h3 class="text-lg font-semibold text-default">{{ props.title }}</h3>
+          <p v-if="props.message" class="text-sm text-muted">{{ props.message }}</p>
         </div>
+      </div>
+    </template>
+
+    <div v-if="$slots.default" class="space-y-4">
+      <slot />
+    </div>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :label="props.cancelLabel"
+          :disabled="props.loading"
+          @click="handleCancel"
+        />
+        <UButton
+          :color="props.confirmColor"
+          :label="props.confirmLabel"
+          :loading="props.loading"
+          @click="handleConfirm"
+        />
       </div>
     </template>
   </UModal>

@@ -63,7 +63,6 @@ export const RATE_LIMIT_POLICIES = {
   authApiKeys: { namespace: 'auth-api-keys', maxRequests: 60, windowMs: MINUTE },
   authLogout: { namespace: 'auth-logout', maxRequests: 30, windowMs: MINUTE },
   authProfile: { namespace: 'auth-profile', maxRequests: 30, windowMs: MINUTE },
-  publicProfile: { namespace: 'public-profile', maxRequests: 60, windowMs: MINUTE },
   notifications: { namespace: 'notifications', maxRequests: 60, windowMs: MINUTE },
   ownerTag: { namespace: 'owner-tag', maxRequests: 10, windowMs: MINUTE },
   upload: { namespace: 'upload', maxRequests: 60, windowMs: MINUTE },

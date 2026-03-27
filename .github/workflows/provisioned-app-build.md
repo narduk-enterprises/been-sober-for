@@ -20,10 +20,6 @@ permissions:
   issues: read
   pull-requests: read
 
-# Secrets such as COPILOT_GITHUB_TOKEN: GitHub Actions environment `copilot`
-# (sync from Doppler `prd_copilot` / `copilot` via `pnpm run sync:copilot-secrets`).
-environment: copilot
-
 # AI engine to use for this workflow
 engine: copilot
 
@@ -34,9 +30,6 @@ tools:
 
 # Network access
 network: defaults
-
-# Default gh-aw agent timeout is 20m; full builds benefit from 30m.
-timeout-minutes: 30
 
 # Outputs - what APIs and tools can the AI use?
 safe-outputs:
@@ -108,8 +101,8 @@ All implementation work happens on branch **`integrate/build`**. Finish with
 **one pull request** into **`main`**.
 
 Secrets for install/build (registry, optional Cloudflare) come from the GitHub
-Actions **environment `copilot`** — synced from Doppler **`prd_copilot`** (or
-**`copilot`** if `prd_copilot` is missing) via
+Actions **environment `copilot`** — synced from Doppler config **`copilot`** /
+**`prd_copilot`** / **`dev_copilot`** via
 `pnpm run sync:copilot-secrets -- <doppler-project-slug>` in the template repo.
 Never print secret values or commit `.env`.
 
@@ -165,8 +158,8 @@ Never print secret values or commit `.env`.
 ## Skills (deep reference when needed)
 
 Repo `.github/skills/`: **nuxt-patterns**, **vue-best-practices**, **nuxt-ui**,
-Cloudflare **workers-best-practices** / **wrangler**, **playwright**,
-**code-reviewer**.
+**build-spec**, Cloudflare **workers-best-practices** / **wrangler**,
+**playwright**, **code-reviewer**.
 
 ## Notes
 

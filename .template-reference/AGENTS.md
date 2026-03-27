@@ -11,17 +11,20 @@ Use this file as the entry point for agent work in this repository.
 
 ## Where Changes Belong
 
-| Change type                                     | Preferred location          |
-| ----------------------------------------------- | --------------------------- |
-| App-specific product work                       | `apps/web/`                 |
-| Shared reusable Nuxt functionality for all apps | `layers/narduk-nuxt-layer/` |
-| Shared ESLint rules and plugins                 | `packages/eslint-config/`   |
-| Local Node.js automation and sync tooling       | `tools/`                    |
-| Shell helper scripts                            | `scripts/`                  |
+| Change type                                     | Preferred location                       |
+| ----------------------------------------------- | ---------------------------------------- |
+| App-specific product work                       | `apps/web/`                              |
+| Shared reusable Nuxt functionality for all apps | `narduk-nuxt-template` then sync/update  |
+| Shared ESLint rules and plugins                 | `packages/eslint-config/`                |
+| Local Node.js automation and sync tooling       | `tools/`                                 |
+| Shell helper scripts                            | `scripts/`                               |
 
 Do not recreate layer-provided composables, plugins, middleware, auth helpers,
 rate limiting, OG image building blocks, or base schema files inside `apps/web`
 without first checking the workspace guide.
+Treat `layers/narduk-nuxt-layer/` as template-owned. Downstream edits in that
+directory are override-only and will be replaced by sync; fix shared behavior in
+`narduk-nuxt-template`, then sync it back into the app.
 
 ## Load The Right Local Instructions
 
@@ -51,10 +54,20 @@ without first checking the workspace guide.
 - If the app extends the database schema, create and use `useAppDatabase(event)`
   in `apps/web/server/utils/database.ts`. Do not shadow the layer's
   `useDatabase`.
+- If you find a defect rooted in template-owned files, sync tooling, or the
+  shared layer while working in this downstream app, open or update a GitHub
+  issue in `narduk-enterprises/narduk-nuxt-template` with a minimal
+  reproduction, the affected app name, and whether the problem lives in
+  authoring workspace files, `.template-reference`, sync tooling, or the layer.
 - Doppler is the source of truth for secrets. Do not add `.env` files.
 - Zero warnings is policy. Do not hide problems with `eslint-disable`,
   `@ts-ignore`, or similar suppressions unless the exception is explicitly
   tracked and justified.
+- Deploy from the repo root with `pnpm run ship`. Do not use
+  `pnpm --filter web run deploy` or `cd apps/web && pnpm run deploy` as the
+  standard path because they bypass root install, drift, and quality checks. If
+  you intentionally take a manual build path after `sync-template` or
+  `update-layer`, run `pnpm install --frozen-lockfile` first.
 
 ## Provisioned app build (GitHub Agentic Workflows)
 
@@ -62,7 +75,7 @@ without first checking the workspace guide.
   `provisioned-app-build`** (or your org’s entry) when ready. Work should land
   on **`integrate/build`** and finish as **one PR** to `main`.
 - Agent-facing secrets: GitHub environment **`copilot`**, populated from Doppler
-  config **`prd_copilot`** (then **`copilot`** if needed) via
+  config **`copilot`** / **`prd_copilot`** via
   `pnpm run sync:copilot-secrets -- <slug>` (run from a checkout that includes
   `tools/sync-copilot-secrets.ts`).
 - Canonical machine input: **`provision.json`**; product spec: **`SPEC.md`** →

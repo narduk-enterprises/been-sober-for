@@ -5,7 +5,7 @@
  * Use this so the client can get a token in authorizationCallback without
  * setting MAPKIT_TOKEN in env. Works for localhost and any configured domain.
  *
- * Requires: APPLE_SECRET_KEY, APPLE_TEAM_ID, APPLE_KEY_ID (same as Server API).
+ * Requires: APPLE_PRIVATE_KEY, APPLE_TEAM_ID, APPLE_KEY_ID (same as Server API).
  * In Apple Developer: create a Maps identifier and a key with MapKit JS enabled.
  */
 import type { H3Event } from 'h3'

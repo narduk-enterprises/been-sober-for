@@ -163,7 +163,7 @@ function isUnexpiredMapKitJwt(token: string): boolean {
 
 /**
  * Get a MapKit JS token for the given origin (e.g. http://localhost:3000).
- * Uses APPLE_SECRET_KEY, APPLE_TEAM_ID, APPLE_KEY_ID from runtime config when set;
+ * Uses APPLE_PRIVATE_KEY / APPLE_SECRET_KEY, APPLE_TEAM_ID, APPLE_KEY_ID from runtime config when set;
  * otherwise returns a non-expired `public.mapkitToken` (MAPKIT_TOKEN / APPLE_MAPKIT_TOKEN) if present.
  * Use from a server route so the client can pass the token to mapkit.init().
  */
@@ -186,7 +186,7 @@ export async function getMapKitJsToken(event: H3Event, origin: string): Promise<
   }
 
   throw new Error(
-    'MapKit JS: set APPLE_SECRET_KEY, APPLE_TEAM_ID, and APPLE_KEY_ID to sign tokens for this origin, ' +
+    'MapKit JS: set APPLE_PRIVATE_KEY (or legacy APPLE_SECRET_KEY), APPLE_TEAM_ID, and APPLE_KEY_ID to sign tokens for this origin, ' +
       'or set a non-expired MAPKIT_TOKEN / APPLE_MAPKIT_TOKEN (JWT) for mapkit.init().',
   )
 }
@@ -283,7 +283,7 @@ export async function getAppleMapsAccessToken(event?: H3Event): Promise<string> 
   if (!privateKeyPem || !teamId || !keyId) {
     throw new Error(
       'Apple Maps config missing. Need either MAPKIT_SERVER_API_KEY (pre-signed JWT) ' +
-        'or APPLE_SECRET_KEY + APPLE_TEAM_ID + APPLE_KEY_ID for PEM signing.',
+        'or APPLE_PRIVATE_KEY + APPLE_TEAM_ID + APPLE_KEY_ID for PEM signing (APPLE_SECRET_KEY still works as a fallback).',
     )
   }
 

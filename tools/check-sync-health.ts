@@ -34,6 +34,16 @@ const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
 const LAYER_PACKAGE_PATH = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
+const LAYER_PUBLIC_DIR = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'public')
+
+/** Paths referenced by `layers/narduk-nuxt-layer/nuxt.config.ts` `app.head.link`. */
+const LAYER_HEAD_ASSET_FILES = [
+  'favicon.svg',
+  'favicon-32x32.png',
+  'favicon-16x16.png',
+  'apple-touch-icon.png',
+  'site.webmanifest',
+] as const
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
 const TEMPLATE_REPO_DIR_HINTS = [
@@ -254,6 +264,84 @@ function checkPublicJunk(): CheckResult {
   }
 }
 
+function manifestIconPathsMissing(publicDir: string): string[] {
+  const manifestPath = join(publicDir, 'site.webmanifest')
+  if (!existsSync(manifestPath)) {
+    return ['site.webmanifest (missing)']
+  }
+
+  const manifest = readJson<{ icons?: Array<{ src?: string }> }>(manifestPath)
+  const icons = manifest?.icons
+  if (!Array.isArray(icons)) {
+    return []
+  }
+
+  const missing: string[] = []
+  for (const icon of icons) {
+    const src = icon?.src
+    if (typeof src !== 'string' || !src.startsWith('/')) continue
+    const relative = src.slice(1)
+    if (!existsSync(join(publicDir, relative))) {
+      missing.push(relative)
+    }
+  }
+  return missing
+}
+
+function checkLayerHeadPublicAssets(): CheckResult {
+  if (!existsSync(LAYER_PUBLIC_DIR)) {
+    return {
+      status: 'warn',
+      summary: 'layer public directory not found',
+    }
+  }
+
+  const missingHead = LAYER_HEAD_ASSET_FILES.filter(
+    (name) => !existsSync(join(LAYER_PUBLIC_DIR, name)),
+  )
+  const missingManifest = manifestIconPathsMissing(LAYER_PUBLIC_DIR)
+
+  const allMissing = [...new Set([...missingHead, ...missingManifest])]
+  if (allMissing.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'layer public assets match nuxt head + webmanifest icon paths',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: `${allMissing.length} missing layer public file(s) for head/manifest`,
+    detail: [
+      ...allMissing.map((f) => `layers/narduk-nuxt-layer/public/${f}`),
+      'Run: pnpm run generate:favicons -- --target=layers/narduk-nuxt-layer/public',
+    ].join('\n'),
+  }
+}
+
+function checkAppWebmanifestIcons(): CheckResult {
+  if (!existsSync(PUBLIC_DIR) || !existsSync(join(PUBLIC_DIR, 'site.webmanifest'))) {
+    return {
+      status: 'pass',
+      summary: 'apps/web/site.webmanifest not present (using layer merge only)',
+    }
+  }
+
+  const missing = manifestIconPathsMissing(PUBLIC_DIR)
+  if (missing.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'apps/web site.webmanifest icon paths resolve under public/',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'apps/web site.webmanifest references missing files',
+    detail: missing.map((f) => `apps/web/public/${f}`).join('\n'),
+  }
+}
+
 function checkReferenceBaselines(): CheckResult {
   const missing = REFERENCE_BASELINE_FILES.filter(
     (relativePath) => !existsSync(join(ROOT_DIR, relativePath)),
@@ -304,43 +392,6 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
-function extractSyncManagedRepoNamesFromSource(source: string): string[] {
-  const startMarker = 'export const MANAGED_REPOS = ['
-  const endMarker = '] satisfies readonly ManagedRepo[]'
-  const startIndex = source.indexOf(startMarker)
-  const endIndex = source.indexOf(endMarker, startIndex)
-  if (startIndex === -1 || endIndex === -1) return []
-
-  const arrayBody = source.slice(startIndex + startMarker.length, endIndex)
-  const objects: string[] = []
-  let depth = 0
-  let objectStart = -1
-
-  for (let index = 0; index < arrayBody.length; index += 1) {
-    const char = arrayBody[index]
-    if (char === '{') {
-      if (depth === 0) objectStart = index
-      depth += 1
-      continue
-    }
-
-    if (char !== '}') continue
-
-    depth -= 1
-    if (depth === 0 && objectStart !== -1) {
-      objects.push(arrayBody.slice(objectStart, index + 1))
-      objectStart = -1
-    }
-  }
-
-  return objects
-    .filter((objectText) => /\bsyncManaged:\s*true\b/.test(objectText))
-    .filter((objectText) => /\bisActive:\s*true\b/.test(objectText))
-    .map((objectText) => objectText.match(/\bname:\s*'([^']+)'/)?.[1] ?? null)
-    .filter((name): name is string => Boolean(name))
-    .sort((left, right) => left.localeCompare(right))
-}
-
 async function checkFleetManifestParity(): Promise<CheckResult> {
   const manifestPath = firstExistingPath(
     TEMPLATE_REPO_DIR_HINTS.map((dir) =>
@@ -381,31 +432,21 @@ async function checkFleetManifestParity(): Promise<CheckResult> {
     }
   }
 
-  let expectedRepos: string[] = []
-  try {
-    const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
-      getSyncManagedRepos?: () => Array<{ name: string }>
-    }
-    if (typeof managedReposModule.getSyncManagedRepos === 'function') {
-      expectedRepos = managedReposModule
-        .getSyncManagedRepos()
-        .map((repo) => repo.name)
-        .sort((left, right) => left.localeCompare(right))
-    }
-  } catch {}
-
-  if (expectedRepos.length === 0) {
-    expectedRepos = extractSyncManagedRepoNamesFromSource(readFileSync(managedReposPath, 'utf8'))
+  const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
+    getSyncManagedRepos?: () => Array<{ name: string }>
   }
-
-  if (expectedRepos.length === 0) {
+  if (typeof managedReposModule.getSyncManagedRepos !== 'function') {
     return {
       status: 'fail',
-      summary: 'could not resolve sync-managed repos from managed-repos.ts',
+      summary: 'managed-repos module does not export getSyncManagedRepos()',
       detail: managedReposPath,
     }
   }
 
+  const expectedRepos = managedReposModule
+    .getSyncManagedRepos()
+    .map((repo) => repo.name)
+    .sort((left, right) => left.localeCompare(right))
   const actualRepos = [...new Set(manifest.repos)].sort((left, right) => left.localeCompare(right))
   const missing = expectedRepos.filter((repo) => !actualRepos.includes(repo))
   const extra = actualRepos.filter((repo) => !expectedRepos.includes(repo))
@@ -445,6 +486,8 @@ async function main() {
     ['pnpm lockfile', checkLockfileState(rootPkg)],
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
+    ['layer head public assets', checkLayerHeadPublicAssets()],
+    ['app webmanifest icons', checkAppWebmanifestIcons()],
     ['reference baselines', checkReferenceBaselines()],
     ['fleet manifest parity', await checkFleetManifestParity()],
   ]

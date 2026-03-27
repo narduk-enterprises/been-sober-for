@@ -6,6 +6,24 @@ const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
 const localAppUrl = `http://localhost:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
 const siteUrl = process.env.SITE_URL || ''
 
+const configuredAuthBackend = process.env.AUTH_BACKEND
+const authBackend =
+  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'
+    ? configuredAuthBackend
+    : process.env.AUTH_AUTHORITY_URL && process.env.SUPABASE_AUTH_ANON_KEY
+      ? 'supabase'
+      : 'local'
+const authAuthorityUrl = process.env.AUTH_AUTHORITY_URL || ''
+
+function parseAuthProviders(value: string | undefined) {
+  return (value || 'apple,email')
+    .split(',')
+    .map((provider) => provider.trim().toLowerCase())
+    .filter((provider, index, providers) => provider && providers.indexOf(provider) === index)
+}
+
+const authProviders =
+  authBackend === 'supabase' ? parseAuthProviders(process.env.AUTH_PROVIDERS) : ['email']
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
@@ -34,6 +52,12 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    authBackend,
+    authAuthorityUrl,
+    authAnonKey: process.env.SUPABASE_AUTH_ANON_KEY || '',
+    authServiceRoleKey: process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || '',
+    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',
+    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',
     posthogOwnerDistinctId: process.env.POSTHOG_OWNER_DISTINCT_ID || '',
     // Server-only (admin API routes)
     googleServiceAccountKey: process.env.GSC_SERVICE_ACCOUNT_JSON || '',
@@ -41,6 +65,19 @@ export default defineNuxtConfig({
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     public: {
+      authBackend,
+      authAuthorityUrl,
+      authLoginPath: '/login',
+      authRegisterPath: '/register',
+      authCallbackPath: '/auth/callback',
+      authConfirmPath: '/auth/confirm',
+      authResetPath: '/reset-password',
+      authLogoutPath: '/logout',
+      authRedirectPath: '/dashboard/',
+      authProviders,
+      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',
+      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',
+      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',
       appUrl: process.env.SITE_URL || localAppUrl,
       appName: process.env.APP_NAME || 'BeenSoberFor',
       // Analytics (client-side tracking)
