@@ -22,9 +22,42 @@ useWebPageSchema({
   description: 'Authenticated home for your BeenSoberFor profile.',
 })
 
-const { user } = useAuth()
+const { user, fetchUser } = useAuth()
 
 const { data: profile, pending, error, refresh } = useSoberProfile()
+
+const toast = useToast()
+const startAgainModalOpen = ref(false)
+const startAgainSubmitting = ref(false)
+
+function localTodayYmd(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function submitStartAgainToday() {
+  startAgainSubmitting.value = true
+  try {
+    const nuxtApp = useNuxtApp()
+    const csrfFetch = (nuxtApp.$csrfFetch ?? $fetch) as typeof $fetch
+    await csrfFetch('/api/profile/start-again', {
+      method: 'POST',
+      body: { startedAt: localTodayYmd(), confirmed: true as const },
+    })
+    await refresh()
+    await fetchUser()
+    startAgainModalOpen.value = false
+    toast.add({ title: 'Your counter now starts from today.', color: 'success' })
+  } catch (e: unknown) {
+    const err = e as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: err.data?.message || err.message || 'Could not update your start date.',
+      color: 'error',
+    })
+  } finally {
+    startAgainSubmitting.value = false
+  }
+}
 
 const tick = ref(Date.now())
 
@@ -193,11 +226,23 @@ const visibilityLabel = computed(() => {
         <UCard>
           <h2 class="font-display text-lg font-semibold">Start again</h2>
           <p class="text-muted mt-2 text-sm leading-relaxed">
-            Reset your sober date with a calm confirmation flow—never casual, never punitive.
+            Reset your counter from today after you confirm, or pick a different date on the full
+            page.
           </p>
-          <UButton to="/dashboard/start-again" class="mt-4" variant="outline" color="neutral" block>
-            Start again
-          </UButton>
+          <div class="mt-4 flex flex-col gap-2">
+            <UButton
+              variant="outline"
+              color="neutral"
+              block
+              icon="i-lucide-refresh-ccw"
+              @click="startAgainModalOpen = true"
+            >
+              Start again from today
+            </UButton>
+            <UButton to="/dashboard/start-again" variant="ghost" color="neutral" block size="sm">
+              Choose another date
+            </UButton>
+          </div>
         </UCard>
       </div>
 
@@ -218,6 +263,29 @@ const visibilityLabel = computed(() => {
       <UButton color="neutral" variant="link" size="sm" class="px-0" @click="refresh()">
         Refresh data
       </UButton>
+
+      <AppConfirmModal
+        v-model="startAgainModalOpen"
+        title="Start again from today?"
+        message="Your sober counter will reset using today’s date in this browser’s local timezone. Your public page will update to match."
+        icon=""
+        confirm-label="Yes, start from today"
+        confirm-color="primary"
+        cancel-label="Cancel"
+        :loading="startAgainSubmitting"
+        :dismissible="!startAgainSubmitting"
+        @confirm="submitStartAgainToday"
+      >
+        <p class="text-muted text-sm">
+          <NuxtLink
+            to="/dashboard/start-again"
+            class="text-primary font-medium underline"
+            @click="startAgainModalOpen = false"
+          >
+            Use a different date instead
+          </NuxtLink>
+        </p>
+      </AppConfirmModal>
     </template>
   </div>
 </template>
