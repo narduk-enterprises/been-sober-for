@@ -10,6 +10,15 @@ test.describe('web smoke', () => {
     await warmUpApp(browser, baseURL)
   })
 
+  test('/profile and /me redirect into dashboard (unauthenticated users reach login)', async ({
+    page,
+  }) => {
+    await page.goto('/profile')
+    await expect(page).toHaveURL(/\/login/)
+    await page.goto('/me')
+    await expect(page).toHaveURL(/\/login/)
+  })
+
   test('home page renders marketing hero', async ({ page }) => {
     await page.goto('/')
     await waitForHydration(page)
