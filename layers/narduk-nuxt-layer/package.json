@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",
-    "@narduk-enterprises/eslint-config": "^1.0.17",
     "@nuxt/test-utils": "^4.0.0",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.1",

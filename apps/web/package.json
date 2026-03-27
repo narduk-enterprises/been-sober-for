@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.94",
-    "@narduk-enterprises/eslint-config": "^1.0.17",
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
