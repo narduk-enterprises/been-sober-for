@@ -299,7 +299,7 @@ describe('toPublicProfileDto', () => {
   })
 
   it('preserves different page visibility values', () => {
-    for (const visibility of ['private', 'unlisted', 'public']) {
+    for (const visibility of ['private', 'unlisted', 'public'] as const) {
       const row = makeSoberProfile({ pageVisibility: visibility })
       const result = toPublicProfileDto(row)
       expect(result.pageVisibility).toBe(visibility)
@@ -307,7 +307,7 @@ describe('toPublicProfileDto', () => {
   })
 
   it('preserves different share layout values', () => {
-    for (const layout of ['minimal', 'standard', 'print_ready']) {
+    for (const layout of ['minimal', 'standard', 'print_ready'] as const) {
       const row = makeSoberProfile({ shareLayout: layout })
       const result = toPublicProfileDto(row)
       expect(result.shareLayout).toBe(layout)
