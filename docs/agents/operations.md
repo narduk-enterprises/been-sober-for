@@ -162,6 +162,17 @@ pnpm run sync:copilot-secrets -- <doppler-project-slug> --doppler-config=prd_cop
 Doppler `GITHUB_*` keys become **`GH_*`** on GitHub. Document required **names**
 in your platform runbook; never commit values.
 
+**`COPILOT_GITHUB_TOKEN` must work with the GitHub Copilot CLI** (not a random
+`GITHUB_TOKEN` from another system). Prefer a **fine-grained PAT** whose
+resource owner has an active **Copilot** seat, with the **Copilot Requests**
+permission enabled (see [copilot-cli](https://github.com/github/copilot-cli)
+discussions and GitHub’s PAT docs). Classic PATs need the scopes GitHub
+documents for Copilot CLI. If the workflow logs show **Authentication failed**
+after AWF starts, rotate the PAT, update Doppler, re-run **`sync:copilot-secrets`**,
+and confirm the org allows Copilot for that user. AWF log lines that say the
+token is a **placeholder** are expected redaction and do not prove the secret
+was wrong in GitHub Actions.
+
 ## Agent Admin API Access
 
 For deployed apps, prefer `SITE_URL` plus `AGENT_ADMIN_API_KEY` over browser
