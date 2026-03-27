@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Start again | Been Sober For.com',
+  title: 'Start again | BeenSoberFor',
   description: 'Reset your sober start date with a clear confirmation. Supportive, not punitive.',
   robots: 'noindex, nofollow',
   ogImage: {
@@ -17,7 +17,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Start again',
-  description: 'Reset your Been Sober For counter from a new date.',
+  description: 'Reset your BeenSoberFor counter from a new date.',
 })
 
 const toast = useToast()

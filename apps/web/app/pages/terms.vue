@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Terms of Use | Been Sober For.com'
+const title = 'Terms of Use | BeenSoberFor'
 const description =
-  'Terms for using Been Sober For: not medical care, acceptable use, and limitation of liability in plain language.'
+  'Terms for using BeenSoberFor: not medical care, acceptable use, and limitation of liability in plain language.'
 
 useSeo({
   title,
@@ -24,7 +24,7 @@ useWebPageSchema({
       <p class="text-dimmed mt-2 text-xs">Last updated: March 26, 2026</p>
       <div class="text-muted mt-6 space-y-4 text-sm leading-relaxed sm:text-base">
         <p>
-          By using Been Sober For you agree to these terms. If you do not agree, do not use the
+          By using BeenSoberFor you agree to these terms. If you do not agree, do not use the
           service.
         </p>
         <h2 class="text-highlighted font-display text-xl font-semibold">Not medical care</h2>

@@ -1,6 +1,6 @@
 {
-  "name": "Been Sober For.com",
-  "short_name": "Been Sober F",
+  "name": "BeenSoberFor",
+  "short_name": "BeenSoberFor",
   "icons": [
     {
       "src": "/favicon-32x32.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#059669",
-  "background_color": "#0B1120",
+  "theme_color": "#147A5A",
+  "background_color": "#F7F5EF",
   "display": "standalone"
 }

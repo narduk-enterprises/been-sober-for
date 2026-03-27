@@ -16,10 +16,13 @@ onMounted(() => {
   tickIntervalId = window.setInterval(() => {
     tick.value = Date.now()
   }, 60_000)
+  readViewportWidth()
+  window.addEventListener('resize', readViewportWidth, { passive: true })
 })
 
 onUnmounted(() => {
   if (tickIntervalId !== undefined) window.clearInterval(tickIntervalId)
+  if (import.meta.client) window.removeEventListener('resize', readViewportWidth)
 })
 
 const days = computed(() => soberWholeDays(props.profile.sobrietyStartedAt, new Date(tick.value)))
@@ -33,6 +36,26 @@ const showMessage = computed(
   () => props.profile.shortMessage && props.profile.shareLayout !== 'minimal',
 )
 const showQrBlock = computed(() => props.profile.showQr && props.profile.shareLayout !== 'minimal')
+
+const viewportWidth = ref(1024)
+
+function readViewportWidth() {
+  if (!import.meta.client) return
+  viewportWidth.value = window.innerWidth
+}
+
+const qrPixelSize = computed(() => {
+  if (props.variant === 'print') return 200
+  const w = viewportWidth.value
+  if (w < 400) return 140
+  if (w < 640) return 168
+  return 200
+})
+
+const avatarAlt = computed(() => {
+  const name = props.profile.displayName?.trim()
+  return name ? `Profile photo of ${name}` : 'Profile photo'
+})
 </script>
 
 <template>
@@ -50,7 +73,7 @@ const showQrBlock = computed(() => props.profile.showQr && props.profile.shareLa
     >
       <img
         :src="profile.avatarUrl!"
-        alt=""
+        :alt="avatarAlt"
         class="h-full w-full object-cover"
         width="112"
         height="112"
@@ -89,8 +112,8 @@ const showQrBlock = computed(() => props.profile.showQr && props.profile.shareLa
       {{ profile.shortMessage }}
     </p>
 
-    <div v-if="showQrBlock" class="mt-8 flex flex-col items-center gap-3">
-      <BsfQrCode :url="profileUrl" />
+    <div v-if="showQrBlock" class="mt-8 flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md">
+      <BsfQrCode :url="profileUrl" :size="qrPixelSize" />
     </div>
 
     <p class="text-dimmed mt-6 text-xs break-all">{{ profileUrl }}</p>

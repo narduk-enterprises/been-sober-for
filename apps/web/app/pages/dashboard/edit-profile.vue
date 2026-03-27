@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Edit profile | Been Sober For.com',
+  title: 'Edit profile | BeenSoberFor',
   description:
     'Update your display name, photo, sober start date, and what appears on your public page.',
   robots: 'noindex, nofollow',
@@ -18,7 +18,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Edit profile',
-  description: 'Manage your Been Sober For profile fields.',
+  description: 'Manage your BeenSoberFor profile fields.',
 })
 
 const toast = useToast()
@@ -136,7 +136,7 @@ function clearAvatar() {
         <UFormField
           label="Public URL"
           name="publicSlug"
-          description="Lowercase letters, numbers, and hyphens. 3–32 characters."
+          description="This becomes your link (/u/your-slug). Use lowercase letters, numbers, and hyphens (3–32 characters). Changing it updates your public link—bookmarks or printed QR codes that used the old URL will need the new one."
           required
         >
           <div class="flex flex-wrap items-center gap-2">

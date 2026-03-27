@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'About Been Sober For.com'
+const title = 'About BeenSoberFor'
 const description =
   'A minimal sobriety counter with a shareable page and printable QR—not treatment, not a forum, not a medical service.'
 
@@ -26,7 +26,7 @@ useWebPageSchema({
       </h1>
       <div class="text-muted mt-6 space-y-4 text-sm leading-relaxed sm:text-base">
         <p>
-          Been Sober For is a personal counter: one start date, a live count in years, months, and
+          BeenSoberFor is a personal counter: one start date, a live count in years, months, and
           days, and an optional public page you can share or print as a QR code.
         </p>
         <h2 class="text-highlighted font-display text-xl font-semibold">Who it is for</h2>

@@ -5,8 +5,8 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Account settings | Been Sober For.com',
-  description: 'Password and account options for Been Sober For.',
+  title: 'Account settings | BeenSoberFor',
+  description: 'Password and account options for BeenSoberFor.',
   robots: 'noindex, nofollow',
   ogImage: {
     title: 'Account settings',
@@ -17,7 +17,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Account settings',
-  description: 'Manage your Been Sober For account.',
+  description: 'Manage your BeenSoberFor account.',
 })
 
 const toast = useToast()

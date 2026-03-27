@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const pageTitle = '30 Days Sober | Been Sober For.com'
+const pageTitle = '30 Days Sober | BeenSoberFor'
 const pageDescription =
   'What one month alcohol-free can mean, plus a simple sober day counter and shareable page when you are ready.'
 
@@ -32,7 +32,7 @@ useWebPageSchema({
       },
       {
         title: 'Share it your way',
-        body: 'If you want a simple card, QR code, or link for someone who is cheering you on, Been Sober For is built for that—without turning your progress into a public feed.',
+        body: 'If you want a simple card, QR code, or link for someone who is cheering you on, BeenSoberFor is built for that—without turning your progress into a public feed.',
       },
     ]"
   />

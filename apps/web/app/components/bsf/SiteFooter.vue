@@ -1,10 +1,4 @@
 <script setup lang="ts">
-const runtimeConfig = useRuntimeConfig()
-const appName =
-  runtimeConfig.public.appName && String(runtimeConfig.public.appName).length > 0
-    ? runtimeConfig.public.appName
-    : 'Been Sober For.com'
-
 const displayYear = new Date().getFullYear()
 </script>
 
@@ -13,7 +7,10 @@ const displayYear = new Date().getFullYear()
     <UContainer class="py-10">
       <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
         <div class="max-w-md">
-          <p class="text-highlighted text-sm font-semibold">{{ appName }}</p>
+          <div class="flex items-center gap-3">
+            <BsfLogoMark size-class="h-11 w-11" />
+            <BsfWordmark compact />
+          </div>
           <p class="text-muted mt-2 text-xs leading-relaxed">
             Set your date. Track your time. Share your progress. A simple personal counter—not
             treatment, not a forum.
@@ -42,7 +39,7 @@ const displayYear = new Date().getFullYear()
         </div>
       </div>
       <p class="text-dimmed mt-8 text-center text-xs">
-        © {{ displayYear }} {{ appName }}. All rights reserved.
+        © {{ displayYear }} BeenSoberFor. All rights reserved.
       </p>
     </UContainer>
   </div>

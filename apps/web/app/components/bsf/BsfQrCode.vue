@@ -38,7 +38,7 @@ function downloadPng() {
   if (!dataUrl.value || !import.meta.client) return
   const a = document.createElement('a')
   a.href = dataUrl.value
-  a.download = 'been-sober-for-qr.png'
+  a.download = 'beensoberfor-share-qr.png'
   a.click()
 }
 </script>
@@ -52,8 +52,9 @@ function downloadPng() {
       <img
         v-if="dataUrl"
         :src="dataUrl"
-        alt="QR code linking to your public page"
-        class="h-auto w-full max-w-[200px]"
+        alt="QR code linking to your public sobriety page"
+        class="h-auto w-full"
+        :style="{ maxWidth: `min(100%, ${size}px)` }"
       />
       <p v-else-if="errorText" class="text-muted text-center text-sm">{{ errorText }}</p>
       <UIcon v-else name="i-lucide-loader-2" class="text-muted h-8 w-8 animate-spin" />

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Privacy Policy | Been Sober For.com'
+const title = 'Privacy Policy | BeenSoberFor'
 const description =
-  'How Been Sober For handles your account, profile data, sharing modes, and search visibility.'
+  'How BeenSoberFor handles your account, profile data, sharing modes, and search visibility.'
 
 useSeo({
   title,
@@ -24,7 +24,7 @@ useWebPageSchema({
       <p class="text-dimmed mt-2 text-xs">Last updated: March 26, 2026</p>
       <div class="text-muted mt-6 space-y-4 text-sm leading-relaxed sm:text-base">
         <p>
-          This policy describes how we treat information for Been Sober For in plain language. It is
+          This policy describes how we treat information for BeenSoberFor in plain language. It is
           not legal advice; your counsel should review it before you rely on it commercially.
         </p>
         <h2 class="text-highlighted font-display text-xl font-semibold">What we collect</h2>

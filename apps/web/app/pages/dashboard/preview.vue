@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Preview public page | Been Sober For.com',
+  title: 'Preview public page | BeenSoberFor',
   description: 'Preview how your share page looks while it stays private or unlisted.',
   robots: 'noindex, nofollow',
   ogImage: {
@@ -19,7 +19,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Preview public page',
-  description: 'Authenticated preview of your Been Sober For share page.',
+  description: 'Authenticated preview of your BeenSoberFor share page.',
 })
 
 const { data: profile, pending } = useSoberProfile()

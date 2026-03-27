@@ -6,7 +6,7 @@ const publicConfig = runtimeConfig.public
 const appName =
   publicConfig.appName && publicConfig.appName.length > 0
     ? publicConfig.appName
-    : 'Been Sober For.com'
+    : 'BeenSoberFor'
 
 const pageTitle = `${appName} | Simple Sobriety Day Counter`
 const pageDescription =
@@ -260,7 +260,7 @@ const faqTeaser = [
 
     <UContainer id="learn-more" class="scroll-mt-28 pb-14 sm:pb-20">
       <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-        What is Been Sober For?
+        What is BeenSoberFor?
       </h2>
       <div class="text-muted mt-6 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
         <p>

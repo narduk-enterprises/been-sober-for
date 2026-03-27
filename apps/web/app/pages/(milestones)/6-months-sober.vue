@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const pageTitle = '6 Months Sober | Been Sober For.com'
+const pageTitle = '6 Months Sober | BeenSoberFor'
 const pageDescription =
   'Half a year alcohol-free: context for the milestone and a simple way to track sober days with an optional shareable profile.'
 

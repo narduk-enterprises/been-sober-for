@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'FAQ | Been Sober For.com'
+const title = 'FAQ | BeenSoberFor'
 const description =
-  'Privacy modes, sharing, QR printing, sober date reset, and account questions for Been Sober For.'
+  'Privacy modes, sharing, QR printing, sober date reset, and account questions for BeenSoberFor.'
 
 const faqItems = [
   {
@@ -40,7 +40,7 @@ const faqItems = [
     id: 'medical',
     question: 'Is this medical advice?',
     answer:
-      'No. Been Sober For is a simple tool for counting and sharing time. For substance use support in the U.S., SAMHSA’s National Helpline is 1-800-662-4357. For emergencies, contact local emergency services.',
+      'No. BeenSoberFor is a simple tool for counting and sharing time. For substance use support in the U.S., SAMHSA’s National Helpline is 1-800-662-4357. For emergencies, contact local emergency services.',
   },
 ] as const
 

@@ -10,8 +10,8 @@ const slug = computed(() => {
 })
 
 useSeo({
-  title: 'Profile | Been Sober For.com',
-  description: 'Public sober counter page on Been Sober For.',
+  title: 'Profile | BeenSoberFor',
+  description: 'Public sober counter page on BeenSoberFor.',
   robots: 'noindex, nofollow',
   ogImage: {
     title: 'Profile',
@@ -40,19 +40,19 @@ watch(
     const daysVal = p.sobrietyStartedAt ? soberWholeDays(p.sobrietyStartedAt) : null
     const title =
       daysVal != null
-        ? `${p.displayName || 'Friend'} | Been Sober For ${daysVal.toLocaleString()} Days`
-        : `${p.displayName || 'Friend'} | Been Sober For.com`
+        ? `${p.displayName || 'Friend'} | BeenSoberFor ${daysVal.toLocaleString()} Days`
+        : `${p.displayName || 'Friend'} | BeenSoberFor`
     const robots =
       p.pageVisibility === 'public' && p.allowSearchIndexing ? undefined : 'noindex, nofollow'
     useSeo({
       title,
-      description: `${p.displayName || 'Friend'} — sober day counter on Been Sober For.`,
+      description: `${p.displayName || 'Friend'} — sober day counter on BeenSoberFor.`,
       robots,
       ogImage: { title, description: 'Sobriety counter', icon: 'i-lucide-leaf' },
     })
     useWebPageSchema({
       name: title,
-      description: 'Public Been Sober For profile.',
+      description: 'Public BeenSoberFor profile.',
     })
   },
   { immediate: true },
@@ -79,7 +79,7 @@ watch(
     <div v-else-if="profile" class="mx-auto max-w-lg">
       <BsfPublicProfileBody :profile="profile" :profile-url="profileUrl" />
       <p class="text-dimmed mt-8 text-center text-xs">
-        Been Sober For — a simple counter, not treatment or medical care.
+        BeenSoberFor — a simple counter, not treatment or medical care.
       </p>
     </div>
   </UContainer>

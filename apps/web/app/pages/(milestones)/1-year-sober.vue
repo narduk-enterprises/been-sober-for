@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const pageTitle = '1 Year Sober | Been Sober For.com'
+const pageTitle = '1 Year Sober | BeenSoberFor'
 const pageDescription =
   'One year alcohol-free: what the anniversary can mean, plus a sober anniversary counter and printable QR ideas.'
 
@@ -32,7 +32,7 @@ useWebPageSchema({
       },
       {
         title: 'Sober anniversary ideas that stay grounded',
-        body: 'QR code on a card, a single share image, a framed print for your space—pick one format. Been Sober For keeps the layout clean so the number stays readable.',
+        body: 'QR code on a card, a single share image, a framed print for your space—pick one format. BeenSoberFor keeps the layout clean so the number stays readable.',
       },
     ]"
   />

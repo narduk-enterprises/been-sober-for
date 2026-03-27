@@ -42,7 +42,7 @@ export default defineNuxtConfig({
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     public: {
       appUrl: process.env.SITE_URL || localAppUrl,
-      appName: process.env.APP_NAME || 'Been Sober For.com',
+      appName: process.env.APP_NAME || 'BeenSoberFor',
       // Analytics (client-side tracking)
       posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
@@ -54,7 +54,7 @@ export default defineNuxtConfig({
 
   site: {
     ...(siteUrl ? { url: siteUrl } : {}),
-    name: 'Been Sober For.com',
+    name: 'BeenSoberFor',
     description:
       'Track how long you have been sober with a simple personal counter. Create a shareable profile, upload your photo, and print a QR code for your progress page.',
     defaultLocale: 'en',
@@ -83,9 +83,9 @@ export default defineNuxtConfig({
   schemaOrg: {
     identity: {
       type: 'Organization',
-      name: 'Been Sober For.com',
+      name: 'BeenSoberFor',
       ...(siteUrl ? { url: siteUrl } : {}),
-      logo: '/favicon.svg',
+      logo: '/logo-mark.svg',
     },
   },
 

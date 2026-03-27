@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Contact | Been Sober For.com'
+const title = 'Contact | BeenSoberFor'
 const description =
-  'Reach the Been Sober For team for support, privacy requests, and account questions.'
+  'Reach the BeenSoberFor team for support, privacy requests, and account questions.'
 
 useSeo({
   title,

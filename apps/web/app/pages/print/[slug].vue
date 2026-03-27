@@ -8,14 +8,14 @@ const slug = computed(() => {
 })
 
 useSeo({
-  title: 'Print | Been Sober For.com',
+  title: 'Print | BeenSoberFor',
   description: 'Printer-friendly sober counter card.',
   robots: 'noindex, nofollow',
 })
 
 useWebPageSchema({
   name: 'Print profile',
-  description: 'Print layout for Been Sober For.',
+  description: 'Print layout for BeenSoberFor.',
 })
 
 const { data: profile, error, pending } = usePublicSoberProfile(slug)

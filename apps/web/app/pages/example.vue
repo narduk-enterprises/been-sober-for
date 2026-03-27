@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Jamie | Been Sober For 1,248 Days (example)'
+const title = 'Jamie | BeenSoberFor 1,248 Days (example)'
 const description =
   'Example public profile: photo, name, sober counter, optional message, and QR code—how a real share page can look.'
 

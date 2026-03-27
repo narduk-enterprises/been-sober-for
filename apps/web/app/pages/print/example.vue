@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'minimal' })
 
-const title = 'Print preview | Been Sober For (example)'
+const title = 'Print preview | BeenSoberFor (example)'
 const description = 'Printer-friendly example: name, day count, QR placeholder, and URL.'
 
 useSeo({

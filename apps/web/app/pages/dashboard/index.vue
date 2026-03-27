@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Dashboard | Been Sober For.com',
+  title: 'Dashboard | BeenSoberFor',
   description: 'Your sober time counter, public link, and sharing tools.',
   robots: 'noindex, nofollow',
   ogImage: {
@@ -19,7 +19,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Dashboard',
-  description: 'Authenticated home for your Been Sober For profile.',
+  description: 'Authenticated home for your BeenSoberFor profile.',
 })
 
 const { user } = useAuth()

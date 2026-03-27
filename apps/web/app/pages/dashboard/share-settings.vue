@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Share settings | Been Sober For.com',
+  title: 'Share settings | BeenSoberFor',
   description: 'Visibility, search indexing, QR code, and print layout for your public page.',
   robots: 'noindex, nofollow',
   ogImage: {
@@ -17,7 +17,7 @@ useSeo({
 
 useWebPageSchema({
   name: 'Share settings',
-  description: 'Control how your Been Sober For page is shared and indexed.',
+  description: 'Control how your BeenSoberFor page is shared and indexed.',
 })
 
 const toast = useToast()

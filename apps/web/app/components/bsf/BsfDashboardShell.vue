@@ -1,15 +1,11 @@
 <script setup lang="ts">
-const runtimeConfig = useRuntimeConfig()
-const appName =
-  runtimeConfig.public.appName && String(runtimeConfig.public.appName).length > 0
-    ? runtimeConfig.public.appName
-    : 'Been Sober For.com'
-
 const { logout } = useAuth()
 
 async function signOut() {
   await logout()
-  await navigateTo('/login', { replace: true })
+  const { clear } = useUserSession()
+  await clear()
+  await navigateTo('/', { replace: true })
 }
 
 const nav = [
@@ -34,11 +30,8 @@ const nav = [
             to="/"
             class="focus-visible:ring-primary flex min-w-0 items-center gap-2 rounded-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
-            <UIcon
-              name="i-lucide-leaf"
-              class="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0"
-            />
-            <span class="truncate">{{ appName }}</span>
+            <BsfLogoMark size-class="h-8 w-8 sm:h-9 sm:w-9" />
+            <BsfWordmark compact />
           </NuxtLink>
           <div role="navigation" class="hidden items-center gap-1 lg:flex" aria-label="Dashboard">
             <UButton
@@ -63,6 +56,7 @@ const nav = [
             variant="outline"
             size="sm"
             icon="i-lucide-log-out"
+            aria-label="Sign out of your account"
             data-testid="auth-signout"
             @click="signOut"
           >
