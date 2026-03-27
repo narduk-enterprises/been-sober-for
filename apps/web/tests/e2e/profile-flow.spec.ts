@@ -171,7 +171,7 @@ test.describe('profile flow (full user journey)', () => {
     // 11. Visit public page again and verify update
     await page.goto(`/u/${slug}`)
     await waitForHydration(page)
-    await expect(page.getByText('7')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('7', { exact: true })).toBeVisible({ timeout: 10_000 })
   })
 
   test('dashboard shows correct visibility label for private profile', async ({ page }) => {
