@@ -1,0 +1,58 @@
+---
+on:
+  workflow_dispatch:
+
+# Optional: fuzzy schedule (uncomment to enable)
+# on:
+#   schedule: weekly on monday
+#   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+engine:
+  id: copilot
+  agent: cli-visual-qa
+
+tools:
+  github:
+    toolsets: [default]
+
+network: defaults
+
+safe-outputs:
+  create-issue:
+    max: 2
+---
+
+# CLI visual QA (Playwright + screenshots + DOM)
+
+You are running in **GitHub Actions** via [GitHub Agentic Workflows](https://github.github.com/gh-aw/).
+Follow the **cli-visual-qa** custom agent (`.github/agents/cli-visual-qa.agent.md`) for methodology.
+
+## Goal
+
+Manually verify the **Nuxt web app** (`apps/web/`) by driving a browser from the shell, capturing **screenshots**, inspecting the **DOM / accessibility tree** where needed, and summarizing **pass/fail** with evidence.
+
+## Scope this run
+
+1. Install deps if needed: `pnpm install` (prefer `--frozen-lockfile` when the lockfile is present).
+2. Run **`pnpm test:e2e`** from the repo root (Playwright config starts or reuses `pnpm run dev`).
+3. For **primary marketing or app routes** from `SPEC.md` / `UI_PLAN.md` (or `apps/web/app/` pages if those docs are missing), capture at least **3** full-page screenshots under a temp directory, e.g.  
+   `pnpm exec playwright screenshot http://localhost:3000/ tmp/qa-home.png --full-page`  
+   (ensure the dev server is reachable—reuse the same base URL as `playwright.config.ts`, `NUXT_PORT` if set).
+4. If any route or assertion fails, capture an extra screenshot at the failure state and record **visible error text** from the DOM.
+
+## Evidence and reporting
+
+- In the **workflow summary / final response**, list: commands run, E2E exit code, screenshot paths (or describe artifacts), and a short **per-route** verdict.
+- If there are regressions or flaky behavior, use **safe output** **`create-issue`** with title prefix `[cli-visual-qa] `, labels if available (`bug` or `testing`), and body containing: repro steps, expected vs actual, and which checks failed.
+- Do **not** print secrets; do **not** commit screenshots to the repo unless explicitly asked in a follow-up task.
+
+## After editing this file
+
+Run **`gh aw compile`** and commit **`cli-visual-qa.lock.yml`**.
+
+Docs: https://github.github.com/gh-aw/
