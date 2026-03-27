@@ -1,0 +1,89 @@
+{
+  "name": "been-sober-for",
+  "version": "1.17.2",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  This repo is incomplete until the control plane finishes provisioning (writes .setup-complete). See your platform docs.\\n')\"",
+    "predev": "node tools/check-setup.cjs",
+    "dev": "pnpm --filter web dev",
+    "prebuild": "node tools/check-setup.cjs",
+    "build": "doppler run -- pnpm -r build",
+    "build:plugins": "pnpm --filter @narduk/eslint-config build",
+    "preship": "node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
+    "ship": "pnpm exec tsx tools/ship.ts",
+    "prelint": "pnpm run build:plugins",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "hooks:install": "node tools/install-git-hooks.cjs",
+    "guardrails:repo": "pnpm exec tsx tools/check-guardrails.ts",
+    "quality": "pnpm run quality:fix && pnpm run quality:check",
+    "quality:check": "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
+    "quality:fix": "turbo run lint --force -- --fix && pnpm run format",
+    "check": "pnpm run quality:check",
+    "update-layer": "pnpm exec tsx tools/update-layer.ts",
+    "sync-template": "pnpm exec tsx tools/sync-template.ts .",
+    "validate": "pnpm exec tsx tools/validate.ts",
+    "sync:copilot-secrets": "pnpm exec tsx tools/sync-copilot-secrets.ts",
+    "check:sync-health": "pnpm exec tsx tools/check-sync-health.ts",
+    "clean": "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
+    "clean:install": "pnpm run clean && pnpm install && pnpm --filter web run db:ready",
+    "db:migrate": "pnpm --filter web run db:migrate",
+    "dev:kill": "sh scripts/dev-kill.sh",
+    "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
+    "test:e2e": "playwright test",
+    "test:e2e:web": "pnpm --filter web test:e2e",
+    "generate:favicons": "pnpm exec tsx tools/generate-favicons.ts",
+    "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\""
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": ">=0.25.0",
+      "serialize-javascript": ">=7.0.3",
+      "@cloudflare/unenv-preset": "2.12.1",
+      "nuxt-og-image": "6.1.2",
+      "@takumi-rs/core": ">=0.70.1",
+      "@takumi-rs/wasm": ">=0.70.1",
+      "@cloudflare/workers-types": "4.20260307.1",
+      "@typescript-eslint/utils": "^8.57.0",
+      "@nuxt/eslint": "^1.15.2",
+      "eslint-plugin-unicorn": "^63.0.0"
+    },
+    "peerDependencyRules": {
+      "allowAny": [
+        "eslint",
+        "citty",
+        "@cloudflare/workers-types"
+      ]
+    },
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "better-sqlite3",
+      "core-js",
+      "esbuild",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver",
+      "vue-demi",
+      "workerd"
+    ],
+    "patchedDependencies": {
+      "@nuxt/image@2.0.0": "patches/@nuxt__image@2.0.0.patch"
+    }
+  },
+  "volta": {
+    "node": "22.22.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.19.13",
+    "concurrently": "^9.2.1",
+    "googleapis": "^171.4.0",
+    "prettier": "^3.8.1",
+    "sharp": "^0.34.5",
+    "tsx": "^4.21.0",
+    "turbo": "^2.8.12",
+    "wait-on": "^8.0.5"
+  }
+}

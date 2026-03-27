@@ -1,0 +1,103 @@
+{
+  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
+  "name": "been-sober-for",
+  "main": ".output/server/index.mjs",
+  "assets": {
+    "directory": ".output/public"
+  },
+  "compatibility_date": "2026-03-03",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "23088bfbce3a4837afda678d80c2e268",
+      "preview_id": "2eb38b235c104abe8fe0887075176aaa"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "been-sober-for-db",
+      "database_id": "5ff42396-d981-4841-b813-391f4da3c4f2"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RL_10",
+      "namespace_id": "50110",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_20",
+      "namespace_id": "50120",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_30",
+      "namespace_id": "50130",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_60",
+      "namespace_id": "50160",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_120",
+      "namespace_id": "50121",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_240",
+      "namespace_id": "50240",
+      "simple": {
+        "limit": 240,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_300",
+      "namespace_id": "50300",
+      "simple": {
+        "limit": 300,
+        "period": 60
+      }
+    }
+  ],
+  "env": {
+    "postgres": {
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": ""
+        }
+      ]
+    }
+  },
+  "routes": [
+    {
+      "pattern": "www.beensoberfor.com",
+      "custom_domain": true
+    }
+  ]
+}

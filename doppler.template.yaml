@@ -1,0 +1,7 @@
+# Copy to `doppler.yaml` in this directory (gitignored). Then `doppler run -- …`
+# commands use the right project/config.
+#
+# Replace `project` with your Doppler app name before local Doppler commands.
+setup:
+  project: been-sober-for
+  config: dev

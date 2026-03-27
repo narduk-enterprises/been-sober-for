@@ -1,0 +1,17 @@
+export {
+  createUniqueEmail,
+  expect,
+  test,
+  waitForBaseUrlReady,
+  waitForHydration,
+  warmUpApp,
+  registerAndLogin,
+  loginAsAdmin,
+  loginViaApi,
+  logoutViaApi,
+  createNotificationViaApi,
+  fetchNotificationsViaApi,
+  fetchUnreadCountViaApi,
+  markAllNotificationsReadViaApi,
+  updateProfileViaApi,
+} from '../../../../layers/narduk-nuxt-layer/testing/e2e/fixtures.ts'
