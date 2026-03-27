@@ -114,7 +114,7 @@ const avatarAlt = computed(() => {
 
     <div
       v-if="showQrBlock"
-      class="mt-8 flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md"
+      class="mx-auto mt-8 flex w-full max-w-sm flex-col items-center gap-3 sm:max-w-md"
     >
       <BsfQrCode :url="profileUrl" :size="qrPixelSize" />
     </div>

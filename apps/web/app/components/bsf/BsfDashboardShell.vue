@@ -3,8 +3,6 @@ const { logout } = useAuth()
 
 async function signOut() {
   await logout()
-  const { clear } = useUserSession()
-  await clear()
   await navigateTo('/', { replace: true })
 }
 
