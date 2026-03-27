@@ -44,10 +44,10 @@ Manually verify the **Nuxt web app** (`apps/web/`) by driving a browser from the
 
 The monorepo depends on **`@narduk-enterprises/*`** from `npm.pkg.github.com`. Root **`.npmrc`** uses **`NODE_AUTH_TOKEN`**.
 
-- If the shell already has **`NODE_AUTH_TOKEN`**, run `pnpm install` as usual.
-- If you only see **`GH_TOKEN_PACKAGES_READ`** (synced from Doppler `GITHUB_TOKEN_PACKAGES_READ`), run:  
-  `export NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$GH_TOKEN_PACKAGES_READ}"`  
-  then `pnpm install`.
+Doppler uses **`GITHUB_TOKEN_PACKAGES_READ`** (template convention). **`sync:copilot-secrets`** copies that to GitHub as **`GH_TOKEN_PACKAGES_READ`** and **`NODE_AUTH_TOKEN`** (same value). In this environment, **`NODE_AUTH_TOKEN`** should already be set; if not, try:  
+`export NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$GH_TOKEN_PACKAGES_READ}"`  
+then `pnpm install`.
+
 - **Do not** remove, stub, or rewrite `package.json` / workspace deps to bypass private packages.
 
 ## Scope this run

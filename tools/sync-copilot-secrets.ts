@@ -18,6 +18,10 @@
  * when pushing (e.g. GITHUB_TOKEN_PACKAGES_READ → GH_TOKEN_PACKAGES_READ). Use the
  * GH_* name in copilot-setup-steps.yml.
  *
+ * Doppler **GITHUB_TOKEN_PACKAGES_READ** (narduk-nuxt-template convention) is also
+ * written to GitHub as **NODE_AUTH_TOKEN** (same value) so pnpm/.npmrc can auth to
+ * npm.pkg.github.com without a separate Doppler key.
+ *
  * COPILOT_GITHUB_TOKEN is also written as a repository secret (same value) so
  * GitHub Agentic Workflows' activation job can validate it (activation has no
  * `environment:`; other jobs use the `copilot` environment).
@@ -32,7 +36,6 @@ const MINIMAL_COPILOT_DOPPLER_KEYS = new Set([
   'CLOUDFLARE_API_TOKEN',
   'COPILOT_GITHUB_TOKEN',
   'GITHUB_TOKEN_PACKAGES_READ',
-  'NODE_AUTH_TOKEN',
 ])
 
 function printUsage(): void {
@@ -262,9 +265,16 @@ function main(): void {
     value: secrets[dopplerKey],
   }))
 
+  const hasPackagesRead = pairs.some((p) => p.dopplerKey === 'GITHUB_TOKEN_PACKAGES_READ')
   const label = pairs.map((p) => `${p.dopplerKey}→${p.githubKey}`).join(', ')
+  const extra =
+    hasPackagesRead && !dryRun
+      ? ' (+ NODE_AUTH_TOKEN on GitHub ← GITHUB_TOKEN_PACKAGES_READ)'
+      : hasPackagesRead && dryRun
+        ? ' (+ will set NODE_AUTH_TOKEN on GitHub)'
+        : ''
   console.log(
-    `${dryRun ? '🔍' : '⬆️'} ${pairs.length} secret(s) (${allSecrets ? 'all' : 'minimal'}): ${label}`,
+    `${dryRun ? '🔍' : '⬆️'} ${pairs.length} Doppler key(s) (${allSecrets ? 'all' : 'minimal'}): ${label}${extra}`,
   )
 
   if (dryRun) {
@@ -285,6 +295,10 @@ function main(): void {
     if (githubKey === 'COPILOT_GITHUB_TOKEN') {
       console.log(`  … ${githubKey} (repo, for gh-aw activation job)`)
       ghRepoSecretSet(repo, githubKey, value)
+    }
+    if (dopplerKey === 'GITHUB_TOKEN_PACKAGES_READ') {
+      console.log(`  … NODE_AUTH_TOKEN (same value, for pnpm / .npmrc → GitHub Packages)`)
+      ghSecretSet(repo, ghEnv, 'NODE_AUTH_TOKEN', value)
     }
   }
 

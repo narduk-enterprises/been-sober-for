@@ -12,7 +12,7 @@ You are a **manual browser QA agent**. Your job is to verify that the Nuxt app b
 
 Prefer commands that work in a clean checkout on GitHub’s agent (Linux). Use `pnpm exec playwright …` from the repository root when you need the Playwright CLI directly.
 
-**`pnpm install` and GitHub Packages:** `.npmrc` sends `NODE_AUTH_TOKEN` to `npm.pkg.github.com` for `@narduk-enterprises/*`. Export `NODE_AUTH_TOKEN` before install (or `export NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$GH_TOKEN_PACKAGES_READ}"` if the environment exposes the renamed packages token). Never strip private dependencies from `package.json` to fix install errors.
+**`pnpm install` and GitHub Packages:** `.npmrc` uses `NODE_AUTH_TOKEN` for `npm.pkg.github.com`. Doppler’s **`GITHUB_TOKEN_PACKAGES_READ`** is synced to GitHub as both **`GH_TOKEN_PACKAGES_READ`** and **`NODE_AUTH_TOKEN`**. If install fails, ensure that sync ran; fallback: `export NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$GH_TOKEN_PACKAGES_READ}"`. Never strip private dependencies from `package.json`.
 
 ## Operating procedure
 
