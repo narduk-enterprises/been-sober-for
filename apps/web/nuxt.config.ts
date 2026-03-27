@@ -11,6 +11,8 @@ export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
 
+  css: [fileURLToPath(new URL('./app/assets/css/bsf-landing.css', import.meta.url))],
+
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
   modules: ['nitro-cloudflare-dev'],
 
@@ -54,8 +56,28 @@ export default defineNuxtConfig({
     ...(siteUrl ? { url: siteUrl } : {}),
     name: 'Been Sober For.com',
     description:
-      'A simple site where users can register, upload a photo, and input the date of their last drink. Then share it with people. On their account profile page, they can click start again, if they have a drink.',
+      'Track how long you have been sober with a simple personal counter. Create a shareable profile, upload your photo, and print a QR code for your progress page.',
     defaultLocale: 'en',
+  },
+
+  // Static marketing — prerender for fast first byte and stable SEO shell (Nitro + Workers)
+  routeRules: {
+    '/': { prerender: true },
+    '/about': { prerender: true },
+    '/faq': { prerender: true },
+    '/privacy': { prerender: true },
+    '/terms': { prerender: true },
+    '/contact': { prerender: true },
+    '/sobriety-calculator': { prerender: true },
+    '/example': { prerender: true },
+    '/print/example': { prerender: true },
+    '/30-days-sober': { prerender: true },
+    '/60-days-sober': { prerender: true },
+    '/90-days-sober': { prerender: true },
+    '/100-days-sober': { prerender: true },
+    '/6-months-sober': { prerender: true },
+    '/1-year-sober': { prerender: true },
+    '/2-years-sober': { prerender: true },
   },
 
   schemaOrg: {

@@ -2,6 +2,7 @@ import {
   expect,
   test,
   waitForBaseUrlReady,
+  waitForHydration,
   warmUpApp,
   loginAsAdmin,
   registerAndLogin,
@@ -55,6 +56,11 @@ function assertUsersApiPayload(payload: UsersApiResponse | null): UsersApiRespon
   return payload
 }
 
+async function visitApiOrigin(page: Page) {
+  await page.goto('/')
+  await waitForHydration(page)
+}
+
 test.describe('users API', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
     if (!baseURL) {
@@ -66,6 +72,7 @@ test.describe('users API', () => {
   })
 
   test('rejects unauthenticated callers', async ({ page }) => {
+    await visitApiOrigin(page)
     const response = await requestUsers(page)
 
     expect(response.status).toBe(401)
@@ -73,6 +80,7 @@ test.describe('users API', () => {
   })
 
   test('rejects authenticated non-admin callers', async ({ page }) => {
+    await visitApiOrigin(page)
     const email = `user-${Date.now()}@example.com`
     await registerAndLogin(page, { name: 'Non-admin User', email, password: 'password123' })
 
@@ -83,6 +91,7 @@ test.describe('users API', () => {
   })
 
   test('returns paged rows to admins and omits sensitive fields', async ({ page }) => {
+    await visitApiOrigin(page)
     await loginAsAdmin(page)
     const response = await requestUsers(page, '?page=1&limit=2')
     const payload = assertUsersApiPayload(response.payload)
@@ -111,6 +120,7 @@ test.describe('users API', () => {
   })
 
   test('validates pagination inputs (page and limit caps)', async ({ page }) => {
+    await visitApiOrigin(page)
     await loginAsAdmin(page)
 
     const invalidPage = await requestUsers(page, '?page=0&limit=2')
