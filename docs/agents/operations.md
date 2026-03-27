@@ -142,9 +142,10 @@ resolve from that environment.
 
 Populate it from a **narrow Doppler config** on this project: prefer
 **`prd_copilot`** (default for `sync:copilot-secrets`), else **`copilot`**.
-Never use **`dev_copilot`** for this sync. Keep
-**`COPILOT_GITHUB_TOKEN`** in Doppler under that config; the sync script includes
-it in the **minimal** set pushed to GitHub.
+Never use **`dev_copilot`** for this sync. Keep **`COPILOT_GITHUB_TOKEN`** and **`NODE_AUTH_TOKEN`** (GitHub Packages read PAT
+for `@narduk-enterprises/*`) in Doppler under that config; the minimal sync set
+includes both. Without **`NODE_AUTH_TOKEN`**, `pnpm install` fails in CI and in
+agent sandboxes that honor `.npmrc`.
 
 GitHub Agentic Workflows run an **activation** job that validates
 `COPILOT_GITHUB_TOKEN` before jobs that use `environment: copilot`. That

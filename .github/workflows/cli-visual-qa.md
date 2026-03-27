@@ -40,9 +40,19 @@ Follow the **cli-visual-qa** custom agent (`.github/agents/cli-visual-qa.agent.m
 
 Manually verify the **Nuxt web app** (`apps/web/`) by driving a browser from the shell, capturing **screenshots**, inspecting the **DOM / accessibility tree** where needed, and summarizing **pass/fail** with evidence.
 
+## GitHub Packages (required before `pnpm install`)
+
+The monorepo depends on **`@narduk-enterprises/*`** from `npm.pkg.github.com`. Root **`.npmrc`** uses **`NODE_AUTH_TOKEN`**.
+
+- If the shell already has **`NODE_AUTH_TOKEN`**, run `pnpm install` as usual.
+- If you only see **`GH_TOKEN_PACKAGES_READ`** (synced from Doppler `GITHUB_TOKEN_PACKAGES_READ`), run:  
+  `export NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$GH_TOKEN_PACKAGES_READ}"`  
+  then `pnpm install`.
+- **Do not** remove, stub, or rewrite `package.json` / workspace deps to bypass private packages.
+
 ## Scope this run
 
-1. Install deps if needed: `pnpm install` (prefer `--frozen-lockfile` when the lockfile is present).
+1. Install deps if needed: `pnpm install` (prefer `--frozen-lockfile` when the lockfile is present), after the token step above.
 2. Run **`pnpm test:e2e`** from the repo root (Playwright config starts or reuses `pnpm run dev`).
 3. For **primary marketing or app routes** from `SPEC.md` / `UI_PLAN.md` (or `apps/web/app/` pages if those docs are missing), capture at least **3** full-page screenshots under a temp directory, e.g.  
    `pnpm exec playwright screenshot http://localhost:3000/ tmp/qa-home.png --full-page`  
