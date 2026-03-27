@@ -62,7 +62,7 @@ without first checking the workspace guide.
   `provisioned-app-build`** (or your org’s entry) when ready. Work should land
   on **`integrate/build`** and finish as **one PR** to `main`.
 - Agent-facing secrets: GitHub environment **`copilot`**, populated from Doppler
-  config **`copilot`** / **`prd_copilot`** via
+  config **`prd_copilot`** (then **`copilot`** if needed) via
   `pnpm run sync:copilot-secrets -- <slug>` (run from a checkout that includes
   `tools/sync-copilot-secrets.ts`).
 - Canonical machine input: **`provision.json`**; product spec: **`SPEC.md`** →

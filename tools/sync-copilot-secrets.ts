@@ -9,8 +9,7 @@
  *   pnpm run sync:copilot-secrets -- reminders --dry-run
  *   pnpm run sync:copilot-secrets -- reminders --org my-org --github-repo my-org/reminders
  *
- * If --doppler-config is omitted, tries copilot → prd_copilot → dev_copilot (fleet projects
- * that require prd_/dev_ config name prefixes should use prd_copilot or pass --doppler-config).
+ * If --doppler-config is omitted, tries prd_copilot → copilot (never dev_copilot).
  *
  * Requires: doppler CLI (authenticated), gh CLI (authenticated with permission to
  * set environment secrets on the target repo).
@@ -45,7 +44,7 @@ GitHub repo defaults to narduk-enterprises/<slug>.
 Options:
   --org=ORG                 GitHub owner/org (default: narduk-enterprises)
   --github-repo=OWNER/REPO  Override full repo (overrides org + slug)
-  --doppler-config=NAME     Doppler config (omit to try copilot, then prd_copilot, then dev_copilot)
+  --doppler-config=NAME     Doppler config (omit to try prd_copilot, then copilot)
   --env=NAME                GitHub environment name (default: copilot)
   --all-secrets             Sync every Doppler key (still renames GITHUB_*); default is minimal agent set only
   --dry-run                 List keys only, do not call gh
@@ -146,7 +145,7 @@ function dopplerDownloadJson(project: string, config: string): Record<string, st
   return out
 }
 
-const DOPPLER_CONFIG_FALLBACKS = ['copilot', 'prd_copilot', 'dev_copilot'] as const
+const DOPPLER_CONFIG_FALLBACKS = ['prd_copilot', 'copilot'] as const
 
 function resolveDopplerSecrets(
   project: string,

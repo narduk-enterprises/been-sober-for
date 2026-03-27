@@ -105,8 +105,8 @@ All implementation work happens on branch **`integrate/build`**. Finish with
 **one pull request** into **`main`**.
 
 Secrets for install/build (registry, optional Cloudflare) come from the GitHub
-Actions **environment `copilot`** — synced from Doppler config **`copilot`** /
-**`prd_copilot`** / **`dev_copilot`** via
+Actions **environment `copilot`** — synced from Doppler **`prd_copilot`** (or
+**`copilot`** if `prd_copilot` is missing) via
 `pnpm run sync:copilot-secrets -- <doppler-project-slug>` in the template repo.
 Never print secret values or commit `.env`.
 
