@@ -27,9 +27,9 @@ useWebPageSchema({
 
 const { data: profile, error, pending } = usePublicSoberProfile(slug)
 
-const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
 const profileUrl = computed(() => {
-  const base = String(runtimeConfig.public.appUrl || '').replace(/\/$/, '')
+  const base = requestUrl.origin.replace(/\/$/, '')
   return `${base}/u/${slug.value}`
 })
 

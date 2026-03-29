@@ -1,6 +1,12 @@
 /** Calendar day length; used only after anchoring both instants to local midnight. */
 const MS_PER_DAY = 86_400_000
 
+export interface SobrietyBreakdown {
+  years: number
+  months: number
+  days: number
+}
+
 /**
  * Local midnight for the given instant (start of that calendar day in the local zone).
  */
@@ -47,17 +53,56 @@ export function soberWholeDays(
   return Math.max(0, Math.round(ms / MS_PER_DAY))
 }
 
-/** Rough years / months / remainder days for display (not for legal or medical precision). */
-export function approximateYmdBreakdown(totalDays: number): {
-  years: number
-  months: number
-  days: number
-} {
-  const years = Math.floor(totalDays / 365)
-  let remainder = totalDays - years * 365
-  const months = Math.floor(remainder / 30)
-  remainder -= months * 30
-  return { years, months, days: remainder }
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate()
+}
+
+/** Exact calendar years / months / days between the start date and the local end date. */
+export function soberYmdBreakdown(
+  startedAt: string | null | undefined,
+  end: Date = new Date(),
+): SobrietyBreakdown | null {
+  if (startedAt == null || startedAt === '') return null
+  const startDay = parseSobrietyStartDate(startedAt)
+  if (!startDay) return null
+
+  const endDay = atLocalMidnight(end)
+  if (startDay.getTime() > endDay.getTime()) return null
+
+  let years = endDay.getFullYear() - startDay.getFullYear()
+  let months = endDay.getMonth() - startDay.getMonth()
+  let days = endDay.getDate() - startDay.getDate()
+
+  if (days < 0) {
+    const previousMonthIndex = (endDay.getMonth() + 11) % 12
+    const previousMonthYear =
+      previousMonthIndex === 11 ? endDay.getFullYear() - 1 : endDay.getFullYear()
+    days += daysInMonth(previousMonthYear, previousMonthIndex)
+    months -= 1
+  }
+
+  if (months < 0) {
+    months += 12
+    years -= 1
+  }
+
+  return {
+    years: Math.max(0, years),
+    months: Math.max(0, months),
+    days: Math.max(0, days),
+  }
+}
+
+function formatUnit(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
+}
+
+export function formatSobrietyBreakdown(breakdown: SobrietyBreakdown): string {
+  return [
+    formatUnit(breakdown.years, 'year'),
+    formatUnit(breakdown.months, 'month'),
+    formatUnit(breakdown.days, 'day'),
+  ].join(', ')
 }
 
 /**

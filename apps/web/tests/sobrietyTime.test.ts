@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 // eslint-disable-next-line nuxt-redundant-auto-import/no-redundant-auto-import -- Vitest has no Nuxt auto-imports for `~/utils/*`.
-import { parseSobrietyStartDate, soberWholeDays } from '../app/utils/sobrietyTime'
+import {
+  formatSobrietyBreakdown,
+  parseSobrietyStartDate,
+  soberWholeDays,
+  soberYmdBreakdown,
+} from '../app/utils/sobrietyTime'
 
 describe('soberWholeDays', () => {
   const previousTz = process.env.TZ
@@ -35,5 +40,25 @@ describe('soberWholeDays', () => {
   it('rejects impossible calendar dates instead of rolling them into another month', () => {
     expect(parseSobrietyStartDate('2025-02-31')).toBeNull()
     expect(parseSobrietyStartDate('2025-13-01')).toBeNull()
+  })
+
+  it('uses exact calendar borrowing for the years / months / days breakdown', () => {
+    process.env.TZ = 'America/Chicago'
+    const end = new Date(2026, 2, 29, 12, 0, 0)
+    expect(soberWholeDays('2024-09-09', end)).toBe(566)
+    expect(soberYmdBreakdown('2024-09-09', end)).toEqual({
+      years: 1,
+      months: 6,
+      days: 20,
+    })
+  })
+
+  it('pluralizes singular and plural breakdown units correctly', () => {
+    expect(formatSobrietyBreakdown({ years: 1, months: 1, days: 1 })).toBe(
+      '1 year, 1 month, 1 day',
+    )
+    expect(formatSobrietyBreakdown({ years: 2, months: 0, days: 3 })).toBe(
+      '2 years, 0 months, 3 days',
+    )
   })
 })

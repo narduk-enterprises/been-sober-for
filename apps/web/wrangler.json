@@ -103,6 +103,10 @@
   },
   "routes": [
     {
+      "pattern": "beensoberfor.com",
+      "custom_domain": true
+    },
+    {
       "pattern": "www.beensoberfor.com",
       "custom_domain": true
     }

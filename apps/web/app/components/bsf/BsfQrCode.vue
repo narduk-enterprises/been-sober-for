@@ -10,6 +10,8 @@ const props = withDefaults(
 
 const dataUrl = ref<string | null>(null)
 const errorText = ref('')
+const downloaded = ref(false)
+let downloadFeedbackTimeoutId: ReturnType<typeof setTimeout> | undefined
 
 watch(
   () => props.url,
@@ -34,12 +36,25 @@ watch(
   { immediate: true },
 )
 
+onUnmounted(() => {
+  if (downloadFeedbackTimeoutId !== undefined) {
+    globalThis.clearTimeout(downloadFeedbackTimeoutId)
+  }
+})
+
 function downloadPng() {
   if (!dataUrl.value || !import.meta.client) return
   const a = document.createElement('a')
   a.href = dataUrl.value
   a.download = 'beensoberfor-share-qr.png'
   a.click()
+  downloaded.value = true
+  if (downloadFeedbackTimeoutId !== undefined) {
+    globalThis.clearTimeout(downloadFeedbackTimeoutId)
+  }
+  downloadFeedbackTimeoutId = globalThis.setTimeout(() => {
+    downloaded.value = false
+  }, 2500)
 }
 </script>
 
@@ -64,10 +79,11 @@ function downloadPng() {
       color="neutral"
       variant="outline"
       size="sm"
-      icon="i-lucide-download"
+      :icon="downloaded ? 'i-lucide-check' : 'i-lucide-download'"
       @click="downloadPng"
     >
-      Download QR (PNG)
+      {{ downloaded ? 'Downloaded PNG' : 'Download QR (PNG)' }}
     </UButton>
+    <p v-if="downloaded" class="text-dimmed text-xs" role="status">PNG downloaded.</p>
   </div>
 </template>

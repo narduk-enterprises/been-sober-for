@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PublicProfilePayload } from '~/types/sober-public'
-import { approximateYmdBreakdown, soberWholeDays } from '~/utils/sobrietyTime'
+import { formatSobrietyBreakdown, soberWholeDays, soberYmdBreakdown } from '~/utils/sobrietyTime'
 
 const props = defineProps<{
   profile: PublicProfilePayload
@@ -26,7 +26,12 @@ onUnmounted(() => {
 })
 
 const days = computed(() => soberWholeDays(props.profile.sobrietyStartedAt, new Date(tick.value)))
-const breakdown = computed(() => (days.value !== null ? approximateYmdBreakdown(days.value) : null))
+const breakdown = computed(() =>
+  soberYmdBreakdown(props.profile.sobrietyStartedAt, new Date(tick.value)),
+)
+const breakdownLabel = computed(() =>
+  breakdown.value ? formatSobrietyBreakdown(breakdown.value) : '',
+)
 
 const showPhoto = computed(
   () =>
@@ -101,10 +106,7 @@ const avatarAlt = computed(() => {
         v-if="breakdown && profile.shareLayout !== 'minimal'"
         class="text-dimmed mt-2 text-xs sm:text-sm"
       >
-        {{ breakdown.years }} years, {{ breakdown.months }} months, {{ breakdown.days }} day<span
-          v-if="breakdown.days !== 1"
-          >s</span
-        >
+        {{ breakdownLabel }}
       </p>
     </template>
     <p v-else class="text-muted mt-6 text-sm">Start date not shared yet.</p>

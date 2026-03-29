@@ -23,6 +23,7 @@ export const RESERVED_PUBLIC_SLUGS = new Set(
     'print',
     'u',
     'sobriety-calculator',
+    '7-days-sober',
     '30-days-sober',
     '60-days-sober',
     '90-days-sober',

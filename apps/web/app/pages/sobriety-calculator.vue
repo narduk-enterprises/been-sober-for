@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {
-  approximateYmdBreakdown,
   atLocalMidnight,
-  parseSobrietyStartDate,
+  formatSobrietyBreakdown,
   soberWholeDays,
+  soberYmdBreakdown,
 } from '~/utils/sobrietyTime'
 
 definePageMeta({ layout: 'marketing' })
@@ -35,51 +35,6 @@ function startOfLocalToday(): Date {
 }
 
 const startDate = ref('')
-const typedDate = ref('')
-
-function isoFromYmd(y: number, m: number, d: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
-function syncTypedFromIso(iso: string) {
-  if (!iso) {
-    typedDate.value = ''
-    return
-  }
-  const parts = iso.split('-')
-  if (parts.length !== 3) return
-  const y = Number(parts[0])
-  const m = Number(parts[1])
-  const d = Number(parts[2])
-  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return
-  typedDate.value = `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`
-}
-
-watch(startDate, (v) => syncTypedFromIso(v), { immediate: true })
-
-function parseFlexibleDate(raw: string): string | null {
-  const s = raw.trim()
-  if (!s) return null
-  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (us) {
-    const mm = Number(us[1])
-    const dd = Number(us[2])
-    const yyyy = Number(us[3])
-    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null
-    const iso = isoFromYmd(yyyy, mm, dd)
-    return parseSobrietyStartDate(iso) ? iso : null
-  }
-  const isoLike = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (isoLike) {
-    return parseSobrietyStartDate(s) ? s : null
-  }
-  return null
-}
-
-function applyTypedDate() {
-  const iso = parseFlexibleDate(typedDate.value)
-  if (iso) startDate.value = iso
-}
 
 const soberDays = computed(() => {
   const start = parseSobrietyStartDate(startDate.value)
@@ -89,8 +44,9 @@ const soberDays = computed(() => {
   return soberWholeDays(startDate.value, today)
 })
 
-const breakdown = computed(() =>
-  soberDays.value === null ? null : approximateYmdBreakdown(soberDays.value),
+const breakdown = computed(() => soberYmdBreakdown(startDate.value, startOfLocalToday()))
+const breakdownLabel = computed(() =>
+  breakdown.value ? formatSobrietyBreakdown(breakdown.value) : '',
 )
 </script>
 
@@ -109,27 +65,9 @@ const breakdown = computed(() =>
         <UFormField
           label="Sober start date"
           name="sober-start"
-          description="Use the calendar, or type MM/DD/YYYY (or YYYY-MM-DD). We update the count as you go."
+          description="Use the calendar or type directly into the date field. We recalculate as soon as the browser applies the new date."
         >
-          <div class="flex max-w-md flex-col gap-3 sm:flex-row sm:items-center">
-            <UInput
-              id="sober-start"
-              v-model="startDate"
-              type="date"
-              class="w-full sm:max-w-[11rem]"
-            />
-            <UInput
-              v-model="typedDate"
-              type="text"
-              inputmode="numeric"
-              placeholder="MM/DD/YYYY"
-              autocomplete="off"
-              class="w-full sm:max-w-[10rem]"
-              aria-label="Sober start date as text"
-              @blur="applyTypedDate"
-              @change="applyTypedDate"
-            />
-          </div>
+          <UInput id="sober-start-calendar" v-model="startDate" type="date" class="max-w-xs" />
         </UFormField>
         <div
           v-if="soberDays !== null && breakdown"
@@ -145,8 +83,7 @@ const breakdown = computed(() =>
           </p>
           <p class="text-muted mt-1 text-sm font-medium">days</p>
           <p class="text-dimmed mt-3 text-sm">
-            {{ breakdown.years }} years, {{ breakdown.months }} months,
-            {{ breakdown.days }} day<span v-if="breakdown.days !== 1">s</span>
+            {{ breakdownLabel }}
           </p>
           <p class="text-muted mx-auto mt-5 max-w-sm text-sm leading-relaxed">
             Want to keep this count on a shareable page? Create a free account—your date and profile

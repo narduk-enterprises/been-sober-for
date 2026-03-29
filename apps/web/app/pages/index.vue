@@ -68,7 +68,7 @@ const privacyModes = [
 ] as const
 
 const milestones = [
-  { label: '7 days', to: '/sobriety-calculator' },
+  { label: '7 days', to: '/7-days-sober' },
   { label: '30 days', to: '/30-days-sober' },
   { label: '100 days', to: '/100-days-sober' },
   { label: '1 year', to: '/1-year-sober' },

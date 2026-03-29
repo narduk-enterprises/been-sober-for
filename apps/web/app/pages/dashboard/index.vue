@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { approximateYmdBreakdown, soberLiveDetail, soberWholeDays } from '~/utils/sobrietyTime'
+import {
+  formatSobrietyBreakdown,
+  soberLiveDetail,
+  soberWholeDays,
+  soberYmdBreakdown,
+} from '~/utils/sobrietyTime'
 
 definePageMeta({
   layout: 'dashboard',
@@ -76,7 +81,12 @@ onUnmounted(() => {
 const days = computed(() =>
   soberWholeDays(profile.value?.sobrietyStartedAt ?? null, new Date(tick.value)),
 )
-const breakdown = computed(() => (days.value !== null ? approximateYmdBreakdown(days.value) : null))
+const breakdown = computed(() =>
+  soberYmdBreakdown(profile.value?.sobrietyStartedAt ?? null, new Date(tick.value)),
+)
+const breakdownLabel = computed(() =>
+  breakdown.value ? formatSobrietyBreakdown(breakdown.value) : '',
+)
 const live = computed(() =>
   soberLiveDetail(profile.value?.sobrietyStartedAt ?? null, new Date(tick.value)),
 )
@@ -140,8 +150,7 @@ const visibilityLabel = computed(() => {
             </p>
             <p class="text-muted mt-1 text-sm">days</p>
             <p v-if="breakdown" class="text-dimmed mt-2 text-sm">
-              {{ breakdown.years }} years, {{ breakdown.months }} months,
-              {{ breakdown.days }} day<span v-if="breakdown.days !== 1">s</span>
+              {{ breakdownLabel }}
             </p>
             <p v-if="live" class="text-dimmed mt-3 text-xs">
               Private detail: {{ live.hours }}h {{ live.minutes }}m since midnight on your start

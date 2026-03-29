@@ -108,6 +108,7 @@ export default defineNuxtConfig({
     '/sobriety-calculator': { prerender: true },
     '/example': { prerender: true },
     '/print/example': { prerender: true },
+    '/7-days-sober': { prerender: true },
     '/30-days-sober': { prerender: true },
     '/60-days-sober': { prerender: true },
     '/90-days-sober': { prerender: true },

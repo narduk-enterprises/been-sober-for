@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PublicProfilePayload } from '~/types/sober-public'
-import { approximateYmdBreakdown, soberWholeDays } from '~/utils/sobrietyTime'
+import { formatSobrietyBreakdown, soberWholeDays, soberYmdBreakdown } from '~/utils/sobrietyTime'
 
 const props = defineProps<{
   profiles: PublicProfilePayload[]
@@ -16,7 +16,7 @@ const decoratedProfiles = computed(() =>
       label,
       avatarAlt: `Profile photo of ${label}`,
       dayCount,
-      breakdown: dayCount === null ? null : approximateYmdBreakdown(dayCount),
+      breakdown: soberYmdBreakdown(profile.sobrietyStartedAt),
     }
   }),
 )
@@ -67,8 +67,7 @@ const decoratedProfiles = computed(() =>
             {{ profile.dayCount.toLocaleString() }}
           </p>
           <p v-if="profile.breakdown" class="text-dimmed mt-2 text-xs">
-            {{ profile.breakdown.years }} years, {{ profile.breakdown.months }} months,
-            {{ profile.breakdown.days }} days
+            {{ formatSobrietyBreakdown(profile.breakdown) }}
           </p>
         </template>
         <p v-else class="text-muted text-sm">Start date not shared yet.</p>
