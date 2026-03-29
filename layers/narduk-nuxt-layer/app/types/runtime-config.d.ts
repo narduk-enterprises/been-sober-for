@@ -10,6 +10,15 @@ declare module 'nuxt/schema' {
     databaseBackend: 'd1' | 'postgres'
     /** Wrangler Hyperdrive binding name; used by `useHyperdriveConnectionString`. */
     hyperdriveBinding: string
+    /** Optional per-policy server-side rate limit overrides for shared layer routes. */
+    rateLimitPolicies: Record<
+      string,
+      {
+        namespace?: string
+        maxRequests?: number
+        windowMs?: number
+      }
+    >
     googleServiceAccountKey: string
     posthogApiKey: string
     gaPropertyId: string

@@ -21,20 +21,3 @@ VALUES
   ('00000000-0000-0000-0000-000000000001', 'Run database migrations', 1, '2025-01-01T00:00:00.000Z'),
   ('00000000-0000-0000-0000-000000000001', 'Seed the database', 0, '2025-01-01T00:00:00.000Z'),
   ('00000000-0000-0000-0000-000000000002', 'Review admin dashboard', 0, '2025-01-01T00:00:00.000Z');
-
-INSERT INTO notifications (id, user_id, kind, title, body, icon, action_url, is_read, created_at)
-VALUES
-  ('00000000-0000-0000-0000-notification1', '00000000-0000-0000-0000-000000000001', 'system', 'Welcome to the app!', 'Your account has been created. Explore the dashboard to get started.', 'i-lucide-party-popper', '/dashboard', 0, '2025-01-01T00:00:00.000Z'),
-  ('00000000-0000-0000-0000-notification2', '00000000-0000-0000-0000-000000000001', 'reminder', 'Complete your profile', 'Add a display name and photo to personalize your account.', 'i-lucide-user-circle', '/settings', 0, '2025-01-02T00:00:00.000Z'),
-  ('00000000-0000-0000-0000-notification3', '00000000-0000-0000-0000-000000000002', 'system', 'Admin access granted', 'You have been given admin privileges. Visit the admin panel to manage users.', 'i-lucide-shield-check', '/admin', 0, '2025-01-01T00:00:00.000Z'),
-  ('00000000-0000-0000-0000-notification4', '00000000-0000-0000-0000-000000000002', 'reminder', 'Review moderation queue', 'A second unread seed keeps notification contract tests independent after single-item reads.', 'i-lucide-bell-ring', '/admin', 0, '2025-01-02T00:00:00.000Z')
-ON CONFLICT(id) DO UPDATE SET
-  user_id = excluded.user_id,
-  kind = excluded.kind,
-  title = excluded.title,
-  body = excluded.body,
-  icon = excluded.icon,
-  action_url = excluded.action_url,
-  is_read = excluded.is_read,
-  read_at = NULL,
-  created_at = excluded.created_at;

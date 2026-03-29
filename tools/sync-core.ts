@@ -726,11 +726,11 @@ function patchWebNuxtConfig(
     const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
     const exportDefaultAnchor = 'export default defineNuxtConfig({'
     const authSetupBlock = [
-      "const configuredAuthBackend = process.env.AUTH_BACKEND",
-      "const authBackend =",
+      'const configuredAuthBackend = process.env.AUTH_BACKEND',
+      'const authBackend =',
       "  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'",
       '    ? configuredAuthBackend',
-      "    : process.env.AUTH_AUTHORITY_URL && process.env.SUPABASE_AUTH_ANON_KEY",
+      '    : process.env.AUTH_AUTHORITY_URL && process.env.SUPABASE_AUTH_ANON_KEY',
       "      ? 'supabase'",
       "      : 'local'",
       "const authAuthorityUrl = process.env.AUTH_AUTHORITY_URL || ''",
@@ -738,7 +738,7 @@ function patchWebNuxtConfig(
       'function parseAuthProviders(value: string | undefined) {',
       "  return (value || 'apple,email')",
       "    .split(',')",
-      "    .map((provider) => provider.trim().toLowerCase())",
+      '    .map((provider) => provider.trim().toLowerCase())',
       '    .filter((provider, index, providers) => provider && providers.indexOf(provider) === index)',
       '}',
       '',
@@ -888,6 +888,31 @@ function ensureWebDatabaseUtils(
     writeFileSync(utilPath, canonical, 'utf-8')
   }
   counters.copied += 1
+}
+
+export interface AuthBridgeCompanionPatchResult {
+  schemaPatched: boolean
+  databaseHelperCreated: boolean
+}
+
+export function applyAuthBridgeCompanionPatches(
+  appDir: string,
+  options: {
+    dryRun?: boolean
+    log?: (message: string) => void
+  } = {},
+): AuthBridgeCompanionPatchResult {
+  const counters = createCounters()
+  const dryRun = options.dryRun ?? false
+  const log = options.log ?? console.log
+  const schemaPatched = patchWebDatabaseSchema(appDir, dryRun, 'full', log)
+  const copiedBefore = counters.copied
+  ensureWebDatabaseUtils(appDir, counters, dryRun, 'full', log)
+
+  return {
+    schemaPatched,
+    databaseHelperCreated: counters.copied > copiedBefore,
+  }
 }
 
 function patchWebPackage(
@@ -1309,8 +1334,12 @@ export async function runAppSync(options: RunAppSyncOptions) {
   const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
   patchWebPackage(options.appDir, options.templateDir, dryRun, mode, log)
   patchWebNuxtConfig(options.appDir, dryRun, mode, log)
-  patchWebDatabaseSchema(options.appDir, dryRun, mode, log)
-  ensureWebDatabaseUtils(options.appDir, counters, dryRun, mode, log)
+  if (mode === 'full') {
+    const authBridgePatches = applyAuthBridgeCompanionPatches(options.appDir, { dryRun, log })
+    if (authBridgePatches.databaseHelperCreated) {
+      counters.copied += 1
+    }
+  }
   patchDopplerTemplate(options.appDir, dryRun, mode, log)
   mergeWebWranglerKvBinding(options.appDir, options.templateDir, dryRun, mode, log)
   if (mode === 'full') {

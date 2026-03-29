@@ -64,7 +64,7 @@ if (missingTables.length > 0) {
   throw new Error(`Missing layer tables after db:reset: ${missingTables.join(', ')}`)
 }
 
-const notificationRows = runJson(
+const seededUserRows = runJson(
   'pnpm',
   [
     'exec',
@@ -75,17 +75,17 @@ const notificationRows = runJson(
     '--local',
     '--json',
     '--command',
-    'SELECT COUNT(*) AS count FROM notifications;',
+    "SELECT COUNT(*) AS count FROM users WHERE email IN ('admin@example.com', 'admin@nard.uk', 'demo@example.com');",
   ],
   appDir,
 )
 
-const notificationCount = Number(notificationRows[0]?.count ?? 0)
-if (notificationCount < 1) {
-  throw new Error('Layer seed did not populate notifications after db:reset')
+const seededUserCount = Number(seededUserRows[0]?.count ?? 0)
+if (seededUserCount < 2) {
+  throw new Error('Layer seed did not populate the expected baseline auth users after db:reset')
 }
 
 console.log(
   `✅ Verified local db:reset path. Layer tables present: ${expectedLayerTables.join(', ')}`,
 )
-console.log(`✅ Seeded notifications rows: ${notificationCount}`)
+console.log(`✅ Seeded baseline auth users: ${seededUserCount}`)

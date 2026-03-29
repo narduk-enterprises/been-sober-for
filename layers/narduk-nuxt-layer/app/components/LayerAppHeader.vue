@@ -27,19 +27,7 @@ const _props = withDefaults(
 )
 
 const route = useRoute()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Color Mode types depend on build-time module resolution
-const colorMode = useColorMode() as any
-
-const colorModeIcon = computed(() => {
-  if (colorMode.preference === 'system') return 'i-lucide-monitor'
-  return colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'
-})
-
-function cycleColorMode() {
-  const modes = ['system', 'light', 'dark'] as const
-  const idx = modes.indexOf(colorMode.preference as (typeof modes)[number])
-  colorMode.preference = modes[(idx + 1) % modes.length]!
-}
+const { colorModeIcon, cycleColorMode } = useColorModeToggle()
 
 const mobileMenuOpen = ref(false)
 

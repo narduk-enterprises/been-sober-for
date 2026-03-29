@@ -139,7 +139,7 @@ const emit = defineEmits<{
     span: { latDelta: number; lngDelta: number; centerLat: number; centerLng: number },
   ]
   /** Emitted once the internal `mapkit.Map` instance is ready for imperative camera control. */
-  'map-ready': []
+  'map-ready': [map: InstanceType<typeof mapkit.Map>]
 }>()
 
 const selectedId = defineModel<string | null>('selectedId', { default: null })
@@ -148,6 +148,7 @@ const { mapkitReady, mapkitError } = useMapKit()
 const mapContainer = ref<HTMLElement | null>(null)
 
 const pinCleanups: Array<() => void> = []
+const ownedPinAnnotations: InstanceType<typeof mapkit.Annotation>[] = []
 let map: InstanceType<typeof mapkit.Map> | null = null
 let overviewRegion: InstanceType<typeof mapkit.CoordinateRegion> | null = null
 const overlayFeatureMap = new WeakMap<object, GeoJSONFeature>()
@@ -477,7 +478,7 @@ function initMap() {
     }
   })
 
-  emit('map-ready')
+  emit('map-ready', map)
 }
 
 // ── Pin annotations ──────────────────────────────────────────
@@ -523,13 +524,20 @@ function addAnnotations() {
       opts,
     )
   })
+  ownedPinAnnotations.push(...annotations)
   map.addAnnotations(annotations)
+}
+
+function removeOwnedPinAnnotations() {
+  if (!map || ownedPinAnnotations.length === 0) return
+  map.removeAnnotations([...ownedPinAnnotations])
+  ownedPinAnnotations.length = 0
 }
 
 function rebuildAnnotations() {
   if (!map) return
   clearPinCleanups()
-  map.removeAnnotations(map.annotations)
+  removeOwnedPinAnnotations()
   addAnnotations()
 }
 
@@ -716,14 +724,14 @@ watch(
     if (!map) return
     if (props.preserveRegion) {
       clearPinCleanups()
-      map.removeAnnotations(map.annotations)
+      removeOwnedPinAnnotations()
       addAnnotations()
       return
     }
 
     selectedId.value = null
     clearPinCleanups()
-    map.removeAnnotations(map.annotations)
+    removeOwnedPinAnnotations()
     overviewRegion = computeBoundingRegion()
     map.setRegionAnimated(overviewRegion, true)
     addAnnotations()
@@ -775,6 +783,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearPinCleanups()
+  removeOwnedPinAnnotations()
   if (map) {
     map.destroy()
     map = null
@@ -809,7 +818,11 @@ function zoomToFit(zoomOutLevels = 0) {
   )
 }
 
-defineExpose({ scrollIntoView, setRegion, zoomToFit })
+function getMap() {
+  return map
+}
+
+defineExpose({ scrollIntoView, setRegion, zoomToFit, getMap })
 </script>
 
 <template>

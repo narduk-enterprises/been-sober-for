@@ -176,8 +176,9 @@ export async function logoutViaApi(page: Page) {
 }
 
 /**
- * Create a notification via the API. Useful for seeding test state.
- * Requires an authenticated admin/user session.
+ * Create a notification via the shared notifications API.
+ * Requires an authenticated user session. Non-admin users may only target
+ * their own `userId`.
  */
 export async function createNotificationViaApi(
   page: Page,
@@ -191,7 +192,6 @@ export async function createNotificationViaApi(
   },
 ) {
   return page.evaluate(async (body) => {
-    // Use the internal server route — in tests we POST directly
     const response = await fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },

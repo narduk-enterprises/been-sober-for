@@ -1,13 +1,21 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { runCommand } from './command'
 
 type WranglerRoute = string | { pattern?: string; custom_domain?: boolean }
 type WranglerKvBinding = { binding?: string; id?: string; preview_id?: string }
+type WranglerD1Binding = {
+  binding?: string
+  database_name?: string
+  database_id?: string
+  preview_database_id?: string
+}
 type WranglerConfig = {
   name?: string
   routes?: WranglerRoute[]
   kv_namespaces?: WranglerKvBinding[]
+  d1_databases?: WranglerD1Binding[]
 }
 type CloudflareApiError = { code: number; message: string }
 type CloudflareApiResponse<T> = { success: boolean; result: T; errors: CloudflareApiError[] }
@@ -15,10 +23,123 @@ type KvNamespace = { id: string; title: string }
 type KvNamespaceListResponse = CloudflareApiResponse<KvNamespace[]> & {
   result_info?: { total_count?: number; page?: number; per_page?: number; count?: number }
 }
+type D1Row = Record<string, unknown>
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 const PLACEHOLDER_KV_NAMESPACE_ID = '00000000000000000000000000000000'
 const SHIP_DOPPLER_CONFIG = 'prd'
+const REQUIRED_REMOTE_D1_TABLES = [
+  'api_keys',
+  'kv_cache',
+  'notifications',
+  'sessions',
+  'system_prompts',
+  'todos',
+  'users',
+] as const
+const REQUIRED_AUTH_TABLES = ['api_keys', 'sessions', 'users'] as const
+
+function buildSqlStringList(values: readonly string[]): string {
+  return values.map((value) => `'${value.replaceAll("'", "''")}'`).join(', ')
+}
+
+function getWranglerD1DatabaseName(wrangler: WranglerConfig): string | null {
+  const databases = Array.isArray(wrangler.d1_databases) ? wrangler.d1_databases : []
+  const preferred = databases.find((database) => database?.binding === 'DB')
+  return preferred?.database_name?.trim() || databases[0]?.database_name?.trim() || null
+}
+
+function resolveLayerDrizzleDir(appDir: string): string {
+  const repoRoot = getRepoRoot(appDir)
+  const candidates = [
+    resolve(appDir, 'node_modules', '@narduk-enterprises', 'narduk-nuxt-template-layer', 'drizzle'),
+    resolve(repoRoot, 'layers', 'narduk-nuxt-layer', 'drizzle'),
+  ]
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+
+  throw new Error(`Unable to resolve layer drizzle directory for ${appDir}.`)
+}
+
+export function getLayerMigrationIds(drizzleDir: string): string[] {
+  return readdirSync(drizzleDir)
+    .filter((file) => /^0.*\.sql$/.test(file))
+    .sort()
+    .map((file) => `layer:${file}`)
+}
+
+function parseD1Rows(raw: string): D1Row[] {
+  const parsed = JSON.parse(raw) as Array<{ results?: D1Row[]; success?: boolean }>
+  const result = parsed[0]
+  if (!result?.success || !Array.isArray(result.results)) {
+    throw new Error('Wrangler D1 query did not return JSON results.')
+  }
+
+  return result.results
+}
+
+function queryRemoteD1Rows(appDir: string, databaseName: string, sql: string): D1Row[] {
+  const raw = getOutput(
+    'doppler',
+    [
+      'run',
+      '--config',
+      SHIP_DOPPLER_CONFIG,
+      '--',
+      'pnpm',
+      'exec',
+      'wrangler',
+      'd1',
+      'execute',
+      databaseName,
+      '--remote',
+      '--json',
+      '--command',
+      sql,
+    ],
+    appDir,
+  )
+
+  return parseD1Rows(raw)
+}
+
+export function evaluateRemoteD1Readiness(params: {
+  existingTables: string[]
+  appliedMigrations: string[]
+  requiredTables?: readonly string[]
+  requiredAuthTables?: readonly string[]
+  requiredLayerMigrations?: readonly string[]
+}): {
+  missingTables: string[]
+  missingAuthTables: string[]
+  missingMigrations: string[]
+} {
+  const requiredTables = params.requiredTables ?? REQUIRED_REMOTE_D1_TABLES
+  const requiredAuthTables = params.requiredAuthTables ?? REQUIRED_AUTH_TABLES
+  const requiredLayerMigrations = params.requiredLayerMigrations ?? []
+  const existingTableSet = new Set(params.existingTables)
+  const appliedMigrationSet = new Set(params.appliedMigrations)
+
+  return {
+    missingTables: requiredTables.filter((table) => !existingTableSet.has(table)),
+    missingAuthTables: requiredAuthTables.filter((table) => !existingTableSet.has(table)),
+    missingMigrations: requiredLayerMigrations.filter(
+      (migrationId) =>
+        !appliedMigrationSet.has(migrationId) &&
+        !appliedMigrationSet.has(migrationId.replace(/^layer:/, '')),
+    ),
+  }
+}
+
+export function assertNoUntrackedFiles(untrackedFiles: string[]): void {
+  if (untrackedFiles.length === 0) return
+
+  throw new Error(
+    `Ship aborted because untracked files would be skipped: ${untrackedFiles.join(', ')}. Commit, stage, or delete them before running pnpm ship.`,
+  )
+}
 
 function run(
   command: string,
@@ -323,6 +444,52 @@ function getUntrackedFiles(cwd: string): string[] {
     .filter(Boolean)
 }
 
+async function verifyRemoteD1Readiness(appDir: string): Promise<void> {
+  const wrangler = readJsonFile<WranglerConfig>(getAppWranglerPath(appDir))
+  if (!wrangler) return
+
+  const databaseName = getWranglerD1DatabaseName(wrangler)
+  if (!databaseName) return
+
+  const existingTables = queryRemoteD1Rows(
+    appDir,
+    databaseName,
+    `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${buildSqlStringList(REQUIRED_REMOTE_D1_TABLES)}) ORDER BY name;`,
+  )
+    .map((row) => (typeof row.name === 'string' ? row.name : ''))
+    .filter(Boolean)
+
+  const appliedMigrations = queryRemoteD1Rows(
+    appDir,
+    databaseName,
+    'SELECT filename FROM _applied_migrations ORDER BY filename;',
+  )
+    .map((row) => (typeof row.filename === 'string' ? row.filename : ''))
+    .filter(Boolean)
+
+  const readiness = evaluateRemoteD1Readiness({
+    existingTables,
+    appliedMigrations,
+    requiredLayerMigrations: getLayerMigrationIds(resolveLayerDrizzleDir(appDir)),
+  })
+
+  if (readiness.missingMigrations.length > 0) {
+    throw new Error(
+      `Remote D1 migration tracking is incomplete after ship preflight. Missing layer migrations: ${readiness.missingMigrations.join(', ')}`,
+    )
+  }
+
+  if (readiness.missingTables.length > 0) {
+    const authHint =
+      readiness.missingAuthTables.length > 0
+        ? ` Missing auth-critical tables: ${readiness.missingAuthTables.join(', ')}.`
+        : ''
+    throw new Error(
+      `Remote D1 schema is incompatible after migrations. Missing tables: ${readiness.missingTables.join(', ')}.${authHint}`,
+    )
+  }
+}
+
 function isLocalhostUrl(value: string | null | undefined): boolean {
   if (!value) return false
 
@@ -419,6 +586,7 @@ async function shipApp(appTarget: string, options: { repairOnly: boolean }) {
   }
 
   await ensureWranglerKvBinding(appDir)
+  const repoRoot = getRepoRoot(appDir)
 
   if (options.repairOnly) {
     console.log(
@@ -438,6 +606,14 @@ async function shipApp(appTarget: string, options: { repairOnly: boolean }) {
   }
   const shipEnv = resolveShipEnvironment(appDir)
 
+  const untrackedFiles = getUntrackedFiles(repoRoot)
+  try {
+    assertNoUntrackedFiles(untrackedFiles)
+  } catch (error) {
+    console.error(`\n❌ ${error instanceof Error ? error.message : String(error)}\n`)
+    process.exit(1)
+  }
+
   // 1. Build Verification
   console.log(`\n🏗️ Building ${appTarget}...`)
   try {
@@ -454,11 +630,6 @@ async function shipApp(appTarget: string, options: { repairOnly: boolean }) {
 
   // 2. Git operations
   console.log(`\n📦 Checking git status...`)
-  const untrackedFiles = getUntrackedFiles(appDir)
-  if (untrackedFiles.length > 0) {
-    console.log(`Ignoring untracked files during ship auto-commit: ${untrackedFiles.join(', ')}`)
-  }
-
   run('git', ['add', '-u'], appDir)
 
   let hasChanges = false
@@ -497,14 +668,25 @@ async function shipApp(appTarget: string, options: { repairOnly: boolean }) {
     run('doppler', ['run', '--config', SHIP_DOPPLER_CONFIG, '--', ...migrateArgs], appDir)
   }
 
+  console.log(`\n🔍 Verifying remote D1 readiness for ${appTarget}...`)
+  try {
+    await verifyRemoteD1Readiness(appDir)
+  } catch (error) {
+    console.error(
+      `\n❌ Remote D1 readiness check failed for ${appTarget}: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    process.exit(1)
+  }
+
   // 4. Deploy
   console.log(`\n☁️ Deploying ${appTarget} to Edge...`)
   try {
+    const deployEnv = { ...(shipEnv || process.env), NARDUK_SHIP_ACTIVE: '1' }
     run(
       'doppler',
       ['run', '--config', SHIP_DOPPLER_CONFIG, '--', 'pnpm', 'run', 'deploy'],
       appDir,
-      shipEnv,
+      deployEnv,
     )
   } catch (error) {
     console.error(`\n❌ Deploy failed for ${appTarget}.`)
@@ -537,4 +719,11 @@ async function main() {
   }
 }
 
-main()
+const isMain = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false
+
+if (isMain) {
+  main().catch((error) => {
+    console.error(`\n❌ Ship failed: ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(1)
+  })
+}

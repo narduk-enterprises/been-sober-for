@@ -36,7 +36,6 @@ const loading = ref(false)
 const appleLoading = ref(false)
 const errorMsg = ref('')
 const infoMsg = ref('')
-const hydrated = useHydratedFlag()
 
 const canUseApple = computed(
   () => config.public.authBackend === 'supabase' && config.public.authProviders.includes('apple'),
@@ -167,7 +166,6 @@ function toUserFacingError(error: unknown, fallback: string) {
         variant="solid"
         class="w-full justify-center"
         :loading="appleLoading"
-        :disabled="!hydrated"
         @click="onAppleSignIn"
       >
         Continue with Apple
@@ -182,11 +180,7 @@ function toUserFacingError(error: unknown, fallback: string) {
         <span class="h-px flex-1 bg-default" />
       </div>
 
-      <div v-if="!hydrated" class="flex justify-center py-6">
-        <UIcon name="i-lucide-loader-2" class="text-muted h-6 w-6 animate-spin" />
-      </div>
-
-      <UForm v-else :schema="schema" :state="state" class="space-y-4" @submit.prevent="onSubmit">
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit.prevent="onSubmit">
         <UFormField name="email" label="Email">
           <UInput
             v-model="state.email"

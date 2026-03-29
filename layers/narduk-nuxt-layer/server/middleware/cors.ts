@@ -24,22 +24,27 @@ export default defineEventHandler((event) => {
   const origin = getHeader(event, 'origin')
   if (!origin) return // Same-origin request — no CORS needed
 
+  const isBrowserExtensionOrigin =
+    origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://')
+  const isScraperExtensionRoute = path.startsWith('/api/admin/scraper-extension/')
+  const allowScraperExtensionOrigin = isScraperExtensionRoute && isBrowserExtensionOrigin
+
   // Read allowed origins from runtime config
   const config = useRuntimeConfig(event)
   const allowedOriginsRaw = (config as Record<string, unknown>).corsAllowedOrigins as
     | string
     | undefined
 
-  // Default: no CORS allowed (same-origin only)
-  if (!allowedOriginsRaw) return
-
   const allowedOrigins = allowedOriginsRaw
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean)
+    ? allowedOriginsRaw
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : []
 
-  // Exact origin matching — no wildcard
-  if (!allowedOrigins.includes(origin)) return
+  // Exact origin matching — no wildcard. Scraper extension routes allow browser
+  // extension origins so machine auth can survive ambient cookies and preflights.
+  if (!allowScraperExtensionOrigin && !allowedOrigins.includes(origin)) return
 
   // Set CORS headers
   setResponseHeaders(event, {

@@ -13,6 +13,13 @@ export default defineEventHandler(async (event) => {
   await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.notifications)
 
   const { limit } = await getValidatedQuery(event, querySchema.parse)
+
+  // Nitro can inspect dynamic routes during prerender before Cloudflare bindings
+  // exist. Keep build-time link inspection quiet without masking runtime issues.
+  if (import.meta.prerender && !(event.context.cloudflare?.env as { DB?: D1Database })?.DB) {
+    return []
+  }
+
   const db = useAppDatabase(event)
   const rows = await db
     .select()

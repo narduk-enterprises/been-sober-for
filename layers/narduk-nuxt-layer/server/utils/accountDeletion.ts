@@ -1,0 +1,71 @@
+import type { H3Event } from 'h3'
+import { eq } from 'drizzle-orm'
+import type { AuthUser } from '#layer/server/utils/auth'
+import { users } from '#layer/orm-tables'
+import { verifyUserPassword } from '#layer/server/utils/password'
+
+export interface DeleteAccountInput {
+  currentPassword?: string
+}
+
+function isForeignKeyConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    /foreign key/i.test(error.message)
+  )
+}
+
+export async function deleteCurrentUserAccount(
+  event: H3Event,
+  user: AuthUser,
+  input: DeleteAccountInput = {},
+): Promise<void> {
+  const log = useLogger(event).child('Auth')
+  const db = useDatabase(event)
+  const dbUser = await db.select().from(users).where(eq(users.id, user.id)).get()
+
+  if (!dbUser) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'User not found.',
+    })
+  }
+
+  if (dbUser.passwordHash) {
+    if (!input.currentPassword) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Current password is required to delete this account.',
+      })
+    }
+
+    const isValid = await verifyUserPassword(input.currentPassword, dbUser.passwordHash)
+    if (!isValid) {
+      log.warn('Account deletion rejected — invalid current password', { userId: user.id })
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid current password.',
+      })
+    }
+  }
+
+  try {
+    await db.delete(users).where(eq(users.id, user.id)).run()
+  } catch (error) {
+    if (isForeignKeyConstraintError(error)) {
+      throw createError({
+        statusCode: 409,
+        statusMessage:
+          'Account deletion is blocked because app-owned records still reference this user. Configure downstream user foreign keys with ON DELETE CASCADE or clean them up before deleting the account.',
+      })
+    }
+
+    throw error
+  }
+
+  await clearUserSession(event)
+  log.info('User deleted account', { userId: user.id })
+}

@@ -1,9 +1,10 @@
+import type { Page } from '@playwright/test'
 import {
   createUniqueEmail,
+  createNotificationViaApi,
   expect,
   fetchNotificationsViaApi,
   fetchUnreadCountViaApi,
-  loginAsAdmin,
   markAllNotificationsReadViaApi,
   registerAndLogin,
   test,
@@ -29,6 +30,22 @@ interface SharedNotificationsContractOptions {
   basePath?: string
 }
 
+function getSessionUserId(result: unknown): string {
+  if (
+    !result ||
+    typeof result !== 'object' ||
+    !('user' in result) ||
+    !result.user ||
+    typeof result.user !== 'object' ||
+    !('id' in result.user) ||
+    typeof result.user.id !== 'string'
+  ) {
+    throw new Error('Expected registerAndLogin() to return an authenticated user id.')
+  }
+
+  return result.user.id
+}
+
 export function defineSharedNotificationsContract(
   options: SharedNotificationsContractOptions = {},
 ) {
@@ -36,6 +53,24 @@ export function defineSharedNotificationsContract(
 
   test.describe(`${appName} shared notifications contract`, () => {
     test.describe.configure({ mode: 'serial' })
+
+    async function createUnreadNotificationFixture(page: Page) {
+      const email = createUniqueEmail(`${appName}-notif`)
+      const result = await registerAndLogin(page, {
+        name: 'Notif User',
+        email,
+        password: 'password123',
+      })
+      const userId = getSessionUserId(result)
+
+      await createNotificationViaApi(page, {
+        userId,
+        kind: 'system',
+        title: `${appName} notification`,
+        body: 'Shared notification contract fixture.',
+        actionUrl: '/dashboard',
+      })
+    }
 
     test.beforeAll(async ({ browser, baseURL }) => {
       if (!baseURL) {
@@ -73,33 +108,32 @@ export function defineSharedNotificationsContract(
       await page.goto('/')
       await waitForHydration(page)
 
-      const email = createUniqueEmail(`${appName}-notif`)
-      await registerAndLogin(page, { name: 'Notif User', email, password: 'password123' })
+      await createUnreadNotificationFixture(page)
 
       const data = await fetchNotificationsViaApi(page)
 
       expect(data).toHaveProperty('notifications')
       expect(Array.isArray(data.notifications)).toBe(true)
+      expect(data.notifications.length).toBeGreaterThan(0)
     })
 
     test('authenticated user can fetch unread count', async ({ page }) => {
       await page.goto('/')
       await waitForHydration(page)
 
-      const email = createUniqueEmail(`${appName}-count`)
-      await registerAndLogin(page, { name: 'Count User', email, password: 'password123' })
+      await createUnreadNotificationFixture(page)
 
       const count = await fetchUnreadCountViaApi(page)
 
       expect(typeof count).toBe('number')
-      expect(count).toBeGreaterThanOrEqual(0)
+      expect(count).toBeGreaterThan(0)
     })
 
-    test('seeded admin user has unread notifications', async ({ page }) => {
+    test('created notifications are returned with the expected shape', async ({ page }) => {
       await page.goto('/')
       await waitForHydration(page)
 
-      await loginAsAdmin(page)
+      await createUnreadNotificationFixture(page)
 
       const count = await fetchUnreadCountViaApi(page)
       expect(count).toBeGreaterThan(0)
@@ -117,11 +151,26 @@ export function defineSharedNotificationsContract(
       expect(notification).toHaveProperty('createdAt')
     })
 
+    test('mark-all-read clears unread count', async ({ page }) => {
+      await page.goto('/')
+      await waitForHydration(page)
+
+      await createUnreadNotificationFixture(page)
+
+      const countBefore = await fetchUnreadCountViaApi(page)
+      expect(countBefore).toBeGreaterThan(0)
+
+      await markAllNotificationsReadViaApi(page)
+
+      const countAfter = await fetchUnreadCountViaApi(page)
+      expect(countAfter).toBe(0)
+    })
+
     test('PATCH /api/notifications/:id marks single notification as read', async ({ page }) => {
       await page.goto('/')
       await waitForHydration(page)
 
-      await loginAsAdmin(page)
+      await createUnreadNotificationFixture(page)
 
       const countBefore = await fetchUnreadCountViaApi(page)
       expect(countBefore).toBeGreaterThan(0)
@@ -143,21 +192,6 @@ export function defineSharedNotificationsContract(
 
       const countAfter = await fetchUnreadCountViaApi(page)
       expect(countAfter).toBeLessThanOrEqual(countBefore - 1)
-    })
-
-    test('mark-all-read clears unread count', async ({ page }) => {
-      await page.goto('/')
-      await waitForHydration(page)
-
-      await loginAsAdmin(page)
-
-      const countBefore = await fetchUnreadCountViaApi(page)
-      expect(countBefore).toBeGreaterThan(0)
-
-      await markAllNotificationsReadViaApi(page)
-
-      const countAfter = await fetchUnreadCountViaApi(page)
-      expect(countAfter).toBe(0)
     })
 
     test('DELETE /api/notifications/:id requires authentication', async ({ page }) => {

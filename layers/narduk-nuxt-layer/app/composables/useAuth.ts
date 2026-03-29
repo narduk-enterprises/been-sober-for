@@ -16,7 +16,7 @@ export interface AuthUser {
 }
 
 export function useAuth() {
-  const { loggedIn, user, fetch: fetchSession } = useUserSession()
+  const { loggedIn, user, fetch: fetchSession, clear } = useUserSession()
   const nuxtApp = useNuxtApp()
   const csrfFetch = (nuxtApp.$csrfFetch ?? $fetch) as typeof $fetch
 
@@ -47,7 +47,18 @@ export function useAuth() {
 
   async function logout() {
     await csrfFetch('/api/auth/logout', { method: 'POST' })
+    await clear()
     await fetchSession()
+  }
+
+  async function deleteAccount(payload: { currentPassword?: string } = {}) {
+    const result = await csrfFetch<{ success: boolean }>('/api/auth/account/delete', {
+      method: 'POST',
+      body: payload,
+    })
+    await clear()
+    await fetchSession()
+    return result
   }
 
   return {
@@ -58,6 +69,7 @@ export function useAuth() {
     login,
     register,
     logout,
+    deleteAccount,
     signup: register,
   }
 }

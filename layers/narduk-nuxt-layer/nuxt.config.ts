@@ -115,6 +115,11 @@ export default defineNuxtConfig({
     databaseBackend: process.env.NUXT_DATABASE_BACKEND === 'postgres' ? 'postgres' : 'd1',
     /** Wrangler Hyperdrive binding name (default `HYPERDRIVE`). */
     hyperdriveBinding: process.env.NUXT_HYPERDRIVE_BINDING || 'HYPERDRIVE',
+    /**
+     * Downstream apps can override shared layer policies without patching vendored files:
+     * `runtimeConfig.rateLimitPolicies.authLogin = { maxRequests: 20, windowMs: 60_000 }`
+     */
+    rateLimitPolicies: {},
     /** Optional: secret for cron routes (e.g. cache warming). Set CRON_SECRET in Doppler; provisioning sets it. */
     cronSecret: process.env.CRON_SECRET || '',
     ownerTagSecret: process.env.OWNER_TAG_SECRET || '',

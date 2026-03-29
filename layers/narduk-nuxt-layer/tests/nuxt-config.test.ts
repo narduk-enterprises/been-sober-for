@@ -8,6 +8,7 @@ type LayerNuxtConfig = {
   $development?: {
     runtimeConfig?: {
       logLevel?: string
+      rateLimitPolicies?: Record<string, unknown>
       session?: {
         password?: string
         cookie?: {
@@ -26,6 +27,7 @@ type LayerNuxtConfig = {
   }
   runtimeConfig?: {
     logLevel?: string
+    rateLimitPolicies?: Record<string, unknown>
     session?: {
       password?: string
       cookie?: {
@@ -98,6 +100,7 @@ describe('layer nuxt config', () => {
 
     expect(config.runtimeConfig).toMatchObject({
       logLevel: 'warn',
+      rateLimitPolicies: {},
       session: {
         password: '',
         cookie: {

@@ -28,6 +28,10 @@ interface MockEvent {
 // Mock Nitro auto-imports
 vi.stubGlobal('getHeader', vi.fn())
 vi.stubGlobal('setResponseHeader', vi.fn())
+vi.stubGlobal(
+  'useRuntimeConfig',
+  vi.fn(() => ({ rateLimitPolicies: {} })),
+)
 vi.stubGlobal('createError', (opts: { statusCode: number; message: string }) => {
   const err = new Error(opts.message) as Error & { statusCode: number }
   err.statusCode = opts.statusCode
@@ -47,6 +51,7 @@ beforeEach(() => {
     if (name === 'cf-connecting-ip') return (event as unknown as MockEvent)._ip
   })
   vi.mocked(setResponseHeader).mockClear()
+  vi.mocked(useRuntimeConfig).mockReturnValue({ rateLimitPolicies: {} })
 })
 
 describe('enforceRateLimit', () => {
@@ -116,5 +121,25 @@ describe('enforceRateLimitPolicy', () => {
     await expect(
       enforceRateLimitPolicy(event as never, RATE_LIMIT_POLICIES.authLogin),
     ).resolves.toBeUndefined()
+  })
+
+  it('applies runtime overrides for shared layer policies', async () => {
+    const limit = vi.fn().mockResolvedValue({ success: true })
+    const event = createMockEvent('203.0.113.12')
+    event.context = { cloudflare: { env: { RL_20: { limit } } } }
+    vi.mocked(useRuntimeConfig).mockReturnValue({
+      rateLimitPolicies: {
+        authLogin: {
+          namespace: 'custom-auth-login',
+          maxRequests: 20,
+          windowMs: 5_000,
+        },
+      },
+    })
+
+    await expect(
+      enforceRateLimitPolicy(event as never, RATE_LIMIT_POLICIES.authLogin),
+    ).resolves.toBeUndefined()
+    expect(limit).toHaveBeenCalledWith({ key: 'custom-auth-login:203.0.113.12' })
   })
 })

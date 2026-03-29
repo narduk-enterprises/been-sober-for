@@ -46,44 +46,84 @@ interface RateLimitEntry {
 }
 
 export interface RateLimitPolicy {
+  key?: string
   namespace: string
   maxRequests: number
   windowMs: number
 }
 
+export interface RateLimitPolicyOverride {
+  namespace?: string
+  maxRequests?: number
+  windowMs?: number
+}
+
 const MINUTE = 60_000
 
+export function defineRateLimitPolicy(
+  key: string,
+  namespace: string,
+  maxRequests: number,
+  windowMs: number,
+): RateLimitPolicy {
+  return {
+    key,
+    namespace,
+    maxRequests,
+    windowMs,
+  }
+}
+
 export const RATE_LIMIT_POLICIES = {
-  adminAiModel: { namespace: 'admin-ai-model', maxRequests: 20, windowMs: MINUTE },
-  adminSystemPrompts: { namespace: 'admin-system-prompts', maxRequests: 20, windowMs: MINUTE },
-  adminUsers: { namespace: 'admin-users', maxRequests: 20, windowMs: MINUTE },
-  authLogin: { namespace: 'auth-login', maxRequests: 60, windowMs: MINUTE },
-  authRegister: { namespace: 'auth-register', maxRequests: 30, windowMs: MINUTE },
-  authChangePassword: { namespace: 'auth-change-password', maxRequests: 30, windowMs: MINUTE },
-  authApiKeys: { namespace: 'auth-api-keys', maxRequests: 60, windowMs: MINUTE },
-  authLogout: { namespace: 'auth-logout', maxRequests: 30, windowMs: MINUTE },
-  authProfile: { namespace: 'auth-profile', maxRequests: 30, windowMs: MINUTE },
-  notifications: { namespace: 'notifications', maxRequests: 60, windowMs: MINUTE },
-  ownerTag: { namespace: 'owner-tag', maxRequests: 10, windowMs: MINUTE },
-  upload: { namespace: 'upload', maxRequests: 60, windowMs: MINUTE },
-  indexNowSubmit: { namespace: 'indexnow', maxRequests: 60, windowMs: MINUTE },
-  googleIndexingBatch: {
-    namespace: 'google-indexing-batch',
-    maxRequests: 60,
-    windowMs: MINUTE,
-  },
-  googleIndexingPublish: {
-    namespace: 'google-indexing-publish',
-    maxRequests: 120,
-    windowMs: MINUTE,
-  },
-  googleIndexingStatus: {
-    namespace: 'google-indexing-status',
-    maxRequests: 240,
-    windowMs: MINUTE,
-  },
-  showcaseAuthLogin: { namespace: 'auth-login', maxRequests: 60, windowMs: MINUTE },
-  showcaseAuthLoginTest: { namespace: 'auth-login-test', maxRequests: 300, windowMs: MINUTE },
+  adminAiModel: defineRateLimitPolicy('adminAiModel', 'admin-ai-model', 20, MINUTE),
+  adminSystemPrompts: defineRateLimitPolicy(
+    'adminSystemPrompts',
+    'admin-system-prompts',
+    20,
+    MINUTE,
+  ),
+  adminUsers: defineRateLimitPolicy('adminUsers', 'admin-users', 20, MINUTE),
+  authLogin: defineRateLimitPolicy('authLogin', 'auth-login', 60, MINUTE),
+  authRegister: defineRateLimitPolicy('authRegister', 'auth-register', 30, MINUTE),
+  authChangePassword: defineRateLimitPolicy(
+    'authChangePassword',
+    'auth-change-password',
+    30,
+    MINUTE,
+  ),
+  authDeleteAccount: defineRateLimitPolicy('authDeleteAccount', 'auth-delete-account', 10, MINUTE),
+  authApiKeys: defineRateLimitPolicy('authApiKeys', 'auth-api-keys', 60, MINUTE),
+  authLogout: defineRateLimitPolicy('authLogout', 'auth-logout', 30, MINUTE),
+  authProfile: defineRateLimitPolicy('authProfile', 'auth-profile', 30, MINUTE),
+  notifications: defineRateLimitPolicy('notifications', 'notifications', 60, MINUTE),
+  ownerTag: defineRateLimitPolicy('ownerTag', 'owner-tag', 10, MINUTE),
+  upload: defineRateLimitPolicy('upload', 'upload', 60, MINUTE),
+  indexNowSubmit: defineRateLimitPolicy('indexNowSubmit', 'indexnow', 60, MINUTE),
+  googleIndexingBatch: defineRateLimitPolicy(
+    'googleIndexingBatch',
+    'google-indexing-batch',
+    60,
+    MINUTE,
+  ),
+  googleIndexingPublish: defineRateLimitPolicy(
+    'googleIndexingPublish',
+    'google-indexing-publish',
+    120,
+    MINUTE,
+  ),
+  googleIndexingStatus: defineRateLimitPolicy(
+    'googleIndexingStatus',
+    'google-indexing-status',
+    240,
+    MINUTE,
+  ),
+  showcaseAuthLogin: defineRateLimitPolicy('showcaseAuthLogin', 'auth-login', 60, MINUTE),
+  showcaseAuthLoginTest: defineRateLimitPolicy(
+    'showcaseAuthLoginTest',
+    'auth-login-test',
+    300,
+    MINUTE,
+  ),
 } as const satisfies Record<string, RateLimitPolicy>
 
 const buckets = new Map<string, Map<string, RateLimitEntry>>()
@@ -110,6 +150,32 @@ function getCloudflareRateLimiter(
   const env = event.context.cloudflare?.env as LayerRateLimitEnv | undefined
   const limiter = env?.[bindingName]
   return limiter ?? null
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+}
+
+function resolveRateLimitPolicy(event: H3Event, policy: RateLimitPolicy): RateLimitPolicy {
+  if (!policy.key) return policy
+
+  const config = useRuntimeConfig(event) as {
+    rateLimitPolicies?: Record<string, RateLimitPolicyOverride | undefined>
+  }
+  const override = config.rateLimitPolicies?.[policy.key]
+  if (!override) return policy
+
+  return {
+    key: policy.key,
+    namespace:
+      typeof override.namespace === 'string' && override.namespace.trim().length > 0
+        ? override.namespace.trim()
+        : policy.namespace,
+    maxRequests: isPositiveInteger(override.maxRequests)
+      ? override.maxRequests
+      : policy.maxRequests,
+    windowMs: isPositiveInteger(override.windowMs) ? override.windowMs : policy.windowMs,
+  }
 }
 
 function getClientIp(event: H3Event): string {
@@ -199,6 +265,12 @@ export async function enforceRateLimitPolicy(
   event: H3Event,
   policy: RateLimitPolicy,
 ): Promise<void> {
-  await enforceCloudflareRateLimit(event, policy)
-  await enforceRateLimit(event, policy.namespace, policy.maxRequests, policy.windowMs)
+  const resolvedPolicy = resolveRateLimitPolicy(event, policy)
+  await enforceCloudflareRateLimit(event, resolvedPolicy)
+  await enforceRateLimit(
+    event,
+    resolvedPolicy.namespace,
+    resolvedPolicy.maxRequests,
+    resolvedPolicy.windowMs,
+  )
 }

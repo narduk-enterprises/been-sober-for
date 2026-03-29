@@ -8,7 +8,7 @@ import { sessions, users, apiKeys } from '#layer/orm-tables'
  * Session & authentication utilities.
  *
  * Primary session: nuxt-auth-utils (sealed cookie). requireAuth / requireAdmin
- * check that first, then fall back to API key.
+ * use that by default, but an explicit API key bearer header takes precedence.
  *
  * Optional D1 session helpers (createSession, getSessionUser, destroySession) are
  * for apps that want server-side session listing/revocation in addition to sealed cookies.
@@ -19,6 +19,18 @@ import { sessions, users, apiKeys } from '#layer/orm-tables'
 const DEFAULT_SESSION_COOKIE = 'app_session'
 const SESSION_DAYS = 30
 const API_KEY_PREFIX = 'nk_'
+
+function getApiKeyFromAuthorization(event: H3Event): string | null {
+  const authHeader = getRequestHeader(event, 'authorization')
+  if (!authHeader) return null
+
+  const [scheme, token] = authHeader.trim().split(/\s+/, 2)
+  if (scheme?.toLowerCase() !== 'bearer' || !token?.startsWith(API_KEY_PREFIX)) {
+    return null
+  }
+
+  return token
+}
 
 function getSessionCookieName(event: H3Event): string {
   try {
@@ -128,11 +140,8 @@ export async function getSessionUser(event: H3Event): Promise<User | null> {
  * Updates last_used_at on successful authentication.
  */
 export async function authenticateApiKey(event: H3Event): Promise<User | null> {
-  const authHeader = getRequestHeader(event, 'authorization')
-  if (!authHeader?.startsWith('Bearer ')) return null
-
-  const rawKey = authHeader.slice(7).trim()
-  if (!rawKey.startsWith(API_KEY_PREFIX)) return null
+  const rawKey = getApiKeyFromAuthorization(event)
+  if (!rawKey) return null
 
   const db = useDatabase(event)
   const keyHash = await hashApiKey(rawKey)
@@ -205,9 +214,26 @@ export type AuthUser = { id: string; email: string; name: string | null; isAdmin
 
 /**
  * Get the current user from nuxt-auth-utils session or API key. Throws 401 if not authenticated.
- * Fallback chain: sealed session (nuxt-auth-utils) → API key → 401.
+ * Fallback chain: explicit API key bearer auth → sealed session (nuxt-auth-utils) → API key → 401.
  */
 export async function requireAuth(event: H3Event): Promise<AuthUser> {
+  if (getApiKeyFromAuthorization(event)) {
+    const apiKeyUser = await authenticateApiKey(event)
+    if (!apiKeyUser) {
+      throw createError({
+        statusCode: 401,
+        message: 'Unauthorized',
+      })
+    }
+
+    return {
+      id: apiKeyUser.id,
+      email: apiKeyUser.email,
+      name: apiKeyUser.name,
+      isAdmin: apiKeyUser.isAdmin,
+    }
+  }
+
   const session = await getUserSession(event)
   if (session?.user) return session.user as unknown as AuthUser
 

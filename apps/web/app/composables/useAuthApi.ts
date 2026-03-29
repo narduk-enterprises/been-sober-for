@@ -129,6 +129,14 @@ export function useAuthApi() {
     })
   }
 
+  function deleteAccount(payload: { currentPassword?: string } = {}) {
+    return csrfFetch<{ success: boolean }>('/api/auth/account/delete', {
+      method: 'POST',
+      body: payload,
+      headers: csrfHeaders,
+    })
+  }
+
   return {
     login,
     register,
@@ -141,5 +149,6 @@ export function useAuthApi() {
     requestPasswordReset,
     enrollMfa,
     verifyMfa,
+    deleteAccount,
   }
 }

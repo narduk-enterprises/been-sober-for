@@ -4,9 +4,10 @@ Read `AGENTS.md` at the project root for full project rules and conventions.
 
 ## Repo skills
 
-If this repo ships committed skills for GitHub-facing agents, they live in
-`.github/skills/`. The template does not mirror, symlink, or repair local agent
-skill directories. Manage any local-only skills separately from this checkout.
+The committed GitHub-facing skill mirror lives in `.github/skills/`.
+`~/.agents/skills/` is the canonical local source; refresh the repo mirror with
+`pnpm run sync:github-skills` when your local skills change. Downstream starters
+and `sync-template` runs carry the committed `.github/skills/` copy.
 
 ### Installing new skills
 
@@ -18,7 +19,7 @@ npx skills add https://github.com/<owner>/<repo> --skill <name>
 /skill-create
 ```
 
-See `docs/agents/skills.md` for the manual-management rules.
+See `docs/agents/skills.md` for the mirror workflow.
 
 ## Architecture & Monorepo
 

@@ -3,6 +3,11 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  getProvisionDisplayName,
+  getProvisionShortName,
+  readProvisionMetadata,
+} from './provision-metadata'
 import { REFERENCE_BASELINE_FILES } from './sync-manifest'
 
 interface CheckResult {
@@ -32,6 +37,7 @@ const rootArg = process.argv
 const ROOT_DIR = rootArg ? rootArg : join(__dirname, '..')
 const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
 const LAYER_PACKAGE_PATH = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
+const APP_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'app', 'app.config.ts')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 const LAYER_PUBLIC_DIR = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'public')
@@ -62,6 +68,12 @@ const CONTROL_PLANE_REPO_DIR_HINTS = [
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
   return JSON.parse(readFileSync(path, 'utf8')) as T
+}
+
+function isAuthoringWorkspace(rootDir: string): boolean {
+  if (existsSync(join(rootDir, 'apps', 'showcase'))) return true
+  const rootPackage = readJson<{ name?: string }>(ROOT_PACKAGE_PATH)
+  return rootPackage?.name === 'narduk-nuxt-template'
 }
 
 function firstExistingPath(candidates: Array<string | undefined>): string | null {
@@ -111,6 +123,64 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function extractNamedObjectLiteral(source: string, propertyName: string): string | null {
+  const propertyPattern = new RegExp(`\\b${escapeRegExp(propertyName)}\\s*:`, 'g')
+
+  for (const match of source.matchAll(propertyPattern)) {
+    const propertyEnd = (match.index ?? 0) + match[0].length
+    let objectStart = propertyEnd
+    while (objectStart < source.length && /\s/.test(source[objectStart] ?? '')) {
+      objectStart += 1
+    }
+
+    if (source[objectStart] !== '{') continue
+
+    let depth = 0
+    let inString: '"' | "'" | '`' | null = null
+    let escaped = false
+
+    for (let index = objectStart; index < source.length; index += 1) {
+      const character = source[index] ?? ''
+
+      if (inString) {
+        if (escaped) {
+          escaped = false
+          continue
+        }
+
+        if (character === '\\') {
+          escaped = true
+          continue
+        }
+
+        if (character === inString) {
+          inString = null
+        }
+        continue
+      }
+
+      if (character === '"' || character === "'" || character === '`') {
+        inString = character
+        continue
+      }
+
+      if (character === '{') {
+        depth += 1
+        continue
+      }
+
+      if (character === '}') {
+        depth -= 1
+        if (depth === 0) {
+          return source.slice(objectStart + 1, index)
+        }
+      }
+    }
+  }
+
+  return null
+}
+
 function listVirtualStoreVersions(packageName: string): string[] {
   if (!existsSync(PNPM_VIRTUAL_STORE_DIR)) return []
 
@@ -157,6 +227,13 @@ function findDsStore(dir: string, base = dir): string[] {
   }
 
   return matches
+}
+
+function listGoogleVerificationFiles(publicDir: string): string[] {
+  if (!existsSync(publicDir)) return []
+  return readdirSync(publicDir)
+    .filter((name) => /^google[a-z0-9]+\.html$/i.test(name))
+    .sort()
 }
 
 function checkFontsCompatibility(rootPkg: PackageJson, layerPkg: PackageJson | null): CheckResult {
@@ -245,6 +322,47 @@ function checkOgImageConfig(): CheckResult {
   return {
     status: 'pass',
     summary: 'ogImage config shape is current',
+  }
+}
+
+function checkAppConfigUiShape(): CheckResult {
+  if (!existsSync(APP_CONFIG_PATH)) {
+    return {
+      status: 'warn',
+      summary: 'apps/web/app/app.config.ts not found',
+    }
+  }
+
+  const content = readFileSync(APP_CONFIG_PATH, 'utf8')
+  const uiObject = extractNamedObjectLiteral(content, 'ui')
+  if (!uiObject) {
+    return {
+      status: 'pass',
+      summary: 'apps/web/app/app.config.ts inherits layer ui.colors defaults',
+    }
+  }
+
+  if (/\bcolors\s*:\s*\{/.test(uiObject)) {
+    return {
+      status: 'pass',
+      summary: 'apps/web/app/app.config.ts uses Nuxt UI v4 ui.colors shape',
+    }
+  }
+
+  if (/\bprimary\s*:/.test(uiObject) || /\bneutral\s*:/.test(uiObject)) {
+    return {
+      status: 'fail',
+      summary: 'apps/web/app/app.config.ts still uses legacy flat ui.primary/ui.neutral keys',
+      detail:
+        'Replace flat ui.primary/ui.neutral with ui.colors.primary/ui.colors.neutral before exporting starters or syncing fleet apps.',
+    }
+  }
+
+  return {
+    status: 'warn',
+    summary: 'apps/web/app/app.config.ts overrides ui without declaring ui.colors',
+    detail:
+      'Prefer explicit ui.colors keys so downstream theming edits follow the Nuxt UI v4 contract.',
   }
 }
 
@@ -339,6 +457,73 @@ function checkAppWebmanifestIcons(): CheckResult {
     status: 'fail',
     summary: 'apps/web site.webmanifest references missing files',
     detail: missing.map((f) => `apps/web/public/${f}`).join('\n'),
+  }
+}
+
+function checkProvisionManifestMetadata(): CheckResult {
+  const provision = readProvisionMetadata(ROOT_DIR)
+  const expectedName = provision.displayName || provision.name
+  const manifestPath = join(PUBLIC_DIR, 'site.webmanifest')
+  if (!expectedName || !existsSync(manifestPath)) {
+    return {
+      status: 'pass',
+      summary: 'provision.json manifest parity not applicable in this checkout',
+    }
+  }
+
+  const manifest = readJson<{ name?: string; short_name?: string }>(manifestPath)
+  const actualName = typeof manifest?.name === 'string' ? manifest.name.trim() : ''
+  const actualShortName = typeof manifest?.short_name === 'string' ? manifest.short_name.trim() : ''
+  const expectedDisplayName = getProvisionDisplayName(provision, expectedName)
+  const expectedShortName = getProvisionShortName(provision, expectedName)
+  const mismatches: string[] = []
+
+  if (actualName !== expectedDisplayName) {
+    mismatches.push(
+      `site.webmanifest name is "${actualName || '(missing)'}" but provision.json expects "${expectedDisplayName}"`,
+    )
+  }
+
+  if (actualShortName && actualShortName !== expectedShortName) {
+    mismatches.push(
+      `site.webmanifest short_name is "${actualShortName}" but provision.json expects "${expectedShortName}"`,
+    )
+  }
+
+  if (mismatches.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'apps/web site.webmanifest naming matches provision.json',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'apps/web site.webmanifest naming drifts from provision.json',
+    detail: mismatches.join('\n'),
+  }
+}
+
+function checkAuthoringWorkspaceGoogleVerificationFiles(): CheckResult {
+  if (!isAuthoringWorkspace(ROOT_DIR)) {
+    return {
+      status: 'pass',
+      summary: 'template-only Google verification guard not applicable in this checkout',
+    }
+  }
+
+  const matches = listGoogleVerificationFiles(PUBLIC_DIR)
+  if (matches.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'template public assets do not ship Google verification files',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'template public assets include property-specific Google verification files',
+    detail: matches.map((name) => `apps/web/public/${name}`).join('\n'),
   }
 }
 
@@ -484,10 +669,13 @@ async function main() {
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],
     ['pnpm lockfile', checkLockfileState(rootPkg)],
+    ['app config ui shape', checkAppConfigUiShape()],
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
     ['layer head public assets', checkLayerHeadPublicAssets()],
     ['app webmanifest icons', checkAppWebmanifestIcons()],
+    ['provision manifest parity', checkProvisionManifestMetadata()],
+    ['google verification files', checkAuthoringWorkspaceGoogleVerificationFiles()],
     ['reference baselines', checkReferenceBaselines()],
     ['fleet manifest parity', await checkFleetManifestParity()],
   ]

@@ -45,5 +45,13 @@ export function useAuthApi() {
     })
   }
 
-  return { login, register, logout, loginAsTestUser, changePassword }
+  async function deleteAccount(payload: { currentPassword?: string } = {}) {
+    return $fetch<{ success: boolean }>('/api/auth/account/delete', {
+      method: 'POST',
+      body: payload,
+      headers: csrfHeaders,
+    })
+  }
+
+  return { login, register, logout, loginAsTestUser, changePassword, deleteAccount }
 }
