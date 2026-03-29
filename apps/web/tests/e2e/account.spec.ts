@@ -85,7 +85,9 @@ test.describe('account deletion', () => {
     await expect(deletePasswordInput).toHaveValue(password)
 
     await page
-      .getByLabel('I understand this permanently deletes my account, public page, and current session.')
+      .getByLabel(
+        'I understand this permanently deletes my account, public page, and current session.',
+      )
       .click()
     await page.getByRole('button', { name: 'Delete account' }).click()
 

@@ -21,11 +21,7 @@ useWebPageSchema({
 })
 
 const toast = useToast()
-const {
-  user,
-  changePassword: updatePassword,
-  deleteAccount: removeAccount,
-} = useAuth()
+const { user, changePassword: updatePassword, deleteAccount: removeAccount } = useAuth()
 const hydrated = useHydratedFlag()
 
 const currentPassword = ref('')
