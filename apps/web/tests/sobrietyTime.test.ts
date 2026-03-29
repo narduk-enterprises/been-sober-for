@@ -54,9 +54,7 @@ describe('soberWholeDays', () => {
   })
 
   it('pluralizes singular and plural breakdown units correctly', () => {
-    expect(formatSobrietyBreakdown({ years: 1, months: 1, days: 1 })).toBe(
-      '1 year, 1 month, 1 day',
-    )
+    expect(formatSobrietyBreakdown({ years: 1, months: 1, days: 1 })).toBe('1 year, 1 month, 1 day')
     expect(formatSobrietyBreakdown({ years: 2, months: 0, days: 3 })).toBe(
       '2 years, 0 months, 3 days',
     )
