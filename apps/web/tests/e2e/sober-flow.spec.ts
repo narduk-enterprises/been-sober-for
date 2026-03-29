@@ -20,12 +20,6 @@ function daysAgoYmd(days: number) {
   return formatYmd(date)
 }
 
-function todayYmd() {
-  const date = new Date()
-  date.setHours(12, 0, 0, 0)
-  return formatYmd(date)
-}
-
 test.describe('sober profile flow', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
     if (!baseURL) {
@@ -38,7 +32,6 @@ test.describe('sober profile flow', () => {
 
   test('user can publish a sober profile and start again', async ({ page }) => {
     const startDate = daysAgoYmd(30)
-    const today = todayYmd()
     const slug = `steady-${Date.now()}`
     const email = `steady-${Date.now()}@example.com`
 
@@ -88,7 +81,7 @@ test.describe('sober profile flow', () => {
     await expect(page.getByText('One day at a time.')).toBeVisible()
 
     await page.goto('/dashboard/start-again')
-    await page.getByLabel('New sober start date').fill(today)
+    await page.getByRole('button', { name: 'Use today' }).click()
     await page.getByLabel(/I understand this will replace my current sober date/i).click()
     await page.getByRole('button', { name: 'Confirm new date' }).click()
 

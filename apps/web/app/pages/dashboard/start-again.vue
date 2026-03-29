@@ -28,12 +28,21 @@ const { data: profile, pending, error, refresh } = useSoberProfile()
 const draftDate = ref<string | null>(null)
 const understood = ref(false)
 const submitting = ref(false)
+const todayYmd = computed(() => {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+})
 const newDate = computed({
   get: () => draftDate.value ?? profile.value?.sobrietyStartedAt ?? '',
   set: (value: string) => {
     draftDate.value = value
   },
 })
+const isTodaySelected = computed(() => newDate.value === todayYmd.value)
+
+function selectToday() {
+  newDate.value = todayYmd.value
+}
 
 async function submit() {
   if (!newDate.value) {
@@ -47,9 +56,7 @@ async function submit() {
     })
     return
   }
-  const today = new Date()
-  const cap = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  if (newDate.value > cap) {
+  if (newDate.value > todayYmd.value) {
     toast.add({ title: 'That date is in the future.', color: 'warning' })
     return
   }
@@ -101,7 +108,19 @@ async function submit() {
     <UCard v-else>
       <UForm class="space-y-6" @submit.prevent="submit">
         <UFormField label="New sober start date" name="startedAt" required>
-          <UInput v-model="newDate" type="date" class="max-w-xs" />
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput v-model="newDate" type="date" class="max-w-xs" />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-calendar-days"
+              :disabled="isTodaySelected"
+              @click="selectToday"
+            >
+              Use today
+            </UButton>
+          </div>
         </UFormField>
 
         <UCheckbox

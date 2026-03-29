@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const navItems = [
   { label: 'Calculator', to: '/sobriety-calculator', icon: 'i-lucide-calculator' },
+  { label: 'Community', to: '/community', icon: 'i-lucide-users' },
   { label: 'About', to: '/about', icon: 'i-lucide-info' },
   { label: 'FAQ', to: '/faq', icon: 'i-lucide-circle-help' },
 ]

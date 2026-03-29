@@ -19,6 +19,13 @@
       "preview_id": "2eb38b235c104abe8fe0887075176aaa"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "been-sober-for-assets",
+      "preview_bucket_name": "been-sober-for-assets-dev"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

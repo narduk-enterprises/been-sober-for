@@ -26,6 +26,24 @@ export function useUpload() {
   const uploading = ref(false)
   const uploadError = ref('')
 
+  function toUploadErrorMessage(err: unknown): string {
+    if (!err || typeof err !== 'object') return 'Upload failed. Is R2 configured?'
+
+    const maybeError = err as {
+      data?: { statusMessage?: string; message?: string }
+      statusMessage?: string
+      message?: string
+    }
+
+    return (
+      maybeError.data?.statusMessage ||
+      maybeError.data?.message ||
+      maybeError.statusMessage ||
+      maybeError.message ||
+      'Upload failed. Is R2 configured?'
+    )
+  }
+
   /**
    * Upload a single file. Returns the image URL or null on error.
    */
@@ -41,8 +59,7 @@ export function useUpload() {
       })
       return res.url
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload failed. Is R2 configured?'
-      uploadError.value = message
+      uploadError.value = toUploadErrorMessage(err)
       return null
     } finally {
       uploading.value = false
@@ -68,8 +85,7 @@ export function useUpload() {
       const items = Array.isArray(res) ? res : [res]
       return items.map((r) => r.url)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload failed. Is R2 configured?'
-      uploadError.value = message
+      uploadError.value = toUploadErrorMessage(err)
       return []
     } finally {
       uploading.value = false
