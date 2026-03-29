@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import {
+  approximateYmdBreakdown,
+  atLocalMidnight,
+  parseSobrietyStartDate,
+  soberWholeDays,
+} from '~/utils/sobrietyTime'
+
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Sobriety Calculator | Count Your Days Sober'
+const title = 'Sobriety Calculator'
 const description =
   'Enter your alcohol-free start date to see how many days you have been sober. Free, simple, and respectful.'
 
@@ -23,20 +30,8 @@ useWebPageSchema({
   description,
 })
 
-function parseLocalDate(value: string): Date | null {
-  if (!value) return null
-  const d = new Date(`${value}T12:00:00`)
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
 function startOfLocalToday(): Date {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0)
-}
-
-function wholeDaysSober(start: Date, end: Date): number {
-  const ms = end.getTime() - start.getTime()
-  return Math.floor(ms / (1000 * 60 * 60 * 24))
+  return atLocalMidnight(new Date())
 }
 
 const startDate = ref('')
@@ -72,13 +67,11 @@ function parseFlexibleDate(raw: string): string | null {
     const yyyy = Number(us[3])
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null
     const iso = isoFromYmd(yyyy, mm, dd)
-    const d = parseLocalDate(iso)
-    return d ? iso : null
+    return parseSobrietyStartDate(iso) ? iso : null
   }
   const isoLike = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (isoLike) {
-    const d = parseLocalDate(s)
-    return d ? s : null
+    return parseSobrietyStartDate(s) ? s : null
   }
   return null
 }
@@ -89,25 +82,16 @@ function applyTypedDate() {
 }
 
 const soberDays = computed(() => {
-  const start = parseLocalDate(startDate.value)
+  const start = parseSobrietyStartDate(startDate.value)
   if (!start) return null
   const today = startOfLocalToday()
-  const days = wholeDaysSober(start, today)
-  if (days < 0) return null
-  return days
+  if (start.getTime() > today.getTime()) return null
+  return soberWholeDays(startDate.value, today)
 })
 
-const breakdown = computed(() => {
-  const days = soberDays.value
-  if (days === null) return null
-  let remaining = days
-  const years = Math.floor(remaining / 365)
-  remaining -= years * 365
-  const months = Math.floor(remaining / 30)
-  remaining -= months * 30
-  const d = remaining
-  return { years, months, days: d }
-})
+const breakdown = computed(() =>
+  soberDays.value === null ? null : approximateYmdBreakdown(soberDays.value),
+)
 </script>
 
 <template>

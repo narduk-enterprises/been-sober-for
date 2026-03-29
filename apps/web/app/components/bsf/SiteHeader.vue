@@ -48,5 +48,20 @@ const { loggedIn } = useAuth()
         </template>
       </div>
     </UContainer>
+    <UContainer class="pb-3 lg:hidden">
+      <div role="navigation" class="flex gap-2 overflow-x-auto" aria-label="Site sections">
+        <UButton
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :icon="item.icon"
+        >
+          {{ item.label }}
+        </UButton>
+      </div>
+    </UContainer>
   </div>
 </template>

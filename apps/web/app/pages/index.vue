@@ -1,12 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const runtimeConfig = useRuntimeConfig()
-const publicConfig = runtimeConfig.public
-const appName =
-  publicConfig.appName && publicConfig.appName.length > 0 ? publicConfig.appName : 'BeenSoberFor'
+const brandName = 'BeenSoberFor'
 
-const pageTitle = `${appName} | Simple Sobriety Day Counter`
+const pageTitle = 'Simple Sobriety Day Counter'
 const pageDescription =
   'Track how long you have been sober with a simple personal counter. Create a shareable profile, upload your photo, and print a QR code for your progress page.'
 
@@ -262,9 +259,9 @@ const faqTeaser = [
       </h2>
       <div class="text-muted mt-6 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
         <p>
-          {{ appName }} is a sobriety day counter with a shareable profile and optional QR code. It
-          is for people who want a single, respectful page—not a treatment program, medical service,
-          or discussion forum.
+          {{ brandName }} is a sobriety day counter with a shareable profile and optional QR code.
+          It is for people who want a single, respectful page, not a treatment program, medical
+          service, or discussion forum.
         </p>
         <h3 class="text-highlighted font-display text-lg font-semibold">
           How does the sober counter work?
@@ -329,7 +326,7 @@ const faqTeaser = [
         variant="subtle"
         icon="i-lucide-heart-pulse"
         title="Not a substitute for care"
-        :description="`${appName} is a simple tracking and sharing tool. It is not medical advice, treatment, or crisis support. If you or someone else is in immediate danger, contact local emergency services. In the U.S., SAMHSA’s National Helpline is 1-800-662-4357 (free, confidential, 24/7).`"
+        :description="`${brandName} is a simple tracking and sharing tool. It is not medical advice, treatment, or crisis support. If you or someone else is in immediate danger, contact local emergency services. In the U.S., SAMHSA’s National Helpline is 1-800-662-4357 (free, confidential, 24/7).`"
       />
     </UContainer>
 

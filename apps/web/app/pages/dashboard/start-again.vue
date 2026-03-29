@@ -22,25 +22,18 @@ useWebPageSchema({
 
 const toast = useToast()
 const { fetchUser } = useAuth()
-const { data: profile, refresh } = useSoberProfile()
+const hydrated = useHydratedFlag()
+const { data: profile, pending, error, refresh } = useSoberProfile()
 
-const newDate = ref('')
+const draftDate = ref<string | null>(null)
 const understood = ref(false)
 const submitting = ref(false)
-
-onMounted(() => {
-  if (profile.value?.sobrietyStartedAt) {
-    newDate.value = profile.value.sobrietyStartedAt
-  }
-})
-
-watch(
-  profile,
-  (p) => {
-    if (p?.sobrietyStartedAt && !newDate.value) newDate.value = p.sobrietyStartedAt
+const newDate = computed({
+  get: () => draftDate.value ?? profile.value?.sobrietyStartedAt ?? '',
+  set: (value: string) => {
+    draftDate.value = value
   },
-  { immediate: true },
-)
+})
 
 async function submit() {
   if (!newDate.value) {
@@ -99,8 +92,14 @@ async function submit() {
       </p>
     </div>
 
-    <UCard>
-      <UForm class="space-y-6" @submit="submit">
+    <div v-if="pending || !hydrated" class="flex justify-center py-12">
+      <UIcon name="i-lucide-loader-2" class="text-muted h-8 w-8 animate-spin" />
+    </div>
+
+    <UAlert v-else-if="error" color="error" variant="subtle" title="Could not load profile" />
+
+    <UCard v-else>
+      <UForm class="space-y-6" @submit.prevent="submit">
         <UFormField label="New sober start date" name="startedAt" required>
           <UInput v-model="newDate" type="date" class="max-w-xs" />
         </UFormField>

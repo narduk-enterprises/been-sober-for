@@ -23,6 +23,7 @@ useWebPageSchema({
 const toast = useToast()
 const { user } = useAuth()
 const authApi = useAuthApi()
+const hydrated = useHydratedFlag()
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -67,7 +68,10 @@ async function changePassword() {
 
     <UCard>
       <h2 class="font-display text-lg font-semibold">Change password</h2>
-      <UForm class="mt-4 space-y-4" @submit="changePassword">
+      <div v-if="!hydrated" class="mt-4 flex justify-center py-6">
+        <UIcon name="i-lucide-loader-2" class="text-muted h-6 w-6 animate-spin" />
+      </div>
+      <UForm v-else class="mt-4 space-y-4" @submit.prevent="changePassword">
         <UFormField label="Current password" name="current">
           <UInput v-model="currentPassword" type="password" autocomplete="current-password" />
         </UFormField>

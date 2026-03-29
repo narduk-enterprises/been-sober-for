@@ -133,6 +133,7 @@ const visibilityLabel = computed(() => {
           </div>
           <div v-else class="mt-2">
             <p
+              data-testid="dashboard-day-count"
               class="font-display text-primary-600 dark:text-primary-400 text-5xl font-semibold tabular-nums sm:text-6xl"
             >
               {{ days.toLocaleString() }}

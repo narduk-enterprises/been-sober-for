@@ -60,6 +60,7 @@ const avatarAlt = computed(() => {
 
 <template>
   <div
+    data-testid="public-profile-card"
     :class="[
       'rounded-[1.75rem] border p-8 text-center sm:p-10',
       variant === 'print'
@@ -80,13 +81,17 @@ const avatarAlt = computed(() => {
       />
     </div>
 
-    <p class="font-display text-highlighted mt-6 text-2xl font-semibold">
+    <p
+      data-testid="public-display-name"
+      class="font-display text-highlighted mt-6 text-2xl font-semibold"
+    >
       {{ profile.displayName || 'Friend' }}
     </p>
 
     <template v-if="days !== null">
       <p class="text-muted mt-6 text-sm">{{ profile.displayName || 'They' }} has been sober for</p>
       <p
+        data-testid="public-day-count"
         class="font-display text-primary-600 dark:text-primary-400 mt-2 text-6xl font-semibold tabular-nums leading-none sm:text-7xl"
       >
         {{ days.toLocaleString() }}

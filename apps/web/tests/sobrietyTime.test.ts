@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 // eslint-disable-next-line nuxt-redundant-auto-import/no-redundant-auto-import -- Vitest has no Nuxt auto-imports for `~/utils/*`.
-import { soberWholeDays } from '../app/utils/sobrietyTime'
+import { parseSobrietyStartDate, soberWholeDays } from '../app/utils/sobrietyTime'
 
 describe('soberWholeDays', () => {
   const previousTz = process.env.TZ
@@ -30,5 +30,10 @@ describe('soberWholeDays', () => {
     process.env.TZ = 'America/Chicago'
     const end = new Date(2024, 5, 15, 23, 30, 0)
     expect(soberWholeDays('2024-06-15', end)).toBe(0)
+  })
+
+  it('rejects impossible calendar dates instead of rolling them into another month', () => {
+    expect(parseSobrietyStartDate('2025-02-31')).toBeNull()
+    expect(parseSobrietyStartDate('2025-13-01')).toBeNull()
   })
 })

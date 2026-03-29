@@ -24,6 +24,7 @@ useWebPageSchema({
 const toast = useToast()
 const { fetchUser } = useAuth()
 const { uploadFile, uploading, uploadError } = useUpload()
+const hydrated = useHydratedFlag()
 
 const { data: profile, pending, refresh } = useSoberProfile()
 
@@ -123,12 +124,12 @@ function clearAvatar() {
       </p>
     </div>
 
-    <div v-if="pending" class="flex justify-center py-12">
+    <div v-if="pending || !hydrated" class="flex justify-center py-12">
       <UIcon name="i-lucide-loader-2" class="text-muted h-8 w-8 animate-spin" />
     </div>
 
     <UCard v-else>
-      <UForm class="space-y-6" @submit="save">
+      <UForm class="space-y-6" @submit.prevent="save">
         <UFormField label="Display name" name="displayName" required>
           <UInput v-model="form.displayName" maxlength="80" autocomplete="name" />
         </UFormField>

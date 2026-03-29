@@ -43,6 +43,7 @@ const updateState = reactive({
 const loading = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+const hydrated = useHydratedFlag()
 
 const isRecoveryMode = computed(() => route.query.recovery === '1')
 const needsCurrentPassword = computed(
@@ -165,8 +166,12 @@ function toUserFacingError(error: unknown, fallback: string) {
         class="mb-4"
       />
 
+      <div v-if="!hydrated" class="flex justify-center py-6">
+        <UIcon name="i-lucide-loader-2" class="text-muted h-6 w-6 animate-spin" />
+      </div>
+
       <UForm
-        v-if="!isRecoveryMode"
+        v-else-if="!isRecoveryMode"
         :schema="requestSchema"
         :state="requestState"
         class="space-y-4"
