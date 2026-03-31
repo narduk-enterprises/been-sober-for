@@ -39,6 +39,46 @@ function getManagedPackageVersions(lockfileContent) {
     .sort((left, right) => left.packageName.localeCompare(right.packageName))
 }
 
+function getManagedLockfileTarballIssues(lockfileContent) {
+  const issues = []
+  const lines = lockfileContent.split(/\r?\n/)
+  let currentPackageName = null
+  let currentVersion = null
+
+  for (const line of lines) {
+    const headerMatch = line.match(/^ {2}'(@narduk-enterprises\/[^@']+)@([^']+)'/)
+    if (headerMatch) {
+      currentPackageName = headerMatch[1]
+      currentVersion = headerMatch[2]?.split('(')[0]?.trim() ?? null
+      continue
+    }
+
+    if (!line.startsWith('  ')) {
+      currentPackageName = null
+      currentVersion = null
+      continue
+    }
+
+    if (!currentPackageName || !currentVersion || !line.includes('tarball:')) {
+      continue
+    }
+
+    const tarballMatch = line.match(/tarball:\s+(\S+)/)
+    const tarballUrl = tarballMatch?.[1]
+    if (!tarballUrl || tarballUrl.startsWith(registryBase)) {
+      continue
+    }
+
+    issues.push({
+      packageName: currentPackageName,
+      version: currentVersion,
+      tarballUrl,
+    })
+  }
+
+  return issues
+}
+
 async function verifyPackage(packageName, version, forgejoToken) {
   const metadataUrl = `${registryMetadataBase}/${encodeURIComponent(packageName)}`
   const metadataResponse = await fetch(metadataUrl, {
@@ -115,6 +155,15 @@ if (!forgejoToken) {
 }
 
 const lockfile = fs.readFileSync(lockfilePath, 'utf8')
+const lockfileIssues = getManagedLockfileTarballIssues(lockfile)
+
+if (lockfileIssues.length > 0) {
+  const issueSummary = lockfileIssues
+    .map((issue) => `${issue.packageName}@${issue.version} -> ${issue.tarballUrl}`)
+    .join('; ')
+  fail(`pnpm-lock.yaml still references non-Forgejo managed tarballs: ${issueSummary}`)
+}
+
 const packages = getManagedPackageVersions(lockfile)
 
 if (packages.length === 0) {

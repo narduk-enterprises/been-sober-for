@@ -56,6 +56,12 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
+      - name: Repair Forgejo lockfile package source
+        run: doppler run --config prd -- node ./tools/repair-forgejo-lockfile.mjs
+        working-directory: .
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
       - name: Verify Forgejo package source
         run: doppler run --config prd -- node ./tools/verify-forgejo-package-source.mjs
         working-directory: .

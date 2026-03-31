@@ -33,6 +33,7 @@ export const VERBATIM_SYNC_FILES = [
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
   'tools/run-remote-d1-migrate.mjs',
+  'tools/repair-forgejo-lockfile.mjs',
   'tools/sync-github-skills.ts',
   'tools/web-deploy.cjs',
   'tools/tail.ts',
