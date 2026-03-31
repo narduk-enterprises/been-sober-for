@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatLocalDateInputValue } from '~/utils/sobrietyTime'
+
 definePageMeta({
   layout: 'dashboard',
   middleware: ['auth'],
@@ -28,20 +30,20 @@ const { data: profile, pending, error, refresh } = useSoberProfile()
 const draftDate = ref<string | null>(null)
 const understood = ref(false)
 const submitting = ref(false)
-const todayYmd = computed(() => {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-})
 const newDate = computed({
   get: () => draftDate.value ?? profile.value?.sobrietyStartedAt ?? '',
   set: (value: string) => {
     draftDate.value = value
   },
 })
-const isTodaySelected = computed(() => newDate.value === todayYmd.value)
+const isTodaySelected = computed(() => newDate.value === todayYmd())
+
+function todayYmd() {
+  return formatLocalDateInputValue(new Date())
+}
 
 function selectToday() {
-  newDate.value = todayYmd.value
+  newDate.value = todayYmd()
 }
 
 async function submit() {
@@ -56,7 +58,7 @@ async function submit() {
     })
     return
   }
-  if (newDate.value > todayYmd.value) {
+  if (newDate.value > todayYmd()) {
     toast.add({ title: 'That date is in the future.', color: 'warning' })
     return
   }
@@ -118,7 +120,7 @@ async function submit() {
               :disabled="isTodaySelected"
               @click="selectToday"
             >
-              Use today
+              Start today
             </UButton>
           </div>
         </UFormField>

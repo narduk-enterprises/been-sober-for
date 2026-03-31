@@ -24,8 +24,21 @@ test.describe('calculator and milestone routes', () => {
     await waitForHydration(page)
 
     await expect(page.locator('input[type="date"]')).toHaveCount(1)
-    await expect(
-      page.getByText('Use the calendar or type directly into the date field.'),
-    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Start today' })).toBeVisible()
+  })
+
+  test('calculator Start today pre-fills the date and shows the zero-day state', async ({
+    page,
+  }) => {
+    const today = new Date()
+    const todayYmd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    await page.goto('/sobriety-calculator')
+    await waitForHydration(page)
+
+    await page.getByRole('button', { name: 'Start today' }).click()
+
+    await expect(page.locator('input[type="date"]')).toHaveValue(todayYmd)
+    await expect(page.getByRole('link', { name: 'Save this on my page' })).toBeVisible()
   })
 })

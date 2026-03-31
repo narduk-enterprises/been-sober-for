@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   atLocalMidnight,
+  formatLocalDateInputValue,
   formatSobrietyBreakdown,
   soberWholeDays,
   soberYmdBreakdown,
@@ -35,6 +36,11 @@ function startOfLocalToday(): Date {
 }
 
 const startDate = ref('')
+const isTodaySelected = computed(() => startDate.value === formatLocalDateInputValue(new Date()))
+
+function selectToday() {
+  startDate.value = formatLocalDateInputValue(new Date())
+}
 
 const soberDays = computed(() => {
   const start = parseSobrietyStartDate(startDate.value)
@@ -65,9 +71,21 @@ const breakdownLabel = computed(() =>
         <UFormField
           label="Sober start date"
           name="sober-start"
-          description="Use the calendar or type directly into the date field. We recalculate as soon as the browser applies the new date."
+          description="Use the calendar, type directly, or tap Start today. We recalculate as soon as the browser applies the new date."
         >
-          <UInput id="sober-start-calendar" v-model="startDate" type="date" class="max-w-xs" />
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput id="sober-start-calendar" v-model="startDate" type="date" class="max-w-xs" />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-calendar-days"
+              :disabled="isTodaySelected"
+              @click="selectToday"
+            >
+              Start today
+            </UButton>
+          </div>
         </UFormField>
         <div
           v-if="soberDays !== null && breakdown"

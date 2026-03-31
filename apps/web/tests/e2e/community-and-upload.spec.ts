@@ -41,6 +41,7 @@ test.describe('community listing and profile upload', () => {
 
     await page.goto('/dashboard/edit-profile')
     await waitForHydration(page)
+    await expect(page.getByRole('button', { name: 'Start today' })).toBeVisible()
 
     await page.locator('input[type="file"]').setInputFiles(demoAvatarPath)
 

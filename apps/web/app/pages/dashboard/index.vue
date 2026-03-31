@@ -28,6 +28,7 @@ useWebPageSchema({
 })
 
 const { user, fetchUser } = useAuth()
+const hydrated = useHydratedFlag()
 
 const { data: profile, pending, error, refresh } = useSoberProfile()
 
@@ -109,193 +110,207 @@ const visibilityLabel = computed(() => {
       </p>
     </div>
 
-    <UAlert v-if="error" color="error" variant="subtle" title="Could not load profile" />
+    <ClientOnly>
+      <template #fallback>
+        <div class="flex justify-center py-16">
+          <UIcon name="i-lucide-loader-2" class="text-muted h-10 w-10 animate-spin" />
+        </div>
+      </template>
 
-    <template v-else-if="pending">
-      <div class="flex justify-center py-16">
+      <div v-if="pending || !hydrated" class="flex justify-center py-16">
         <UIcon name="i-lucide-loader-2" class="text-muted h-10 w-10 animate-spin" />
       </div>
-    </template>
 
-    <template v-else-if="profile">
-      <UCard
-        data-testid="auth-dashboard"
-        class="border-primary-200/60 dark:border-primary-900/50 overflow-hidden"
-      >
-        <div
-          class="from-primary-50/80 to-default border-default border-b bg-linear-to-br px-6 py-8 dark:from-primary-950/30"
+      <UAlert v-else-if="error" color="error" variant="subtle" title="Could not load profile" />
+
+      <template v-else-if="profile">
+        <UCard
+          data-testid="auth-dashboard"
+          class="border-primary-200/60 dark:border-primary-900/50 overflow-hidden"
         >
-          <p class="text-muted text-sm font-medium">Your sober time</p>
-          <div v-if="days === null" class="mt-4">
-            <p class="text-highlighted text-lg font-medium">Set your start date</p>
-            <p class="text-muted mt-1 max-w-md text-sm leading-relaxed">
-              Add the day you count from on Edit profile. Your counter will show here and on your
-              public page.
-            </p>
-            <UButton
-              to="/dashboard/edit-profile"
-              class="mt-4"
-              color="primary"
-              icon="i-lucide-calendar-plus"
-            >
-              Edit profile
-            </UButton>
-          </div>
-          <div v-else class="mt-2">
-            <p
-              data-testid="dashboard-day-count"
-              class="font-display text-primary-600 dark:text-primary-400 text-5xl font-semibold tabular-nums sm:text-6xl"
-            >
-              {{ days.toLocaleString() }}
-            </p>
-            <p class="text-muted mt-1 text-sm">days</p>
-            <p v-if="breakdown" class="text-dimmed mt-2 text-sm">
-              {{ breakdownLabel }}
-            </p>
-            <p v-if="live" class="text-dimmed mt-3 text-xs">
-              Private detail: {{ live.hours }}h {{ live.minutes }}m since midnight on your start
-              date (updates every minute).
-            </p>
-          </div>
-        </div>
-        <div class="space-y-4 p-6">
-          <div>
-            <p class="text-muted text-xs font-medium uppercase tracking-wide">Public link</p>
-            <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <code
-                class="border-default bg-muted/40 text-highlighted rounded-xl border px-3 py-2 text-sm break-all"
-                >{{ profile.publicProfileUrl }}</code
-              >
+          <div
+            class="from-primary-50/80 to-default border-default border-b bg-linear-to-br px-6 py-8 dark:from-primary-950/30"
+          >
+            <p class="text-muted text-sm font-medium">Your sober time</p>
+            <div v-if="days === null" class="mt-4">
+              <p class="text-highlighted text-lg font-medium">Set your start date</p>
+              <p class="text-muted mt-1 max-w-md text-sm leading-relaxed">
+                Add the day you count from on Edit profile. Your counter will show here and on your
+                public page.
+              </p>
               <UButton
-                :to="
-                  profile.pageVisibility === 'private'
-                    ? '/dashboard/preview'
-                    : `/u/${profile.publicSlug}`
-                "
-                :target="profile.pageVisibility === 'private' ? undefined : '_blank'"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                icon="i-lucide-external-link"
+                to="/dashboard/edit-profile"
+                class="mt-4"
+                color="primary"
+                icon="i-lucide-calendar-plus"
               >
-                Preview
+                Edit profile
               </UButton>
             </div>
-            <p class="text-dimmed mt-2 text-xs">
-              Visibility: {{ visibilityLabel
-              }}<span v-if="profile.pageVisibility !== 'private' && !profile.allowSearchIndexing">
-                · hidden from search by default</span
+            <div v-else class="mt-2">
+              <p
+                data-testid="dashboard-day-count"
+                class="font-display text-primary-600 dark:text-primary-400 text-5xl font-semibold tabular-nums sm:text-6xl"
               >
-            </p>
+                {{ days.toLocaleString() }}
+              </p>
+              <p class="text-muted mt-1 text-sm">days</p>
+              <p v-if="breakdown" class="text-dimmed mt-2 text-sm">
+                {{ breakdownLabel }}
+              </p>
+              <p v-if="live" class="text-dimmed mt-3 text-xs">
+                Private detail: {{ live.hours }}h {{ live.minutes }}m since midnight on your start
+                date (updates every minute).
+              </p>
+            </div>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <UButton to="/dashboard/share-settings" color="primary" icon="i-lucide-qr-code">
-              QR & share
-            </UButton>
-            <UButton
-              v-if="profile.pageVisibility !== 'private'"
-              :to="`/print/${profile.publicSlug}`"
-              target="_blank"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-printer"
-            >
-              Print layout
-            </UButton>
-            <p v-else class="text-dimmed text-xs">
-              Print link is available when your page is not private.
-            </p>
-            <UButton
-              to="/dashboard/edit-profile"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-user-round-pen"
-            >
-              Edit profile
-            </UButton>
+          <div class="space-y-4 p-6">
+            <div>
+              <p class="text-muted text-xs font-medium uppercase tracking-wide">Public link</p>
+              <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <code
+                  class="border-default bg-muted/40 text-highlighted rounded-xl border px-3 py-2 text-sm break-all"
+                  >{{ profile.publicProfileUrl }}</code
+                >
+                <UButton
+                  :to="
+                    profile.pageVisibility === 'private'
+                      ? '/dashboard/preview'
+                      : `/u/${profile.publicSlug}`
+                  "
+                  :target="profile.pageVisibility === 'private' ? undefined : '_blank'"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-external-link"
+                >
+                  Preview
+                </UButton>
+              </div>
+              <p class="text-dimmed mt-2 text-xs">
+                Visibility: {{ visibilityLabel
+                }}<span
+                  v-if="profile.pageVisibility !== 'private' && !profile.allowSearchIndexing"
+                >
+                  · hidden from search by default</span
+                >
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <UButton to="/dashboard/share-settings" color="primary" icon="i-lucide-qr-code">
+                QR & share
+              </UButton>
+              <UButton
+                v-if="profile.pageVisibility !== 'private'"
+                :to="`/print/${profile.publicSlug}`"
+                target="_blank"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-printer"
+              >
+                Print layout
+              </UButton>
+              <p v-else class="text-dimmed text-xs">
+                Print link is available when your page is not private.
+              </p>
+              <UButton
+                to="/dashboard/edit-profile"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-user-round-pen"
+              >
+                Edit profile
+              </UButton>
+            </div>
           </div>
-        </div>
-      </UCard>
-
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UCard>
-          <h2 class="font-display text-lg font-semibold">Privacy</h2>
-          <p class="text-muted mt-2 text-sm leading-relaxed">
-            Control who can open your page and whether search engines may index it.
-          </p>
-          <UButton
-            to="/dashboard/share-settings"
-            class="mt-4"
-            variant="outline"
-            color="neutral"
-            block
-          >
-            Share settings
-          </UButton>
         </UCard>
-        <UCard>
-          <h2 class="font-display text-lg font-semibold">Start again</h2>
-          <p class="text-muted mt-2 text-sm leading-relaxed">
-            Reset your counter from today after you confirm, or pick a different date on the full
-            page.
-          </p>
-          <div class="mt-4 flex flex-col gap-2">
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UCard>
+            <h2 class="font-display text-lg font-semibold">Privacy</h2>
+            <p class="text-muted mt-2 text-sm leading-relaxed">
+              Control who can open your page and whether search engines may index it.
+            </p>
             <UButton
+              to="/dashboard/share-settings"
+              class="mt-4"
               variant="outline"
               color="neutral"
               block
-              icon="i-lucide-refresh-ccw"
-              @click="startAgainModalOpen = true"
             >
-              Start again from today
+              Share settings
             </UButton>
-            <UButton to="/dashboard/start-again" variant="ghost" color="neutral" block size="sm">
-              Choose another date
-            </UButton>
-          </div>
-        </UCard>
-      </div>
+          </UCard>
+          <UCard>
+            <h2 class="font-display text-lg font-semibold">Start again</h2>
+            <p class="text-muted mt-2 text-sm leading-relaxed">
+              Reset your counter from today after you confirm, or pick a different date on the full
+              page.
+            </p>
+            <div class="mt-4 flex flex-col gap-2">
+              <UButton
+                variant="outline"
+                color="neutral"
+                block
+                icon="i-lucide-refresh-ccw"
+                @click="startAgainModalOpen = true"
+              >
+                Start again from today
+              </UButton>
+              <UButton
+                to="/dashboard/start-again"
+                variant="ghost"
+                color="neutral"
+                block
+                size="sm"
+              >
+                Choose another date
+              </UButton>
+            </div>
+          </UCard>
+        </div>
 
-      <UCard>
-        <h2 class="font-display text-lg font-semibold">Account</h2>
-        <p class="text-muted mt-2 text-sm">Password and account options.</p>
-        <UButton
-          to="/dashboard/account"
-          class="mt-4"
-          variant="ghost"
-          color="neutral"
-          icon="i-lucide-settings"
-        >
-          Account settings
-        </UButton>
-      </UCard>
-
-      <UButton color="neutral" variant="link" size="sm" class="px-0" @click="refresh()">
-        Refresh data
-      </UButton>
-
-      <AppConfirmModal
-        v-model="startAgainModalOpen"
-        title="Start again from today?"
-        message="Your sober counter will reset using today’s date in this browser’s local timezone. Your public page will update to match."
-        icon=""
-        confirm-label="Yes, start from today"
-        confirm-color="primary"
-        cancel-label="Cancel"
-        :loading="startAgainSubmitting"
-        :dismissible="!startAgainSubmitting"
-        @confirm="submitStartAgainToday"
-      >
-        <p class="text-muted text-sm">
-          <NuxtLink
-            to="/dashboard/start-again"
-            class="text-primary font-medium underline"
-            @click="startAgainModalOpen = false"
+        <UCard>
+          <h2 class="font-display text-lg font-semibold">Account</h2>
+          <p class="text-muted mt-2 text-sm">Password and account options.</p>
+          <UButton
+            to="/dashboard/account"
+            class="mt-4"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-settings"
           >
-            Use a different date instead
-          </NuxtLink>
-        </p>
-      </AppConfirmModal>
-    </template>
+            Account settings
+          </UButton>
+        </UCard>
+
+        <UButton color="neutral" variant="link" size="sm" class="px-0" @click="refresh()">
+          Refresh data
+        </UButton>
+
+        <AppConfirmModal
+          v-model="startAgainModalOpen"
+          title="Start again from today?"
+          message="Your sober counter will reset using today’s date in this browser’s local timezone. Your public page will update to match."
+          icon=""
+          confirm-label="Yes, start from today"
+          confirm-color="primary"
+          cancel-label="Cancel"
+          :loading="startAgainSubmitting"
+          :dismissible="!startAgainSubmitting"
+          @confirm="submitStartAgainToday"
+        >
+          <p class="text-muted text-sm">
+            <NuxtLink
+              to="/dashboard/start-again"
+              class="text-primary font-medium underline"
+              @click="startAgainModalOpen = false"
+            >
+              Use a different date instead
+            </NuxtLink>
+          </p>
+        </AppConfirmModal>
+      </template>
+    </ClientOnly>
   </div>
 </template>

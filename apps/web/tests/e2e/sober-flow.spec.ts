@@ -81,7 +81,7 @@ test.describe('sober profile flow', () => {
     await expect(page.getByText('One day at a time.')).toBeVisible()
 
     await page.goto('/dashboard/start-again')
-    await page.getByRole('button', { name: 'Use today' }).click()
+    await page.getByRole('button', { name: 'Start today' }).click()
     await page.getByLabel(/I understand this will replace my current sober date/i).click()
     await page.getByRole('button', { name: 'Confirm new date' }).click()
 

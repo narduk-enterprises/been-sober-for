@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatLocalDateInputValue } from '~/utils/sobrietyTime'
+
 definePageMeta({
   layout: 'dashboard',
   middleware: ['auth'],
@@ -64,6 +66,13 @@ watch(
 )
 
 const saving = ref(false)
+const isTodaySelected = computed(
+  () => form.sobrietyStartedAt === formatLocalDateInputValue(new Date()),
+)
+
+function selectToday() {
+  form.sobrietyStartedAt = formatLocalDateInputValue(new Date())
+}
 
 async function onAvatarChange(ev: Event) {
   const input = ev.target as HTMLInputElement
@@ -189,7 +198,19 @@ function clearAvatar() {
           name="sobrietyStartedAt"
           description="We count whole calendar days from this date."
         >
-          <UInput v-model="form.sobrietyStartedAt" type="date" class="max-w-xs" />
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput v-model="form.sobrietyStartedAt" type="date" class="max-w-xs" />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-calendar-days"
+              :disabled="isTodaySelected"
+              @click="selectToday"
+            >
+              Start today
+            </UButton>
+          </div>
         </UFormField>
 
         <UFormField

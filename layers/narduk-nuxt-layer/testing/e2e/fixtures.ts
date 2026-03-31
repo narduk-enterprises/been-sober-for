@@ -29,6 +29,11 @@ export const test = base.extend<{ page: Page }>({
 
 export async function waitForHydration(page: Page) {
   await page.waitForLoadState('domcontentloaded')
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 5_000 })
+  } catch {
+    // Some pages keep background connections alive; DOM readiness is enough in those cases.
+  }
   await page.waitForTimeout(100)
 }
 

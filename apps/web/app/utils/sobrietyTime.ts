@@ -14,6 +14,11 @@ export function atLocalMidnight(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
+export function formatLocalDateInputValue(d: Date): string {
+  const localMidnight = atLocalMidnight(d)
+  return `${localMidnight.getFullYear()}-${String(localMidnight.getMonth() + 1).padStart(2, '0')}-${String(localMidnight.getDate()).padStart(2, '0')}`
+}
+
 /**
  * Parse sobriety start date. API stores `YYYY-MM-DD`; interpret as that calendar day in the
  * user's local timezone (not UTC midnight from `Date.parse`).
