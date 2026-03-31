@@ -189,9 +189,7 @@ const visibilityLabel = computed(() => {
               </div>
               <p class="text-dimmed mt-2 text-xs">
                 Visibility: {{ visibilityLabel
-                }}<span
-                  v-if="profile.pageVisibility !== 'private' && !profile.allowSearchIndexing"
-                >
+                }}<span v-if="profile.pageVisibility !== 'private' && !profile.allowSearchIndexing">
                   · hidden from search by default</span
                 >
               </p>
@@ -257,13 +255,7 @@ const visibilityLabel = computed(() => {
               >
                 Start again from today
               </UButton>
-              <UButton
-                to="/dashboard/start-again"
-                variant="ghost"
-                color="neutral"
-                block
-                size="sm"
-              >
+              <UButton to="/dashboard/start-again" variant="ghost" color="neutral" block size="sm">
                 Choose another date
               </UButton>
             </div>
