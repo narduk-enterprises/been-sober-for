@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import {
   INHERITED_AGENTIC_WORKFLOW_DIRECTORIES,
@@ -77,6 +77,7 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/app/types/auth.d.ts',
   'apps/web/app/types/runtime-config.d.ts',
   'apps/web/server/api/auth/change-password.post.ts',
+  'apps/web/server/api/auth/account/delete.post.ts',
   'apps/web/server/api/auth/login.post.ts',
   'apps/web/server/api/auth/logout.post.ts',
   'apps/web/server/api/auth/me.get.ts',
@@ -87,11 +88,13 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/server/api/auth/password/reset.post.ts',
   'apps/web/server/api/auth/register.post.ts',
   'apps/web/server/api/auth/session/exchange.post.ts',
+  'apps/web/server/middleware/auth-session-refresh.ts',
   'apps/web/server/database/auth-bridge-pg-schema.ts',
   'apps/web/server/database/auth-bridge-schema.ts',
   'apps/web/server/database/pg-app-schema.ts',
   'apps/web/server/database/pg-schema.ts',
   'apps/web/server/utils/app-auth.ts',
+  'apps/web/server/utils/session-user.ts',
   'apps/web/server/utils/supabase.ts',
   'apps/web/drizzle/0001_auth_bridge.sql',
 ] as const
@@ -235,7 +238,12 @@ function collectFilesUnderDirectory(rootDir: string, relativeDir: string): strin
   const visit = (fullPath: string, relativePath: string) => {
     if (shouldIgnoreEntry(fullPath)) return
 
-    const stat = statSync(fullPath)
+    const stat = lstatSync(fullPath)
+    if (stat.isSymbolicLink()) {
+      files.push(relativePath)
+      return
+    }
+
     if (stat.isDirectory()) {
       for (const entry of readdirSync(fullPath)) {
         const entryFullPath = join(fullPath, entry)

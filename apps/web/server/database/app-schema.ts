@@ -1,6 +1,8 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { users } from '@narduk-enterprises/narduk-nuxt-template-layer/server/database/schema'
 
+export * from '#server/database/auth-bridge-schema'
+
 export const soberProfiles = sqliteTable('sober_profiles', {
   userId: text('user_id')
     .primaryKey()

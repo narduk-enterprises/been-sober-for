@@ -15,6 +15,7 @@ import {
 import { basename, dirname, join, relative } from 'node:path'
 import { runCommand } from './command'
 import {
+  buildPackageRegistryAuthLine,
   buildPackageRegistryLine,
   getPackageRegistryConfig,
   patchPackageRegistryNpmrcContent,
@@ -727,33 +728,58 @@ function patchWebNuxtConfig(
   let content = readFileSync(nuxtConfigPath, 'utf-8')
   const original = content
 
-  if (!content.includes('function parseAuthProviders(value: string | undefined)')) {
-    const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
-    const exportDefaultAnchor = 'export default defineNuxtConfig({'
-    const authSetupBlock = [
-      'const appBackendPreset =',
-      "  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'",
-      'const configuredAuthBackend = process.env.AUTH_BACKEND',
-      "const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''",
-      'const supabasePublishableKey =',
-      '  process.env.SUPABASE_PUBLISHABLE_KEY ||',
-      '  process.env.SUPABASE_ANON_KEY ||',
-      '  process.env.SUPABASE_AUTH_ANON_KEY ||',
-      "  ''",
-      'const supabaseServiceRoleKey =',
-      "  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''",
-      'const authBackend =',
-      "  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'",
-      '    ? configuredAuthBackend',
-      '    : supabaseUrl && supabasePublishableKey',
-      "      ? 'supabase'",
-      "      : 'local'",
-      'const authAuthorityUrl = supabaseUrl',
+  const requiredPreludeLines = [
+    'const appBackendPreset =',
+    "  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'",
+    "const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''",
+    'const supabasePublishableKey =',
+    '  process.env.SUPABASE_PUBLISHABLE_KEY ||',
+    '  process.env.SUPABASE_ANON_KEY ||',
+    '  process.env.SUPABASE_AUTH_ANON_KEY ||',
+    "  ''",
+    'const supabaseServiceRoleKey =',
+    "  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''",
+  ]
+
+  const missingPreludeLines = requiredPreludeLines.filter((line) => !content.includes(line))
+  const configuredAuthBackendAnchor = 'const configuredAuthBackend = process.env.AUTH_BACKEND'
+
+  if (missingPreludeLines.length > 0 && content.includes(configuredAuthBackendAnchor)) {
+    content = content.replace(
+      configuredAuthBackendAnchor,
+      `${missingPreludeLines.join('\n')}\n${configuredAuthBackendAnchor}`,
+    )
+  }
+
+  if (!content.includes('const appOrmTablesEntry =')) {
+    const appOrmTablesBlock = [
       'const appOrmTablesEntry =',
       "  process.env.NUXT_DATABASE_BACKEND === 'postgres'",
       "    ? './server/database/pg-app-schema.ts'",
       "    : './server/database/app-schema.ts'",
       '',
+    ].join('\n')
+
+    if (content.includes('function parseAuthProviders(value: string | undefined)')) {
+      content = content.replace(
+        'function parseAuthProviders(value: string | undefined) {',
+        `${appOrmTablesBlock}function parseAuthProviders(value: string | undefined) {`,
+      )
+    } else {
+      const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
+      const exportDefaultAnchor = 'export default defineNuxtConfig({'
+      if (content.includes(anchor)) {
+        content = content.replace(anchor, `${appOrmTablesBlock}${anchor}`)
+      } else if (content.includes(exportDefaultAnchor)) {
+        content = content.replace(exportDefaultAnchor, `${appOrmTablesBlock}${exportDefaultAnchor}`)
+      }
+    }
+  }
+
+  if (!content.includes('function parseAuthProviders(value: string | undefined)')) {
+    const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
+    const exportDefaultAnchor = 'export default defineNuxtConfig({'
+    const authSetupBlock = [
       'function parseAuthProviders(value: string | undefined) {',
       "  return (value || 'apple,email')",
       "    .split(',')",
@@ -773,6 +799,15 @@ function patchWebNuxtConfig(
     }
   }
 
+  content = content.replace(
+    ': process.env.AUTH_AUTHORITY_URL && process.env.SUPABASE_AUTH_ANON_KEY',
+    ': supabaseUrl && supabasePublishableKey',
+  )
+  content = content.replace(
+    "const authAuthorityUrl = process.env.AUTH_AUTHORITY_URL || ''",
+    'const authAuthorityUrl = supabaseUrl',
+  )
+
   if (!content.includes("'#server/app-orm-tables'")) {
     content = content.replace(
       "  extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],\n",
@@ -786,48 +821,106 @@ function patchWebNuxtConfig(
     )
   }
 
-  if (!content.includes('supabaseUrl,')) {
-    content = content.replace(
-      '  runtimeConfig: {\n',
-      [
-        '  runtimeConfig: {',
-        '    appBackendPreset,',
-        '    authBackend,',
-        '    authAuthorityUrl,',
-        '    authAnonKey: supabasePublishableKey,',
-        '    authServiceRoleKey: supabaseServiceRoleKey,',
-        "    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',",
-        "    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',",
-        '    supabaseUrl,',
-        '    supabasePublishableKey,',
-        '    supabaseServiceRoleKey,',
-      ].join('\n') + '\n',
-    )
+  const runtimeStart = content.indexOf('  runtimeConfig: {\n')
+  const publicStart = content.indexOf('    public: {\n', runtimeStart)
+  if (runtimeStart !== -1 && publicStart !== -1) {
+    const runtimeBodyStart = runtimeStart + '  runtimeConfig: {\n'.length
+    const runtimeBody = content.slice(runtimeBodyStart, publicStart)
+    const runtimePrefixes = [
+      'appBackendPreset,',
+      'authBackend,',
+      'authAuthorityUrl,',
+      'authAnonKey:',
+      'authServiceRoleKey:',
+      'authStorageKey:',
+      'turnstileSecretKey:',
+      'supabaseUrl,',
+      'supabasePublishableKey,',
+      'supabaseServiceRoleKey,',
+    ]
+    const normalizedRuntimeBody = runtimeBody
+      .split('\n')
+      .filter((line) => {
+        const trimmed = line.trimStart()
+        return !runtimePrefixes.some((prefix) => trimmed.startsWith(prefix))
+      })
+      .join('\n')
+      .replace(/^\n+/, '')
+
+    const runtimeAuthBlock = [
+      '    appBackendPreset,',
+      '    authBackend,',
+      '    authAuthorityUrl,',
+      '    authAnonKey: supabasePublishableKey,',
+      '    authServiceRoleKey: supabaseServiceRoleKey,',
+      "    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',",
+      "    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',",
+      '    supabaseUrl,',
+      '    supabasePublishableKey,',
+      '    supabaseServiceRoleKey,',
+    ].join('\n')
+
+    content =
+      content.slice(0, runtimeBodyStart) +
+      `${runtimeAuthBlock}\n${normalizedRuntimeBody}` +
+      content.slice(publicStart)
   }
 
-  if (!content.includes('supabasePublishableKey,')) {
-    content = content.replace(
-      '    public: {\n',
-      [
-        '    public: {',
-        '      appBackendPreset,',
-        '      authBackend,',
-        '      authAuthorityUrl,',
-        "      authLoginPath: '/login',",
-        "      authRegisterPath: '/register',",
-        "      authCallbackPath: '/auth/callback',",
-        "      authConfirmPath: '/auth/confirm',",
-        "      authResetPath: '/reset-password',",
-        "      authLogoutPath: '/logout',",
-        "      authRedirectPath: '/dashboard/',",
-        '      authProviders,',
-        "      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',",
-        "      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',",
-        "      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',",
-        '      supabaseUrl,',
-        '      supabasePublishableKey,',
-      ].join('\n') + '\n',
-    )
+  const publicBlockStart = content.indexOf('    public: {\n')
+  const publicBlockBodyStart = publicBlockStart + '    public: {\n'.length
+  const publicBlockEnd = publicBlockStart === -1 ? -1 : content.indexOf('\n    },', publicBlockBodyStart)
+  if (publicBlockStart !== -1 && publicBlockEnd !== -1) {
+    const publicBody = content.slice(publicBlockBodyStart, publicBlockEnd)
+    const publicPrefixes = [
+      'appBackendPreset,',
+      'authBackend,',
+      'authAuthorityUrl,',
+      "authLoginPath: '/login',",
+      "authRegisterPath: '/register',",
+      "authCallbackPath: '/auth/callback',",
+      "authConfirmPath: '/auth/confirm',",
+      "authResetPath: '/reset-password',",
+      "authLogoutPath: '/logout',",
+      "authRedirectPath: '/dashboard/',",
+      'authProviders,',
+      'authPublicSignup:',
+      'authRequireMfa:',
+      'authTurnstileSiteKey:',
+      'supabaseUrl,',
+      'supabasePublishableKey,',
+    ]
+    const normalizedPublicBody = publicBody
+      .split('\n')
+      .filter((line) => {
+        const trimmed = line.trimStart()
+        return !publicPrefixes.some((prefix) => trimmed.startsWith(prefix))
+      })
+      .join('\n')
+      .replace(/^\n+/, '')
+
+    const publicAuthBlock = [
+      '      appBackendPreset,',
+      '      authBackend,',
+      '      authAuthorityUrl,',
+      "      authLoginPath: '/login',",
+      "      authRegisterPath: '/register',",
+      "      authCallbackPath: '/auth/callback',",
+      "      authConfirmPath: '/auth/confirm',",
+      "      authResetPath: '/reset-password',",
+      "      authLogoutPath: '/logout',",
+      "      authRedirectPath: '/dashboard/',",
+      '      authProviders,',
+      "      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',",
+      "      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',",
+      "      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',",
+      '      supabaseUrl,',
+      '      supabasePublishableKey,',
+    ].join('\n')
+
+    content =
+      content.slice(0, publicBlockBodyStart) +
+      `${publicAuthBlock}\n${normalizedPublicBody}` +
+      content.slice(publicBlockEnd)
   }
 
   if (content === original) return false
@@ -879,6 +972,66 @@ function patchWebDatabaseSchema(
     writeFileSync(schemaPath, updated, 'utf-8')
   }
   return true
+}
+
+function patchWebAppOrmSchemaFiles(
+  appDir: string,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): boolean {
+  if (mode !== 'full') return false
+
+  const schemaTargets = [
+    {
+      label: 'apps/web/server/database/app-schema.ts',
+      path: join(appDir, 'apps/web/server/database/app-schema.ts'),
+      bridgeExport: "export * from '#server/database/auth-bridge-schema'",
+    },
+    {
+      label: 'apps/web/server/database/pg-app-schema.ts',
+      path: join(appDir, 'apps/web/server/database/pg-app-schema.ts'),
+      bridgeExport: "export * from '#server/database/auth-bridge-pg-schema'",
+    },
+  ]
+
+  let changed = false
+
+  for (const target of schemaTargets) {
+    if (!existsSync(target.path)) continue
+
+    const content = readFileSync(target.path, 'utf-8')
+    if (content.includes(target.bridgeExport)) continue
+
+    const lines = content.split('\n')
+    let insertionIndex = 0
+    let sawImport = false
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const trimmed = lines[index].trim()
+      if (trimmed.startsWith('import ')) {
+        insertionIndex = index + 1
+        sawImport = true
+      } else if (sawImport && trimmed) {
+        break
+      }
+    }
+
+    const insertAt = sawImport ? insertionIndex : 0
+    const updatedLines = [...lines]
+    updatedLines.splice(insertAt, 0, ...(sawImport ? ['', target.bridgeExport] : [target.bridgeExport, '']))
+    const updated = `${updatedLines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`
+
+    if (updated === content) continue
+
+    log(`  UPDATE: ${target.label}`)
+    if (!dryRun) {
+      writeFileSync(target.path, updated, 'utf-8')
+    }
+    changed = true
+  }
+
+  return changed
 }
 
 /**
@@ -964,7 +1117,9 @@ export function applyAuthBridgeCompanionPatches(
   const counters = createCounters()
   const dryRun = options.dryRun ?? false
   const log = options.log ?? console.log
-  const schemaPatched = patchWebDatabaseSchema(appDir, dryRun, 'full', log)
+  const schemaPatched =
+    patchWebDatabaseSchema(appDir, dryRun, 'full', log) ||
+    patchWebAppOrmSchemaFiles(appDir, dryRun, 'full', log)
   const copiedBefore = counters.copied
   ensureWebDatabaseUtils(appDir, counters, dryRun, 'full', log)
 
@@ -1186,7 +1341,11 @@ function ensureGitHooksPath(
 function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => void): boolean {
   const npmrcPath = join(appDir, '.npmrc')
   const registryConfig = getPackageRegistryConfig()
-  const defaultContent = [buildPackageRegistryLine(registryConfig), ''].join('\n')
+  const defaultContent = [
+    buildPackageRegistryLine(registryConfig),
+    buildPackageRegistryAuthLine(registryConfig),
+    '',
+  ].join('\n')
 
   if (!existsSync(npmrcPath)) {
     log('  ADD: .npmrc')
