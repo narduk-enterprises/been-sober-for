@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Dashboard | BeenSoberFor',
+  title: 'Dashboard',
   description: 'Your sober time counter, public link, and sharing tools.',
   robots: 'noindex, nofollow',
   ogImage: {

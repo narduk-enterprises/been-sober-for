@@ -8,7 +8,7 @@ const slug = computed(() => {
 })
 
 useSeo({
-  title: 'Print | BeenSoberFor',
+  title: 'Print',
   description: 'Printer-friendly sober counter card.',
   robots: 'noindex, nofollow',
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'FAQ | BeenSoberFor'
+const title = 'FAQ'
 const description =
   'Privacy modes, sharing, QR printing, sober date reset, and account questions for BeenSoberFor.'
 

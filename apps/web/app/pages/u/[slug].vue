@@ -10,7 +10,7 @@ const slug = computed(() => {
 })
 
 useSeo({
-  title: 'Profile | BeenSoberFor',
+  title: 'Profile',
   description: 'Public sober counter page on BeenSoberFor.',
   robots: 'noindex, nofollow',
   ogImage: {
@@ -40,8 +40,8 @@ watch(
     const daysVal = p.sobrietyStartedAt ? soberWholeDays(p.sobrietyStartedAt) : null
     const title =
       daysVal != null
-        ? `${p.displayName || 'Friend'} | BeenSoberFor ${daysVal.toLocaleString()} Days`
-        : `${p.displayName || 'Friend'} | BeenSoberFor`
+        ? `${p.displayName || 'Friend'} — ${daysVal.toLocaleString()} Days Sober`
+        : p.displayName || 'Friend'
     const robots =
       p.pageVisibility === 'public' && p.allowSearchIndexing ? undefined : 'noindex, nofollow'
     useSeo({

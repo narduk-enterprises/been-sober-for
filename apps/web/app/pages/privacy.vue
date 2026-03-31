@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Privacy Policy | BeenSoberFor'
+const title = 'Privacy Policy'
 const description =
   'How BeenSoberFor handles your account, profile data, sharing modes, and search visibility.'
 

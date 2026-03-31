@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Terms of Use | BeenSoberFor'
+const title = 'Terms of Use'
 const description =
   'Terms for using BeenSoberFor: not medical care, acceptable use, and limitation of liability in plain language.'
 

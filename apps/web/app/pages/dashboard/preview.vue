@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Preview public page | BeenSoberFor',
+  title: 'Preview public page',
   description: 'Preview how your share page looks while it stays private or unlisted.',
   robots: 'noindex, nofollow',
   ogImage: {

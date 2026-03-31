@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Account settings | BeenSoberFor',
+  title: 'Account settings',
   description: 'Password and account options for BeenSoberFor.',
   robots: 'noindex, nofollow',
   ogImage: {

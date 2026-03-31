@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Start again | BeenSoberFor',
+  title: 'Start again',
   description: 'Reset your sober start date with a clear confirmation. Supportive, not punitive.',
   robots: 'noindex, nofollow',
   ogImage: {

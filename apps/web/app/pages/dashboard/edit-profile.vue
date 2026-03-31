@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Edit profile | BeenSoberFor',
+  title: 'Edit profile',
   description:
     'Update your display name, photo, sober start date, and what appears on your public page.',
   robots: 'noindex, nofollow',

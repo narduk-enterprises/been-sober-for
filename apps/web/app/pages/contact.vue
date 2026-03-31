@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
 
-const title = 'Contact | BeenSoberFor'
+const title = 'Contact'
 const description =
   'Reach the BeenSoberFor team for support, privacy requests, and account questions.'
 

@@ -5,7 +5,7 @@ definePageMeta({
 })
 
 useSeo({
-  title: 'Share settings | BeenSoberFor',
+  title: 'Share settings',
   description: 'Visibility, search indexing, QR code, and print layout for your public page.',
   robots: 'noindex, nofollow',
   ogImage: {
