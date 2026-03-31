@@ -3,6 +3,7 @@ import { deleteCookie, getCookie, getRequestHeader, setCookie } from 'h3'
 import {
   type AuthError,
   type AuthenticatorAssuranceLevels,
+  type EmailOtpType,
   type Session as SupabaseSession,
   type User as SupabaseUser,
   GoTrueClient,
@@ -77,9 +78,19 @@ type CookieLikeStorage = {
 }
 
 type ExchangeCodeOptions = {
-  code: string
   next?: string | null
-}
+} & (
+  | {
+      code: string
+      tokenHash?: never
+      verificationType?: never
+    }
+  | {
+      code?: never
+      tokenHash: string
+      verificationType: EmailOtpType
+    }
+)
 
 type RegisterInput = {
   email: string
@@ -949,7 +960,14 @@ export async function exchangeSupabaseCode(
   }
 
   const client = createSupabaseUserClient(event)
-  const { data, error } = await client.exchangeCodeForSession(body.code)
+  const hasAuthCode = typeof body.code === 'string'
+  const { data, error } =
+    hasAuthCode
+      ? await client.exchangeCodeForSession(body.code)
+      : await client.verifyOtp({
+          token_hash: body.tokenHash,
+          type: body.verificationType,
+        })
 
   if (error || !data.user || !data.session) {
     if (error) toSupabaseHttpError(error, 401)
@@ -964,7 +982,9 @@ export async function exchangeSupabaseCode(
   const redirectType =
     typeof (data as { redirectType?: string | null }).redirectType === 'string'
       ? (data as { redirectType?: string | null }).redirectType
-      : null
+      : !hasAuthCode
+        ? body.verificationType
+        : null
   const redirectTo =
     redirectType === 'recovery'
       ? buildAppUrl(config.appUrl, config.resetPath, { recovery: '1', next })
