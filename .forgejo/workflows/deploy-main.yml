@@ -99,3 +99,4 @@ jobs:
         run: doppler run --config prd -- pnpm run deploy
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          NARDUK_SHIP_ACTIVE: "1"
