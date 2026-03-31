@@ -58,13 +58,6 @@ export function useAuth() {
     return result
   }
 
-  async function deleteAccount(payload: { currentPassword?: string } = {}) {
-    const result = await api.deleteAccount(payload)
-    await clear()
-    await fetchSession()
-    return result
-  }
-
   async function requestPasswordReset(payload: { email: string; captchaToken?: string }) {
     return api.requestPasswordReset(payload)
   }
@@ -92,7 +85,6 @@ export function useAuth() {
     exchangeSession,
     updateProfile,
     changePassword,
-    deleteAccount,
     requestPasswordReset,
     enrollMfa,
     verifyMfa,

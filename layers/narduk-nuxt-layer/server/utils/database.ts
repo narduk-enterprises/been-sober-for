@@ -8,8 +8,18 @@ import * as pgSchema from '../database/pg-schema'
 import { useHyperdriveConnectionString } from './hyperdrive'
 import { useLogger } from './logger'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Postgres uses a small runtime compatibility wrapper to preserve the existing D1-style query helpers.
-export type LayerDatabase = DrizzleD1Database<typeof d1Schema> | any
+/**
+ * Public database typing intentionally stays D1-shaped across both backends.
+ *
+ * The Postgres path is wrapped so downstream code can keep using `.get()`,
+ * `.all()`, and `.run()` without branching on the runtime dialect.
+ */
+export type LayerDatabase = DrizzleD1Database<typeof d1Schema>
+type AppDatabase<TSchema extends Record<string, unknown>> = DrizzleD1Database<TSchema>
+type AppSchemaMap<TD1 extends Record<string, unknown>, TPG extends Record<string, unknown>> = {
+  d1: TD1
+  pg: TPG
+}
 
 const QUERY_COMPAT_METHODS = new Set(['all', 'get', 'run'])
 const QUERY_PROMISE_METHODS = new Set(['then', 'catch', 'finally'])
@@ -78,6 +88,21 @@ function wrapPgCompat<T>(value: T): T {
   return proxy as T
 }
 
+function isAppSchemaMap<TD1 extends Record<string, unknown>, TPG extends Record<string, unknown>>(
+  value: TD1 | AppSchemaMap<TD1, TPG>,
+): value is AppSchemaMap<TD1, TPG> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'd1' in value &&
+    'pg' in value &&
+    typeof value.d1 === 'object' &&
+    value.d1 !== null &&
+    typeof value.pg === 'object' &&
+    value.pg !== null
+  )
+}
+
 /**
  * Return a Drizzle ORM instance for the current request.
  *
@@ -105,7 +130,7 @@ export function useDatabase(event: H3Event): LayerDatabase {
       }),
     )
     event.context._db = db
-    return db
+    return db as unknown as LayerDatabase
   }
 
   const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
@@ -125,7 +150,10 @@ export function useDatabase(event: H3Event): LayerDatabase {
 }
 
 /**
- * Factory to create an app-level Drizzle accessor with typed schema (D1 only).
+ * Factory to create an app-level Drizzle accessor with typed schema.
+ *
+ * Pass a single schema object for D1-only apps, or a `{ d1, pg }` pair when
+ * the app owns backend-specific schema mirrors.
  *
  * @example
  * ```ts
@@ -133,10 +161,35 @@ export function useDatabase(event: H3Event): LayerDatabase {
  * export const useAppDatabase = createAppDatabase(schema)
  * ```
  */
-export function createAppDatabase<T extends Record<string, unknown>>(appSchema: T) {
-  return (event: H3Event): DrizzleD1Database<T> => {
+export function createAppDatabase<
+  TD1 extends Record<string, unknown>,
+  TPG extends Record<string, unknown> = TD1,
+>(appSchema: TD1 | AppSchemaMap<TD1, TPG>) {
+  return (event: H3Event): AppDatabase<TD1> => {
     if (event.context._appDb) {
-      return event.context._appDb as DrizzleD1Database<T>
+      return event.context._appDb as AppDatabase<TD1>
+    }
+
+    const config = useRuntimeConfig(event)
+    const backend = (config as Record<string, unknown>).databaseBackend || 'd1'
+    const resolvedSchema = isAppSchemaMap(appSchema)
+      ? appSchema
+      : {
+          d1: appSchema,
+          pg: appSchema as unknown as TPG,
+        }
+
+    if (backend === 'postgres') {
+      const connectionString = useHyperdriveConnectionString(event)
+      const client = postgres(connectionString, { prepare: false, max: 1 })
+      const db = wrapPgCompat(
+        drizzlePg(client, {
+          schema: resolvedSchema.pg,
+          logger: makeLogger(event, 'PG'),
+        }),
+      )
+      event.context._appDb = db
+      return db as unknown as AppDatabase<TD1>
     }
 
     const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
@@ -148,7 +201,7 @@ export function createAppDatabase<T extends Record<string, unknown>>(appSchema: 
     }
 
     const db = drizzleD1(d1, {
-      schema: appSchema,
+      schema: resolvedSchema.d1,
       logger: makeLogger(event, 'D1'),
     })
     event.context._appDb = db

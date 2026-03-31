@@ -19,16 +19,37 @@ vi.stubGlobal('createError', (opts: { statusCode: number; message: string }) => 
 })
 
 // Mock drizzle-orm — capture calls to verify schema is passed
-const mockDrizzle = vi.fn(() => ({ __mock: true, __factory: true }))
+const mockD1Drizzle = vi.fn(() => ({ __mock: true, __factory: true, __backend: 'd1' }))
+const mockPgDrizzle = vi.fn(() => ({ __mock: true, __factory: true, __backend: 'postgres' }))
+const mockUseRuntimeConfig = vi.fn(() => ({
+  databaseBackend: 'd1',
+  hyperdriveBinding: 'HYPERDRIVE',
+}))
+vi.stubGlobal('useRuntimeConfig', mockUseRuntimeConfig)
+
 vi.mock('drizzle-orm/d1', () => ({
-  drizzle: (...args: unknown[]) => mockDrizzle(...args),
+  drizzle: (...args: unknown[]) => mockD1Drizzle(...args),
+}))
+
+vi.mock('drizzle-orm/postgres-js', () => ({
+  drizzle: (...args: unknown[]) => mockPgDrizzle(...args),
+}))
+
+vi.mock('postgres', () => ({
+  default: vi.fn(() => ({ __pgClient: true })),
 }))
 
 vi.mock('../../server/database/schema', () => ({}))
+vi.mock('../../server/database/pg-schema', () => ({}))
 
 describe('createAppDatabase', () => {
   beforeEach(() => {
-    mockDrizzle.mockClear()
+    mockUseRuntimeConfig.mockReturnValue({
+      databaseBackend: 'd1',
+      hyperdriveBinding: 'HYPERDRIVE',
+    })
+    mockD1Drizzle.mockClear()
+    mockPgDrizzle.mockClear()
   })
 
   it('returns a function', () => {
@@ -56,9 +77,9 @@ describe('createAppDatabase', () => {
     }
     const db = useAppDb(event as never)
     expect(db).toBeDefined()
-    expect(db).toEqual({ __mock: true, __factory: true })
+    expect(db).toEqual({ __mock: true, __factory: true, __backend: 'd1' })
     // Verify schema was passed to drizzle
-    expect(mockDrizzle).toHaveBeenCalledWith({ __d1: true }, { schema })
+    expect(mockD1Drizzle).toHaveBeenCalledWith({ __d1: true }, { schema })
   })
 
   it('memoizes on event.context._appDb', () => {
@@ -68,7 +89,7 @@ describe('createAppDatabase', () => {
     const event = { context: { _appDb: existingDb } }
     const db = useAppDb(event as never)
     expect(db).toBe(existingDb)
-    expect(mockDrizzle).not.toHaveBeenCalled()
+    expect(mockD1Drizzle).not.toHaveBeenCalled()
   })
 
   it('uses _appDb key, not _db (no collision with useDatabase)', () => {
@@ -82,8 +103,32 @@ describe('createAppDatabase', () => {
     }
     const db = useAppDb(event as never)
     // Should create a new instance, not return _db
-    expect(db).toEqual({ __mock: true, __factory: true })
+    expect(db).toEqual({ __mock: true, __factory: true, __backend: 'd1' })
     // Should store on _appDb
     expect(event.context).toHaveProperty('_appDb')
+  })
+
+  it('uses the postgres schema when the backend is postgres', () => {
+    mockUseRuntimeConfig.mockReturnValue({
+      databaseBackend: 'postgres',
+      hyperdriveBinding: 'HYPERDRIVE',
+    })
+
+    const d1Schema = { authSessions: { id: 'text' } }
+    const pgSchema = { authSessions: { id: 'pg-text' } }
+    const useAppDb = createAppDatabase({ d1: d1Schema, pg: pgSchema })
+    const event = {
+      context: {
+        cloudflare: { env: { HYPERDRIVE: { connectionString: 'postgres://localhost/app' } } },
+      },
+    }
+
+    const db = useAppDb(event as never)
+
+    expect(db).toEqual({ __mock: true, __factory: true, __backend: 'postgres' })
+    expect(mockPgDrizzle).toHaveBeenCalledWith(
+      { __pgClient: true },
+      expect.objectContaining({ schema: pgSchema }),
+    )
   })
 })

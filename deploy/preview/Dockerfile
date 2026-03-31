@@ -21,14 +21,20 @@ COPY apps/web/.npmrc apps/web/.npmrc
 COPY layers/narduk-nuxt-layer/package.json layers/narduk-nuxt-layer/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 
-# GitHub Packages auth is mounted as a BuildKit secret so the token never lands
-# in build args, image metadata, or committed files.
-RUN --mount=type=secret,id=github_token,required=false \
+# Package registry auth is mounted as a BuildKit secret so the token never
+# lands in build args, image metadata, or committed files.
+RUN --mount=type=secret,id=registry_token,required=false \
   set -eu; \
   temp_npmrc="$(mktemp)"; \
   cp .npmrc "${temp_npmrc}"; \
-  if [ -s /run/secrets/github_token ]; then \
-    printf '\n//npm.pkg.github.com/:_authToken=%s\n' "$(tr -d '\r\n' < /run/secrets/github_token)" >> "${temp_npmrc}"; \
+  registry_url="$(awk -F= '/^@narduk-enterprises:registry=/{print $2; exit}' "${temp_npmrc}")"; \
+  if [ -z "${registry_url}" ]; then \
+    registry_url='https://code.platform.nard.uk/api/packages/narduk-enterprises/npm/'; \
+  fi; \
+  auth_host_path="${registry_url#https://}"; \
+  auth_host_path="${auth_host_path#http://}"; \
+  if [ -s /run/secrets/registry_token ]; then \
+    printf '\n//%s:_authToken=%s\n' "$auth_host_path" "$(tr -d '\r\n' < /run/secrets/registry_token)" >> "${temp_npmrc}"; \
   fi; \
   NPM_CONFIG_USERCONFIG="${temp_npmrc}" pnpm install --frozen-lockfile; \
   rm -f "${temp_npmrc}"

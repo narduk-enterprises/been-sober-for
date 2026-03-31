@@ -1,0 +1,95 @@
+name: Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      run_migrate:
+        description: >
+          Run remote D1 migrations before deploying.
+          Set to "true" only when this deployment includes schema changes.
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: deploy-main-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Production Deploy
+    runs-on: deploy
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install Doppler CLI
+        run: curl -Ls https://cli.doppler.com/install.sh | sh
+        working-directory: .
+
+      - name: Validate production env
+        run: doppler run --config prd -- node ./tools/validate-production-env.mjs
+        working-directory: .
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Verify Forgejo package source
+        run: doppler run --config prd -- node ./tools/verify-forgejo-package-source.mjs
+        working-directory: .
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          temp_npmrc="$(mktemp)"
+          trap 'rm -f "$temp_npmrc"' EXIT
+          cp .npmrc "$temp_npmrc"
+          doppler run --config prd -- bash -lc \
+            "printf '\n//code.platform.nard.uk/api/packages/narduk-enterprises/npm/:_authToken=%s\n' \"\$FORGEJO_TOKEN\" >> \"$temp_npmrc\""
+          doppler run --config prd -- env PATH="$PATH" NPM_CONFIG_USERCONFIG="$temp_npmrc" pnpm install --frozen-lockfile
+        working-directory: .
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          npm_config_fetch_retries: "0"
+          npm_config_fetch_retry_mintimeout: "1"
+          npm_config_fetch_retry_maxtimeout: "1"
+
+      - name: Build
+        run: doppler run --config prd -- pnpm run build
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Migrate (remote D1)
+        if: ${{ inputs.run_migrate == 'true' }}
+        run: doppler run --config prd -- node ./tools/run-remote-d1-migrate.mjs
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+      - name: Deploy
+        run: doppler run --config prd -- pnpm run deploy
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}

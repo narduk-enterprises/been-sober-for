@@ -18,7 +18,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "deploy": "wrangler deploy --env=\"\"",
+    "deploy": "node ../../tools/web-deploy.cjs",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:unit": "vitest run",

@@ -144,4 +144,37 @@ describe('deleteCurrentUserAccount', () => {
 
     expect(mockClearUserSession).not.toHaveBeenCalled()
   })
+
+  it('calls the beforeDelete hook before deleting the local DB row', async () => {
+    mockVerifyUserPassword.mockResolvedValue(true)
+
+    const callOrder: string[] = []
+    mockDb.run.mockImplementation(async () => {
+      callOrder.push('db.delete')
+    })
+
+    const beforeDelete = vi.fn(async () => {
+      callOrder.push('beforeDelete')
+    })
+
+    await deleteCurrentUserAccount(event, user, { currentPassword: 'password123' }, { beforeDelete })
+
+    expect(beforeDelete).toHaveBeenCalledWith(event, user.id)
+    expect(callOrder).toEqual(['beforeDelete', 'db.delete'])
+  })
+
+  it('aborts local deletion when the beforeDelete hook throws', async () => {
+    mockVerifyUserPassword.mockResolvedValue(true)
+
+    const beforeDelete = vi.fn(async () => {
+      throw new Error('Upstream deletion failed')
+    })
+
+    await expect(
+      deleteCurrentUserAccount(event, user, { currentPassword: 'password123' }, { beforeDelete }),
+    ).rejects.toThrow('Upstream deletion failed')
+
+    expect(mockDb.run).not.toHaveBeenCalled()
+    expect(mockClearUserSession).not.toHaveBeenCalled()
+  })
 })

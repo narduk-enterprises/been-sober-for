@@ -8,6 +8,24 @@ export interface DeleteAccountInput {
   currentPassword?: string
 }
 
+/**
+ * Extension hooks for the account deletion flow.
+ *
+ * Apps that back user identity with an external provider (e.g. Supabase Auth)
+ * can supply `beforeDelete` to clean up the upstream identity before the local
+ * DB row is removed.  If the hook throws, the deletion is aborted and the
+ * local user record is left intact.
+ */
+export interface AccountDeletionHooks {
+  /**
+   * Called after credential verification but before the local DB row is
+   * deleted.  Use this to remove the user from an external identity provider
+   * (e.g. `supabase.admin.deleteUser`).  Throwing here will abort the entire
+   * deletion so the two sides stay in sync.
+   */
+  beforeDelete?: (event: H3Event, userId: string) => Promise<void>
+}
+
 function isForeignKeyConstraintError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -22,6 +40,7 @@ export async function deleteCurrentUserAccount(
   event: H3Event,
   user: AuthUser,
   input: DeleteAccountInput = {},
+  hooks?: AccountDeletionHooks,
 ): Promise<void> {
   const log = useLogger(event).child('Auth')
   const db = useDatabase(event)
@@ -50,6 +69,10 @@ export async function deleteCurrentUserAccount(
         statusMessage: 'Invalid current password.',
       })
     }
+  }
+
+  if (hooks?.beforeDelete) {
+    await hooks.beforeDelete(event, user.id)
   }
 
   try {

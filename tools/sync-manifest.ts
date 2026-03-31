@@ -6,6 +6,7 @@ import {
 } from './agentic-workflow-manifest'
 
 export const VERBATIM_SYNC_FILES = [
+  '.forgejo/workflows/deploy-main.yml',
   '.dockerignore',
   'doppler.template.yaml',
   'config/fleet-sync-repos.json',
@@ -16,21 +17,28 @@ export const VERBATIM_SYNC_FILES = [
   'tools/install-git-hooks.cjs',
   'tools/command.ts',
   'tools/gsc-verify.ts',
+  'tools/provision-metadata.ts',
   'tools/update-layer.ts',
   'tools/validate.ts',
 
   'tools/check-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
+  'tools/fleet-git.ts',
+  'tools/package-registry.ts',
+  'tools/mirror-fleet-to-forgejo.ts',
   'tools/agentic-workflow-manifest.ts',
   'tools/sync-manifest.ts',
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
+  'tools/run-remote-d1-migrate.mjs',
   'tools/sync-github-skills.ts',
   'tools/web-deploy.cjs',
   'tools/tail.ts',
   'tools/ship.ts',
+  'tools/validate-production-env.mjs',
+  'tools/verify-forgejo-package-source.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
@@ -56,6 +64,7 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/app/components/AuthRegisterCard.vue',
   'apps/web/app/composables/useAuth.ts',
   'apps/web/app/composables/useAuthApi.ts',
+  'apps/web/app/composables/useManagedSupabase.ts',
   'apps/web/app/middleware/auth.ts',
   'apps/web/app/middleware/guest.ts',
   'apps/web/app/layouts/auth.vue',
@@ -77,8 +86,12 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/server/api/auth/password/reset.post.ts',
   'apps/web/server/api/auth/register.post.ts',
   'apps/web/server/api/auth/session/exchange.post.ts',
+  'apps/web/server/database/auth-bridge-pg-schema.ts',
   'apps/web/server/database/auth-bridge-schema.ts',
+  'apps/web/server/database/pg-app-schema.ts',
+  'apps/web/server/database/pg-schema.ts',
   'apps/web/server/utils/app-auth.ts',
+  'apps/web/server/utils/supabase.ts',
   'apps/web/drizzle/0001_auth_bridge.sql',
 ] as const
 
@@ -115,6 +128,7 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/version-bump.yml',
   '.github/workflows/template-sync-bot.yml',
   '.github/workflows/sync-fleet.yml',
+  '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
   '.cursor/.DS_Store',
@@ -203,6 +217,7 @@ jobs:
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
       GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}
+      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
 `
 }
 

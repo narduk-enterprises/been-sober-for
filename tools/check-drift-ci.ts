@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './command'
+import { buildTemplateRemoteUrls } from './fleet-git'
 import {
   GENERATED_SYNC_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
@@ -15,7 +16,6 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
-const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
 const GIT_MAX_BUFFER = 64 * 1024 * 1024
 
 const strict = process.argv.includes('--strict')
@@ -201,8 +201,11 @@ async function main() {
   }
 
   const remotes = run('git', ['remote', '-v'])
+  const templateUrls = buildTemplateRemoteUrls()
   if (!remotes.includes('template')) {
-    run('git', ['remote', 'add', 'template', TEMPLATE_URL])
+    run('git', ['remote', 'add', 'template', templateUrls.https])
+  } else {
+    run('git', ['remote', 'set-url', 'template', templateUrls.https])
   }
   run('git', ['fetch', 'template', 'main', '--depth=1'])
 

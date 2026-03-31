@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 # CI is disabled (workflow_dispatch only) to conserve GitHub Actions minutes.
-# Deploy is done locally via `pnpm run deploy` (wrangler deploy).
+# Deploy is done locally via `pnpm ship`.
 # See .agents/workflows/deploy.md for the local deploy workflow.
 
 jobs:
@@ -17,3 +17,4 @@ jobs:
     secrets:
       DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}

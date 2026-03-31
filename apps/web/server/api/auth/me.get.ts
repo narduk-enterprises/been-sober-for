@@ -1,3 +1,3 @@
-import { getSessionUserResponse } from '#server/utils/app-auth'
+import { useRefreshedSessionUserResponse } from '#server/utils/session-user'
 
-export default defineEventHandler(async (event) => getSessionUserResponse(event))
+export default defineEventHandler(async (event) => useRefreshedSessionUserResponse(event))

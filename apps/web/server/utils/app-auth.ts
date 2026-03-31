@@ -9,10 +9,9 @@ import {
 } from '@supabase/auth-js'
 import { eq } from 'drizzle-orm'
 import { users, type User as LocalUser } from '#layer/orm-tables'
-import { deleteCurrentUserAccount } from '#layer/server/utils/accountDeletion'
+import { authSessions, authUserLinks } from '#server/app-orm-tables'
 import { useDatabase } from '#layer/server/utils/database'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
-import { authSessions, authUserLinks } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 
 const PKCE_COOKIE_NAME = 'app_auth_pkce'
@@ -108,10 +107,6 @@ type UpdateProfileInput = {
 type ChangePasswordInput = {
   currentPassword?: string
   newPassword: string
-}
-
-type DeleteAccountInput = {
-  currentPassword?: string
 }
 
 type OAuthStartInput = {
@@ -345,18 +340,6 @@ function createSupabaseUserClient(event: H3Event) {
   return createSupabaseClient(event, config.anonKey)
 }
 
-function createSupabaseAdminClient(event: H3Event) {
-  const config = getAuthConfig(event)
-  if (!config.serviceRoleKey) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Account deletion is not configured for shared auth on this app.',
-    })
-  }
-
-  return createSupabaseClient(event, config.serviceRoleKey)
-}
-
 function toSupabaseHttpError(error: AuthError, fallbackStatusCode = 400): never {
   throw createError({
     statusCode:
@@ -544,36 +527,6 @@ async function persistSupabaseSession(
     authProvider: metadata.primaryProvider,
     emailConfirmedAt: metadata.emailConfirmedAt,
     needsPasswordSetup: metadata.needsPasswordSetup,
-  }
-}
-
-async function verifySupabaseCurrentPasswordIfRequired(
-  event: H3Event,
-  sessionUser: AppSessionUser,
-  currentPassword?: string,
-) {
-  if (!sessionUser.authProviders?.includes('email') || sessionUser.needsPasswordSetup) {
-    return
-  }
-
-  if (!currentPassword) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Current password is required for email-auth accounts.',
-    })
-  }
-
-  const verifier = createSupabaseUserClient(event)
-  const verification = await verifier.signInWithPassword({
-    email: sessionUser.email,
-    password: currentPassword,
-  })
-
-  if (verification.error) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid current password.',
-    })
   }
 }
 
@@ -1134,7 +1087,26 @@ export async function changePassword(event: H3Event, body: ChangePasswordInput) 
   }
 
   if (config.backend === 'supabase' && sessionUser.authSessionId) {
-    await verifySupabaseCurrentPasswordIfRequired(event, sessionUser, body.currentPassword)
+    if (sessionUser.authProviders?.includes('email') && !sessionUser.needsPasswordSetup) {
+      if (!body.currentPassword) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Current password is required for email-auth accounts.',
+        })
+      }
+
+      const verifier = createSupabaseUserClient(event)
+      const verification = await verifier.signInWithPassword({
+        email: sessionUser.email,
+        password: body.currentPassword,
+      })
+      if (verification.error) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Invalid current password.',
+        })
+      }
+    }
 
     const context = await getCurrentSupabaseContext(event)
     const { data, error } = await context.client.updateUser({
@@ -1190,41 +1162,6 @@ export async function changePassword(event: H3Event, body: ChangePasswordInput) 
     .where(eq(users.id, sessionUser.id))
     .run()
 
-  return { success: true }
-}
-
-export async function deleteAccount(event: H3Event, body: DeleteAccountInput = {}) {
-  const config = getAuthConfig(event)
-  const sessionUser = await getCurrentSessionUser(event)
-  if (!sessionUser) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-    })
-  }
-
-  if (config.backend === 'supabase' && sessionUser.authSessionId) {
-    await verifySupabaseCurrentPasswordIfRequired(event, sessionUser, body.currentPassword)
-
-    const context = await getCurrentSupabaseContext(event)
-    const adminClient = createSupabaseAdminClient(event)
-    const { error } = await adminClient.admin.deleteUser(context.authUser.id)
-
-    if (error) {
-      toSupabaseHttpError(error, 502)
-    }
-
-    try {
-      await deleteCurrentUserAccount(event, context.sessionUser)
-    } catch (error) {
-      await clearCurrentSession(event)
-      throw error
-    }
-
-    return { success: true }
-  }
-
-  await deleteCurrentUserAccount(event, sessionUser, body)
   return { success: true }
 }
 
@@ -1307,6 +1244,38 @@ export async function logoutUser(event: H3Event) {
 
   await clearCurrentSession(event)
   return { success: true }
+}
+
+/**
+ * Deletes the Supabase Auth identity that is linked to the given local user.
+ *
+ * Looks up the upstream `auth_user_id` from the `auth_user_links` bridge
+ * table, then calls the Supabase Admin API with the service-role key to
+ * permanently remove the identity.  If no link exists (e.g. the account was
+ * created before Supabase was enabled), the function is a no-op.
+ *
+ * Call this inside a `beforeDelete` hook passed to `deleteCurrentUserAccount`
+ * so that the upstream identity is removed before the local DB row is deleted.
+ */
+export async function deleteSupabaseAuthUser(event: H3Event, localUserId: string): Promise<void> {
+  const config = getAuthConfig(event)
+  const appDb = useAppDatabase(event)
+
+  const link = await appDb
+    .select({ authUserId: authUserLinks.authUserId })
+    .from(authUserLinks)
+    .where(eq(authUserLinks.localUserId, localUserId))
+    .get()
+
+  if (!link) {
+    return
+  }
+
+  const client = createSupabaseClient(event, config.serviceRoleKey)
+  const { error } = await client.admin.deleteUser(link.authUserId)
+  if (error) {
+    toSupabaseHttpError(error, 500)
+  }
 }
 
 export function getAuthUiState(event?: H3Event) {

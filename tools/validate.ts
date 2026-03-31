@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +16,10 @@ import { runCommand } from './command'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
+const PACKAGE_REGISTRY_PROVIDER =
+  process.env.PACKAGE_REGISTRY_PROVIDER === 'github' ? 'github' : 'forgejo'
+const PACKAGE_REGISTRY_SECRET_KEY =
+  PACKAGE_REGISTRY_PROVIDER === 'forgejo' ? 'FORGEJO_TOKEN' : 'GITHUB_TOKEN_PACKAGES_READ'
 
 // Construct the template name from parts so string replacement can never corrupt it.
 const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
@@ -252,7 +257,7 @@ async function main() {
     const hubChecks: Array<{ key: string; hub: string; config: string }> = [
       { key: 'CLOUDFLARE_API_TOKEN', hub: TEMPLATE_NAME, config: 'prd' },
       { key: 'CLOUDFLARE_ACCOUNT_ID', hub: TEMPLATE_NAME, config: 'prd' },
-      { key: 'GITHUB_TOKEN_PACKAGES_READ', hub: TEMPLATE_NAME, config: 'prd' },
+      { key: PACKAGE_REGISTRY_SECRET_KEY, hub: TEMPLATE_NAME, config: 'prd' },
       { key: 'POSTHOG_PUBLIC_KEY', hub: TEMPLATE_NAME, config: 'prd' },
     ]
 
@@ -360,6 +365,9 @@ async function main() {
     const webPkgPath = path.join(ROOT_DIR, 'apps', 'web', 'package.json')
     const webPkgContent = await fs.readFile(webPkgPath, 'utf-8')
     const webPkg = JSON.parse(webPkgContent)
+    const drizzleConfigPath = path.join(ROOT_DIR, 'apps', 'web', 'drizzle.config.ts')
+    const drizzleConfig = await fs.readFile(drizzleConfigPath, 'utf-8').catch(() => '')
+    const usesPostgresDrizzle = /\bdialect:\s*['"]postgres(?:ql)?['"]/.test(drizzleConfig)
 
     const requiredDeps = ['drizzle-orm', 'zod', '@iconify-json/lucide']
     const requiredDevDeps = ['@cloudflare/workers-types']
@@ -383,55 +391,73 @@ async function main() {
       }
     }
 
-    const templateDatabaseName = `${TEMPLATE_NAME}-db`
-    const webDatabaseName = await getPrimaryWebDatabaseName()
-    if (!webDatabaseName) {
-      console.error('  ❌ Unable to resolve apps/web database_name from wrangler.json')
-      allGood = false
-    } else if (webDatabaseName === templateDatabaseName) {
-      console.error(
-        `  ❌ apps/web/wrangler.json still references template database '${templateDatabaseName}' — run setup with --repair`,
-      )
-      allGood = false
-    } else {
-      console.log(`  ✅ apps/web/wrangler.json references app database (${webDatabaseName})`)
-    }
+    if (usesPostgresDrizzle) {
+      console.log('  ✅ apps/web/drizzle.config.ts is configured for postgres')
 
-    for (const scriptName of ['db:migrate', 'db:seed', 'db:reset'] as const) {
-      const script = webPkg.scripts?.[scriptName] || ''
-      if (!script) {
-        console.error(`  ❌ ${scriptName} script missing from apps/web/package.json`)
-        allGood = false
-        continue
+      for (const pgSchemaPath of [
+        path.join(ROOT_DIR, 'apps', 'web', 'server', 'database', 'pg-app-schema.ts'),
+        path.join(ROOT_DIR, 'apps', 'web', 'server', 'database', 'pg-schema.ts'),
+      ]) {
+        if (existsSync(pgSchemaPath)) {
+          console.log(`  ✅ ${path.relative(ROOT_DIR, pgSchemaPath)} exists for postgres apps`)
+        } else {
+          console.error(
+            `  ❌ ${path.relative(ROOT_DIR, pgSchemaPath)} is missing — postgres apps need backend-aware app schema mirrors`,
+          )
+          allGood = false
+        }
       }
-
-      if (!webDatabaseName) continue
-
-      if (!script.includes(webDatabaseName)) {
-        const reason =
-          webDatabaseName !== templateDatabaseName && script.includes(templateDatabaseName)
-            ? `still references template database '${templateDatabaseName}'`
-            : `does not reference apps/web database '${webDatabaseName}'`
-        console.error(`  ❌ ${scriptName} ${reason} — run setup with --repair`)
+    } else {
+      const templateDatabaseName = `${TEMPLATE_NAME}-db`
+      const webDatabaseName = await getPrimaryWebDatabaseName()
+      if (!webDatabaseName) {
+        console.error('  ❌ Unable to resolve apps/web database_name from wrangler.json')
+        allGood = false
+      } else if (webDatabaseName === templateDatabaseName) {
+        console.error(
+          `  ❌ apps/web/wrangler.json still references template database '${templateDatabaseName}' — run setup with --repair`,
+        )
         allGood = false
       } else {
-        console.log(`  ✅ ${scriptName} references apps/web database (${webDatabaseName})`)
+        console.log(`  ✅ apps/web/wrangler.json references app database (${webDatabaseName})`)
       }
-    }
 
-    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
-    if (!migrateScript.includes('@narduk-enterprises/narduk-nuxt-template-layer/drizzle')) {
-      console.error('  ❌ db:migrate is missing the shared layer migration directory')
-      allGood = false
-    } else {
-      console.log('  ✅ db:migrate includes shared layer migrations')
-    }
+      for (const scriptName of ['db:migrate', 'db:seed', 'db:reset'] as const) {
+        const script = webPkg.scripts?.[scriptName] || ''
+        if (!script) {
+          console.error(`  ❌ ${scriptName} script missing from apps/web/package.json`)
+          allGood = false
+          continue
+        }
 
-    if (!migrateScript.includes('--dir drizzle')) {
-      console.error('  ❌ db:migrate is missing the app migration directory')
-      allGood = false
-    } else {
-      console.log('  ✅ db:migrate includes app-owned migrations')
+        if (!webDatabaseName) continue
+
+        if (!script.includes(webDatabaseName)) {
+          const reason =
+            webDatabaseName !== templateDatabaseName && script.includes(templateDatabaseName)
+              ? `still references template database '${templateDatabaseName}'`
+              : `does not reference apps/web database '${webDatabaseName}'`
+          console.error(`  ❌ ${scriptName} ${reason} — run setup with --repair`)
+          allGood = false
+        } else {
+          console.log(`  ✅ ${scriptName} references apps/web database (${webDatabaseName})`)
+        }
+      }
+
+      const migrateScript = webPkg.scripts?.['db:migrate'] || ''
+      if (!migrateScript.includes('@narduk-enterprises/narduk-nuxt-template-layer/drizzle')) {
+        console.error('  ❌ db:migrate is missing the shared layer migration directory')
+        allGood = false
+      } else {
+        console.log('  ✅ db:migrate includes shared layer migrations')
+      }
+
+      if (!migrateScript.includes('--dir drizzle')) {
+        console.error('  ❌ db:migrate is missing the app migration directory')
+        allGood = false
+      } else {
+        console.log('  ✅ db:migrate includes app-owned migrations')
+      }
     }
 
     const predevScript = webPkg.scripts?.['predev'] || ''

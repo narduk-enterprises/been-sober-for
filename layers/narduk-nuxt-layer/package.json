@@ -9,7 +9,7 @@
     "directory": "layers/narduk-nuxt-layer"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
+    "registry": "https://code.platform.nard.uk/api/packages/narduk-enterprises/npm/",
     "access": "restricted"
   },
   "scripts": {

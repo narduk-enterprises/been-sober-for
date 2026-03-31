@@ -15,6 +15,11 @@ import {
 import { basename, dirname, join, relative } from 'node:path'
 import { runCommand } from './command'
 import {
+  buildPackageRegistryLine,
+  getPackageRegistryConfig,
+  patchPackageRegistryNpmrcContent,
+} from './package-registry'
+import {
   AUTH_BRIDGE_SYNC_FILES,
   BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
@@ -726,14 +731,28 @@ function patchWebNuxtConfig(
     const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
     const exportDefaultAnchor = 'export default defineNuxtConfig({'
     const authSetupBlock = [
+      'const appBackendPreset =',
+      "  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'",
       'const configuredAuthBackend = process.env.AUTH_BACKEND',
+      "const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''",
+      'const supabasePublishableKey =',
+      '  process.env.SUPABASE_PUBLISHABLE_KEY ||',
+      '  process.env.SUPABASE_ANON_KEY ||',
+      '  process.env.SUPABASE_AUTH_ANON_KEY ||',
+      "  ''",
+      'const supabaseServiceRoleKey =',
+      "  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''",
       'const authBackend =',
       "  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'",
       '    ? configuredAuthBackend',
-      '    : process.env.AUTH_AUTHORITY_URL && process.env.SUPABASE_AUTH_ANON_KEY',
+      '    : supabaseUrl && supabasePublishableKey',
       "      ? 'supabase'",
       "      : 'local'",
-      "const authAuthorityUrl = process.env.AUTH_AUTHORITY_URL || ''",
+      'const authAuthorityUrl = supabaseUrl',
+      'const appOrmTablesEntry =',
+      "  process.env.NUXT_DATABASE_BACKEND === 'postgres'",
+      "    ? './server/database/pg-app-schema.ts'",
+      "    : './server/database/app-schema.ts'",
       '',
       'function parseAuthProviders(value: string | undefined) {',
       "  return (value || 'apple,email')",
@@ -754,26 +773,44 @@ function patchWebNuxtConfig(
     }
   }
 
-  if (!content.includes('authBackend,')) {
+  if (!content.includes("'#server/app-orm-tables'")) {
     content = content.replace(
-      '  runtimeConfig: {\n',
+      "  extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],\n",
       [
-        '  runtimeConfig: {',
-        '    authBackend,',
-        '    authAuthorityUrl,',
-        "    authAnonKey: process.env.SUPABASE_AUTH_ANON_KEY || '',",
-        "    authServiceRoleKey: process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || '',",
-        "    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',",
-        "    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',",
+        "  extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],",
+        '',
+        '  alias: {',
+        "    '#server/app-orm-tables': fileURLToPath(new URL(appOrmTablesEntry, import.meta.url)),",
+        '  },',
       ].join('\n') + '\n',
     )
   }
 
-  if (!content.includes('authLoginPath:')) {
+  if (!content.includes('supabaseUrl,')) {
+    content = content.replace(
+      '  runtimeConfig: {\n',
+      [
+        '  runtimeConfig: {',
+        '    appBackendPreset,',
+        '    authBackend,',
+        '    authAuthorityUrl,',
+        '    authAnonKey: supabasePublishableKey,',
+        '    authServiceRoleKey: supabaseServiceRoleKey,',
+        "    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',",
+        "    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',",
+        '    supabaseUrl,',
+        '    supabasePublishableKey,',
+        '    supabaseServiceRoleKey,',
+      ].join('\n') + '\n',
+    )
+  }
+
+  if (!content.includes('supabasePublishableKey,')) {
     content = content.replace(
       '    public: {\n',
       [
         '    public: {',
+        '      appBackendPreset,',
         '      authBackend,',
         '      authAuthorityUrl,',
         "      authLoginPath: '/login',",
@@ -787,6 +824,8 @@ function patchWebNuxtConfig(
         "      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',",
         "      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',",
         "      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',",
+        '      supabaseUrl,',
+        '      supabasePublishableKey,',
       ].join('\n') + '\n',
     )
   }
@@ -863,21 +902,41 @@ function ensureWebDatabaseUtils(
   if (!authContent.includes("from '#server/utils/database'")) return
 
   const canonical = [
-    "import * as schema from '#server/database/schema'",
+    "import * as d1Schema from '#server/database/schema'",
+    "import * as pgSchema from '#server/database/pg-schema'",
     "import { createAppDatabase } from '#layer/server/utils/database'",
     '',
-    'export const useAppDatabase = createAppDatabase(schema)',
+    'export const useAppDatabase = createAppDatabase({',
+    '  d1: d1Schema,',
+    '  pg: pgSchema,',
+    '})',
     '',
   ].join('\n')
 
   if (existsSync(utilPath)) {
     const existing = readFileSync(utilPath, 'utf-8')
-    if (existing.includes('useAppDatabase') && existing.includes('createAppDatabase')) {
+    if (
+      existing.includes('useAppDatabase') &&
+      existing.includes('createAppDatabase') &&
+      existing.includes("import * as pgSchema from '#server/database/pg-schema'")
+    ) {
+      return
+    }
+
+    if (
+      existing.includes('useAppDatabase') &&
+      existing.includes('createAppDatabase') &&
+      existing.includes("import * as schema from '#server/database/schema'")
+    ) {
+      log('  UPDATE: apps/web/server/utils/database.ts (backend-aware auth bridge helper)')
+      if (!dryRun) {
+        writeFileSync(utilPath, canonical, 'utf-8')
+      }
       return
     }
 
     log(
-      '  WARN: apps/web/server/utils/database.ts exists but is not the auth-bridge helper; fix manually so useAppDatabase wraps createAppDatabase(schema).',
+      '  WARN: apps/web/server/utils/database.ts exists but is not the managed auth bridge helper; fix manually so useAppDatabase wraps createAppDatabase({ d1, pg }).',
     )
     return
   }
@@ -1126,7 +1185,8 @@ function ensureGitHooksPath(
 
 function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => void): boolean {
   const npmrcPath = join(appDir, '.npmrc')
-  const defaultContent = ['@narduk-enterprises:registry=https://npm.pkg.github.com', ''].join('\n')
+  const registryConfig = getPackageRegistryConfig()
+  const defaultContent = [buildPackageRegistryLine(registryConfig), ''].join('\n')
 
   if (!existsSync(npmrcPath)) {
     log('  ADD: .npmrc')
@@ -1136,36 +1196,8 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
     return true
   }
 
-  let content = readFileSync(npmrcPath, 'utf-8')
-  const original = content
-
-  if (!content.includes('@narduk-enterprises:registry=https://npm.pkg.github.com')) {
-    content = `@narduk-enterprises:registry=https://npm.pkg.github.com\n${content.trimStart()}`
-    if (!content.endsWith('\n')) {
-      content += '\n'
-    }
-  }
-
-  if (content.includes('@loganrenz:registry')) {
-    content = content.replace(/@loganrenz:registry/g, '@narduk-enterprises:registry')
-  }
-
-  const sanitizedLines = content
-    .split('\n')
-    .filter((line) => !line.includes('//npm.pkg.github.com/:_authToken='))
-    .filter((line) => !line.includes('Auth token injected via CI env'))
-  content = sanitizedLines.join('\n')
-
-  content = `${content
-    .split('\n')
-    .reduce<string[]>((lines, line) => {
-      const previous = lines[lines.length - 1]
-      if (line === '' && previous === '') return lines
-      lines.push(line)
-      return lines
-    }, [])
-    .join('\n')
-    .trimEnd()}\n`
+  const original = readFileSync(npmrcPath, 'utf-8')
+  const content = patchPackageRegistryNpmrcContent(original)
 
   if (content === original) return false
 
