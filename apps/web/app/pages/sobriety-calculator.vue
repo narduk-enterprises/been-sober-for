@@ -35,14 +35,19 @@ function startOfLocalToday(): Date {
   return atLocalMidnight(new Date())
 }
 
+const hydrated = useHydratedFlag()
 const startDate = ref('')
-const isTodaySelected = computed(() => startDate.value === formatLocalDateInputValue(new Date()))
+const todayInputValue = computed(() =>
+  hydrated.value ? formatLocalDateInputValue(new Date()) : '',
+)
+const isTodaySelected = computed(() => startDate.value === todayInputValue.value)
 
 function selectToday() {
   startDate.value = formatLocalDateInputValue(new Date())
 }
 
 const soberDays = computed(() => {
+  if (!hydrated.value) return null
   const start = parseSobrietyStartDate(startDate.value)
   if (!start) return null
   const today = startOfLocalToday()
@@ -50,7 +55,9 @@ const soberDays = computed(() => {
   return soberWholeDays(startDate.value, today)
 })
 
-const breakdown = computed(() => soberYmdBreakdown(startDate.value, startOfLocalToday()))
+const breakdown = computed(() =>
+  hydrated.value ? soberYmdBreakdown(startDate.value, startOfLocalToday()) : null,
+)
 const breakdownLabel = computed(() =>
   breakdown.value ? formatSobrietyBreakdown(breakdown.value) : '',
 )
