@@ -1049,7 +1049,7 @@ packages:
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
 
   '@narduk-enterprises/eslint-config@1.0.17':
-    resolution: {integrity: sha512-bGOJu+Vi04sH5URHE4QUDYh2FvoxjOHQrDG69fiPG3TwnB5ZRpg4QeXGCyCudAZDYnv5yIBnl5MkhSM8zdvDlg==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/eslint-config/1.0.17/6ad86baf76da4a41e3ca22bd72352ce1481301cf}
+    resolution: {integrity: sha512-DDENZBvKzFh1SWbjH7lj6wY/VjG6dDriPkuRjGRdXorHPUaC/+ChyRmxysvN1IXvPNFnuvQFSFCEtr0PDS88dg==, tarball: https://code.platform.nard.uk/api/packages/narduk-enterprises/npm/%40narduk-enterprises%2Feslint-config/-/1.0.17/eslint-config-1.0.17.tgz}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       eslint: '>=9.0.0'

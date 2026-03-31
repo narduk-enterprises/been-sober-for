@@ -30,12 +30,22 @@ async function getForgejoTarballUrl(packageName, version, forgejoToken) {
   }
 
   const metadata = await metadataResponse.json()
-  const tarballUrl = metadata?.versions?.[version]?.dist?.tarball
+  const dist = metadata?.versions?.[version]?.dist
+  const tarballUrl = dist?.tarball
+  const integrity = dist?.integrity
+
   if (typeof tarballUrl !== 'string' || !tarballUrl.startsWith(registryBase)) {
     fail(`Missing Forgejo tarball URL for ${packageName}@${version}.`)
   }
 
-  return tarballUrl
+  if (typeof integrity !== 'string' || !integrity.startsWith('sha512-')) {
+    fail(`Missing Forgejo integrity for ${packageName}@${version}.`)
+  }
+
+  return {
+    tarballUrl,
+    integrity,
+  }
 }
 
 const forgejoToken = process.env.FORGEJO_TOKEN?.trim()
@@ -76,20 +86,34 @@ for (let index = 0; index < lines.length; index += 1) {
   }
 
   const currentTarballUrl = tarballMatch[2]
-  if (!currentTarballUrl || currentTarballUrl.startsWith(registryBase)) {
+  const integrityMatch = line.match(/^(.*?integrity:\s+)([^,\s}]+)(.*)$/)
+  const currentIntegrity = integrityMatch?.[2] ?? null
+
+  const cacheKey = `${currentPackageName}@${currentVersion}`
+  let forgejoDist = tarballCache.get(cacheKey)
+  if (!forgejoDist) {
+    forgejoDist = await getForgejoTarballUrl(currentPackageName, currentVersion, forgejoToken)
+    tarballCache.set(cacheKey, forgejoDist)
+  }
+
+  if (
+    currentTarballUrl === forgejoDist.tarballUrl &&
+    currentIntegrity === forgejoDist.integrity
+  ) {
     continue
   }
 
-  const cacheKey = `${currentPackageName}@${currentVersion}`
-  let forgejoTarballUrl = tarballCache.get(cacheKey)
-  if (!forgejoTarballUrl) {
-    forgejoTarballUrl = await getForgejoTarballUrl(currentPackageName, currentVersion, forgejoToken)
-    tarballCache.set(cacheKey, forgejoTarballUrl)
+  let updatedLine = `${tarballMatch[1]}${forgejoDist.tarballUrl}${tarballMatch[3]}`
+  if (integrityMatch) {
+    updatedLine = updatedLine.replace(
+      /^(.*?integrity:\s+)([^,\s}]+)(.*)$/,
+      `$1${forgejoDist.integrity}$3`,
+    )
   }
 
-  lines[index] = `${tarballMatch[1]}${forgejoTarballUrl}${tarballMatch[3]}`
+  lines[index] = updatedLine
   replacements += 1
-  console.log(`🔁 Rewrote ${currentPackageName}@${currentVersion} lockfile tarball to Forgejo.`)
+  console.log(`🔁 Rewrote ${currentPackageName}@${currentVersion} lockfile resolution to Forgejo.`)
 }
 
 if (replacements === 0) {
