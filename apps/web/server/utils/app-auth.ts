@@ -379,6 +379,10 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
     localUser = await db.select().from(users).where(eq(users.id, linked.localUserId)).get()
   }
 
+  if (!localUser && metadata.appleId) {
+    localUser = await db.select().from(users).where(eq(users.appleId, metadata.appleId)).get()
+  }
+
   if (!localUser) {
     localUser = await db.select().from(users).where(eq(users.email, normalizedEmail)).get()
   }
@@ -417,6 +421,22 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
     throw createError({
       statusCode: 409,
       statusMessage: 'Another local user already owns the confirmed auth email.',
+    })
+  }
+
+  const conflictingAppleUser =
+    metadata.appleId && localUser.appleId !== metadata.appleId
+      ? await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.appleId, metadata.appleId))
+          .get()
+      : null
+
+  if (conflictingAppleUser && conflictingAppleUser.id !== localUser.id) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: 'Another local user already owns this Apple account.',
     })
   }
 
