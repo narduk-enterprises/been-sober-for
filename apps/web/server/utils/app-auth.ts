@@ -961,13 +961,12 @@ export async function exchangeSupabaseCode(
 
   const client = createSupabaseUserClient(event)
   const hasAuthCode = typeof body.code === 'string'
-  const { data, error } =
-    hasAuthCode
-      ? await client.exchangeCodeForSession(body.code)
-      : await client.verifyOtp({
-          token_hash: body.tokenHash,
-          type: body.verificationType,
-        })
+  const { data, error } = hasAuthCode
+    ? await client.exchangeCodeForSession(body.code)
+    : await client.verifyOtp({
+        token_hash: body.tokenHash,
+        type: body.verificationType,
+      })
 
   if (error || !data.user || !data.session) {
     if (error) toSupabaseHttpError(error, 401)

@@ -18,6 +18,8 @@ const errorMsg = ref('')
 
 onMounted(async () => {
   const code = typeof route.query.code === 'string' ? route.query.code : ''
+  const tokenHash = typeof route.query.token_hash === 'string' ? route.query.token_hash : ''
+  const verificationType = typeof route.query.type === 'string' ? route.query.type : ''
   const next = typeof route.query.next === 'string' ? route.query.next : undefined
   const providerError =
     typeof route.query.error_description === 'string'
@@ -26,9 +28,9 @@ onMounted(async () => {
         ? route.query.error
         : ''
 
-  if (!code) {
+  if (!code && !(tokenHash && verificationType)) {
     status.value = 'error'
-    errorMsg.value = providerError || 'The auth callback is missing its code.'
+    errorMsg.value = providerError || 'The auth callback is missing its verification parameters.'
     return
   }
 
@@ -36,7 +38,12 @@ onMounted(async () => {
     const returnPath =
       typeof route.path === 'string' && route.path.startsWith('/') ? route.path : '/auth/callback'
     const exchangeUrl = new URL('/api/auth/session/exchange', window.location.origin)
-    exchangeUrl.searchParams.set('code', code)
+    if (code) {
+      exchangeUrl.searchParams.set('code', code)
+    } else {
+      exchangeUrl.searchParams.set('token_hash', tokenHash)
+      exchangeUrl.searchParams.set('type', verificationType)
+    }
     exchangeUrl.searchParams.set('returnPath', returnPath)
     if (next) {
       exchangeUrl.searchParams.set('next', next)

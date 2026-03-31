@@ -2,11 +2,28 @@ import { getRequestURL, sendRedirect } from 'h3'
 import { z } from 'zod'
 import { exchangeSupabaseCode } from '#server/utils/app-auth'
 
-const querySchema = z.object({
-  code: z.string().min(1),
-  next: z.string().optional(),
-  returnPath: z.string().optional(),
-})
+const emailVerificationTypeSchema = z.enum([
+  'signup',
+  'invite',
+  'magiclink',
+  'recovery',
+  'email_change',
+  'email',
+])
+
+const querySchema = z.union([
+  z.object({
+    code: z.string().min(1),
+    next: z.string().optional(),
+    returnPath: z.string().optional(),
+  }),
+  z.object({
+    token_hash: z.string().min(1),
+    type: emailVerificationTypeSchema,
+    next: z.string().optional(),
+    returnPath: z.string().optional(),
+  }),
+])
 
 function toErrorMessage(error: unknown) {
   if (!error || typeof error !== 'object') {
@@ -53,10 +70,17 @@ export default defineEventHandler(async (event) => {
   const returnPath = sanitizeReturnPath(query.data.returnPath, config.public.authCallbackPath)
 
   try {
-    const result = await exchangeSupabaseCode(event, {
-      code: query.data.code,
-      next: query.data.next,
-    })
+    const result =
+      'code' in query.data
+        ? await exchangeSupabaseCode(event, {
+            code: query.data.code,
+            next: query.data.next,
+          })
+        : await exchangeSupabaseCode(event, {
+            tokenHash: query.data.token_hash,
+            verificationType: query.data.type,
+            next: query.data.next,
+          })
 
     return sendRedirect(event, result.redirectTo || config.public.authRedirectPath, 302)
   } catch (error) {

@@ -1,5 +1,13 @@
 import type { AuthMutationResult, AuthUser } from './useAuthApi'
 
+type EmailVerificationType =
+  | 'signup'
+  | 'invite'
+  | 'magiclink'
+  | 'recovery'
+  | 'email_change'
+  | 'email'
+
 export function useAuth() {
   const { loggedIn, user, fetch: fetchSession, clear } = useUserSession()
   const api = useAuthApi()
@@ -38,7 +46,11 @@ export function useAuth() {
     return api.startOAuth(payload)
   }
 
-  async function exchangeSession(payload: { code: string; next?: string }) {
+  async function exchangeSession(
+    payload:
+      | { code: string; next?: string }
+      | { tokenHash: string; verificationType: EmailVerificationType; next?: string },
+  ) {
     const result = await api.exchangeSession(payload)
     if (result.user) {
       await fetchSession()

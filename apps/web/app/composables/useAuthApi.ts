@@ -32,6 +32,14 @@ export interface MfaEnrollmentResult {
   uri: string
 }
 
+type EmailVerificationType =
+  | 'signup'
+  | 'invite'
+  | 'magiclink'
+  | 'recovery'
+  | 'email_change'
+  | 'email'
+
 export function useAuthApi() {
   const nuxtApp = useNuxtApp()
   const csrfFetch = (nuxtApp.$csrfFetch ?? $fetch) as typeof $fetch
@@ -81,7 +89,11 @@ export function useAuthApi() {
     })
   }
 
-  function exchangeSession(payload: { code: string; next?: string }) {
+  function exchangeSession(
+    payload:
+      | { code: string; next?: string }
+      | { tokenHash: string; verificationType: EmailVerificationType; next?: string },
+  ) {
     return csrfFetch<AuthMutationResult>('/api/auth/session/exchange', {
       method: 'POST',
       body: payload,
