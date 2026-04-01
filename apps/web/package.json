@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.17.2",
   "scripts": {
-    "build": "nuxt build",
+    "build": "node ../../tools/run-with-platform-secrets.mjs --app been-sober-for --environment prd --profile build -- sh -c 'nuxt build'",
     "db:ready": "pnpm run db:migrate && pnpm run db:seed",
     "predev": "pnpm run db:ready",
     "dev": "(doppler run -- nuxt dev || nuxt dev)",
