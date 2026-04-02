@@ -9,6 +9,11 @@ import {
   readProvisionMetadata,
 } from './provision-metadata'
 import { REFERENCE_BASELINE_FILES } from './sync-manifest'
+import {
+  repoUsesBundledLayers,
+  resolveRepoLayerPackageDirs,
+  resolveRepoLayerPublicDir,
+} from './template-layer-selection'
 
 interface CheckResult {
   status: 'pass' | 'fail' | 'warn'
@@ -36,11 +41,9 @@ const rootArg = process.argv
   ?.slice('--root='.length)
 const ROOT_DIR = rootArg ? rootArg : join(__dirname, '..')
 const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
-const LAYER_PACKAGE_PATH = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
 const APP_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'app', 'app.config.ts')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
-const LAYER_PUBLIC_DIR = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'public')
 
 /** Paths referenced by `layers/narduk-nuxt-layer/nuxt.config.ts` `app.head.link`. */
 const LAYER_HEAD_ASSET_FILES = [
@@ -70,8 +73,7 @@ function readJson<T>(path: string): T | null {
   return JSON.parse(readFileSync(path, 'utf8')) as T
 }
 
-function isAuthoringWorkspace(rootDir: string): boolean {
-  if (existsSync(join(rootDir, 'apps', 'showcase'))) return true
+function isAuthoringWorkspace(): boolean {
   const rootPackage = readJson<{ name?: string }>(ROOT_PACKAGE_PATH)
   return rootPackage?.name === 'narduk-nuxt-template'
 }
@@ -407,32 +409,43 @@ function manifestIconPathsMissing(publicDir: string): string[] {
 }
 
 function checkLayerHeadPublicAssets(): CheckResult {
-  if (!existsSync(LAYER_PUBLIC_DIR)) {
+  const layerPublicDir = resolveRepoLayerPublicDir(ROOT_DIR)
+  if (!layerPublicDir) {
     return {
       status: 'warn',
-      summary: 'layer public directory not found',
+      summary: repoUsesBundledLayers(ROOT_DIR)
+        ? 'core layer package public directory not found (run pnpm install to hydrate node_modules)'
+        : 'layer public directory not found',
     }
   }
 
   const missingHead = LAYER_HEAD_ASSET_FILES.filter(
-    (name) => !existsSync(join(LAYER_PUBLIC_DIR, name)),
+    (name) => !existsSync(join(layerPublicDir, name)),
   )
-  const missingManifest = manifestIconPathsMissing(LAYER_PUBLIC_DIR)
+  const missingManifest = manifestIconPathsMissing(layerPublicDir)
 
   const allMissing = [...new Set([...missingHead, ...missingManifest])]
   if (allMissing.length === 0) {
     return {
       status: 'pass',
-      summary: 'layer public assets match nuxt head + webmanifest icon paths',
+      summary: repoUsesBundledLayers(ROOT_DIR)
+        ? 'core layer package public assets match nuxt head + webmanifest icon paths'
+        : 'layer public assets match nuxt head + webmanifest icon paths',
     }
   }
+
+  const detailPrefix = layerPublicDir.startsWith(ROOT_DIR)
+    ? layerPublicDir.slice(ROOT_DIR.length + 1)
+    : layerPublicDir
 
   return {
     status: 'fail',
     summary: `${allMissing.length} missing layer public file(s) for head/manifest`,
     detail: [
-      ...allMissing.map((f) => `layers/narduk-nuxt-layer/public/${f}`),
-      'Run: pnpm run generate:favicons -- --target=layers/narduk-nuxt-layer/public',
+      ...allMissing.map((f) => `${detailPrefix}/${f}`),
+      repoUsesBundledLayers(ROOT_DIR)
+        ? 'Reinstall layer packages or republish the core bundle if public assets are missing.'
+        : 'Run: pnpm run generate:favicons -- --target=layers/narduk-nuxt-layer/public',
     ].join('\n'),
   }
 }
@@ -505,7 +518,7 @@ function checkProvisionManifestMetadata(): CheckResult {
 }
 
 function checkAuthoringWorkspaceGoogleVerificationFiles(): CheckResult {
-  if (!isAuthoringWorkspace(ROOT_DIR)) {
+  if (!isAuthoringWorkspace()) {
     return {
       status: 'pass',
       summary: 'template-only Google verification guard not applicable in this checkout',
@@ -664,7 +677,10 @@ async function main() {
     process.exit(1)
   }
 
-  const layerPkg = readJson<PackageJson>(LAYER_PACKAGE_PATH)
+  const primaryLayerPackageDir = resolveRepoLayerPackageDirs(ROOT_DIR)[0] || null
+  const layerPkg = primaryLayerPackageDir
+    ? readJson<PackageJson>(join(primaryLayerPackageDir, 'package.json'))
+    : null
   const checks: Array<[string, CheckResult]> = [
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],

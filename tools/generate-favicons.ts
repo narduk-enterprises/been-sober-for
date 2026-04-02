@@ -8,10 +8,10 @@
  *   pnpm generate:favicons
  *   pnpm generate:favicons -- --target=apps/web/public
  *   pnpm generate:favicons -- --target=apps/web/public --name="My App" --short-name="MA"
- *   pnpm generate:favicons -- --source=path/to/logo.svg --target=layers/narduk-nuxt-layer/public
+ *   pnpm generate:favicons -- --source=path/to/logo.svg --target=apps/web/public
  *
  * Options:
- *   --target      Directory to write generated files into (default: layers/narduk-nuxt-layer/public)
+ *   --target      Directory to write generated files into (default: bundled layer public if present, otherwise apps/web/public)
  *   --source      Path to the source SVG file (default: <target>/favicon.svg)
  *   --name        Full name for the web manifest (default: "Nuxt 4 App")
  *   --short-name  Short name for the web manifest (default: first 12 chars of --name)
@@ -50,9 +50,12 @@ const args = Object.fromEntries(
   }),
 ) as Record<string, string | true>
 
+const defaultTargetDir = existsSync(resolve(ROOT_DIR, 'layers/narduk-nuxt-layer/public'))
+  ? 'layers/narduk-nuxt-layer/public'
+  : 'apps/web/public'
 const targetDir = resolve(
   ROOT_DIR,
-  typeof args.target === 'string' ? args.target : 'layers/narduk-nuxt-layer/public',
+  typeof args.target === 'string' ? args.target : defaultTargetDir,
 )
 const appName = typeof args.name === 'string' ? args.name : 'Nuxt 4 App'
 const shortName = typeof args['short-name'] === 'string' ? args['short-name'] : appName.slice(0, 12)

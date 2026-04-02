@@ -88,6 +88,7 @@ jobs:
         run: doppler run --config prd -- pnpm run build
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=3072
 
       - name: Migrate (remote D1)
         if: ${{ inputs.run_migrate == 'true' }}

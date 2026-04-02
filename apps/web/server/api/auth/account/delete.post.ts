@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { defineUserMutation, withOptionalValidatedBody } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { deleteCurrentUserAccount } from '#layer/server/utils/accountDeletion'
+import { deleteCurrentUserAccountBridge } from '#server/utils/accountDeletionBridge'
 import { deleteSupabaseAuthUser, type AppSessionUser } from '#server/utils/app-auth'
 
 const deleteAccountSchema = z.object({
@@ -14,7 +14,7 @@ export default defineUserMutation(
     parseBody: withOptionalValidatedBody(deleteAccountSchema.parse, {}),
   },
   async ({ event, user, body }) => {
-    await deleteCurrentUserAccount(event, user, body, {
+    await deleteCurrentUserAccountBridge(event, user, body, {
       beforeDelete: async (evt, userId) => {
         if ((user as AppSessionUser).authBackend === 'supabase') {
           await deleteSupabaseAuthUser(evt, userId)

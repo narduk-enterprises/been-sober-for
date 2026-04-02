@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runAppSync } from './sync-core'
 import { runCommand } from './command'
+import { repoUsesBundledLayers } from './template-layer-selection'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
@@ -50,6 +51,13 @@ function resolveTemplateDir(args: string[]): string {
 
 const args = process.argv.slice(2)
 const templateDir = resolveTemplateDir(args)
+
+if (repoUsesBundledLayers(ROOT_DIR)) {
+  console.log(
+    'Bundled layer repos consume published layer packages. Use template sync or bump package versions instead of running update-layer.',
+  )
+  process.exit(0)
+}
 
 if (!existsSync(join(templateDir, 'layers/narduk-nuxt-layer'))) {
   console.error('Local-first layer sync requires a template checkout.')

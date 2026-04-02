@@ -139,7 +139,7 @@ function extractOptions(tsContent: string, composableName: string): OptionInfo[]
     return options
 
   // Parse each property with JSDoc comments
-  // eslint-disable-next-line regexp/no-super-linear-backtracking -- parses bounded interface snippets from VueUse source types
+  // eslint-disable-next-line regexp/no-super-linear-backtracking -- parsing typed JSDoc blocks needs a broad regex over generated TypeScript interface text
   const propRegex = /\/\*\*\s*([\s\S]*?)\*\/\s*(\w+)\??:\s*([^;\n]+)/g
 
   for (const match of interfaceContent.matchAll(propRegex)) {

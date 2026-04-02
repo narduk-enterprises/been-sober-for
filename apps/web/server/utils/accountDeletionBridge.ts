@@ -4,25 +4,18 @@ import type { AuthUser } from '#layer/server/utils/auth'
 import { users } from '#layer/orm-tables'
 import { verifyUserPassword } from '#layer/server/utils/password'
 
-export interface DeleteAccountInput {
+export interface DeleteAccountBridgeInput {
   currentPassword?: string
 }
 
 /**
  * Extension hooks for the account deletion flow.
  *
- * Apps that back user identity with an external provider (e.g. Supabase Auth)
- * can supply `beforeDelete` to clean up the upstream identity before the local
- * DB row is removed.  If the hook throws, the deletion is aborted and the
- * local user record is left intact.
+ * Apps that back user identity with an external provider can supply
+ * `beforeDelete` to clean up the upstream identity before the local DB row is
+ * removed.
  */
-export interface AccountDeletionHooks {
-  /**
-   * Called after credential verification but before the local DB row is
-   * deleted.  Use this to remove the user from an external identity provider
-   * (e.g. `supabase.admin.deleteUser`).  Throwing here will abort the entire
-   * deletion so the two sides stay in sync.
-   */
+export interface AccountDeletionBridgeHooks {
   beforeDelete?: (event: H3Event, userId: string) => Promise<void>
 }
 
@@ -36,11 +29,11 @@ function isForeignKeyConstraintError(error: unknown): boolean {
   )
 }
 
-export async function deleteCurrentUserAccount(
+export async function deleteCurrentUserAccountBridge(
   event: H3Event,
   user: AuthUser,
-  input: DeleteAccountInput = {},
-  hooks?: AccountDeletionHooks,
+  input: DeleteAccountBridgeInput = {},
+  hooks?: AccountDeletionBridgeHooks,
 ): Promise<void> {
   const log = useLogger(event).child('Auth')
   const db = useDatabase(event)

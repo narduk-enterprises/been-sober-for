@@ -3,11 +3,6 @@ import { defineConfig, devices } from '@playwright/test'
 const nuxtPort = Number(process.env.NUXT_PORT || 3000)
 const baseURL = `http://localhost:${Number.isFinite(nuxtPort) ? nuxtPort : 3000}`
 
-/**
- * Derived-app baseline for Playwright config.
- * Downstream apps can customize this file, but this version is the template
- * reference for a single-app monorepo with tests under apps/web/tests/e2e.
- */
 export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

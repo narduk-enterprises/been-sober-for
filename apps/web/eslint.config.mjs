@@ -2,10 +2,17 @@
 // ⚠️ SYNCED FILE — do not edit. App-specific rules go in eslint.overrides.mjs
 import withNuxt from './.nuxt/eslint.config.mjs'
 import { sharedConfigs } from '@narduk-enterprises/eslint-config/config'
-import {
-  importXVueCoreModuleFragment,
-  redundantNuxtAutoImportFlatConfig,
-} from '@narduk-enterprises/narduk-nuxt-template-layer/eslint-nuxt-flat-fragments'
+
+let layerFragments
+try {
+  layerFragments =
+    await import('@narduk-enterprises/narduk-nuxt-template-layer-core/eslint-nuxt-flat-fragments')
+} catch {
+  layerFragments =
+    await import('@narduk-enterprises/narduk-nuxt-template-layer/eslint-nuxt-flat-fragments')
+}
+
+const { importXVueCoreModuleFragment, redundantNuxtAutoImportFlatConfig } = layerFragments
 
 let appOverrides = []
 try {

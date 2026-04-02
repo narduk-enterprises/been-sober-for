@@ -284,7 +284,7 @@ async function main() {
           console.log(`  ✅ ${key} — matches hub (${hub})`)
         } else {
           console.error(
-            `  ❌ ${key} — STALE: does not match hub (${hub}). Run sync-template to fix.`,
+            `  ❌ ${key} — STALE: does not match hub (${hub}). Refresh the starter or template source to fix.`,
           )
           allGood = false
         }

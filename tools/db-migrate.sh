@@ -201,8 +201,7 @@ scope_for_dir() {
 
   case "$dir" in
     drizzle) echo "app" ;;
-    node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle) echo "layer" ;;
-    layers/narduk-nuxt-layer/drizzle) echo "layer" ;;
+    node_modules/@narduk-enterprises/narduk-nuxt-template-layer*/drizzle) echo "bundle" ;;
     *)
       dir="${dir//\//:}"
       dir="${dir//[^A-Za-z0-9:_-]/_}"

@@ -54,10 +54,6 @@ export function buildPackageRegistryLine(config: PackageRegistryConfig): string 
   return `${config.scope}:registry=${config.registryUrl}`
 }
 
-export function buildPackageRegistryAuthLine(config: PackageRegistryConfig): string {
-  return `//${config.authHostPath}:_authToken=\${FORGEJO_TOKEN}`
-}
-
 function isManagedRegistryAuthLine(line: string): boolean {
   return (
     line.includes('//npm.pkg.github.com/:_authToken=') ||
@@ -82,7 +78,6 @@ export function patchPackageRegistryNpmrcContent(
 ): string {
   const config = getPackageRegistryConfig(env)
   const registryLine = buildPackageRegistryLine(config)
-  const authLine = buildPackageRegistryAuthLine(config)
 
   const retainedLines = content
     .split('\n')
@@ -98,10 +93,6 @@ export function patchPackageRegistryNpmrcContent(
 
   if (!retainedLines.some((line) => line.startsWith(`${config.scope}:registry=`))) {
     retainedLines.unshift(registryLine)
-  }
-
-  if (!retainedLines.some((line) => line === authLine)) {
-    retainedLines.splice(1, 0, authLine)
   }
 
   return `${normalizeBlankLines(retainedLines).join('\n').trimEnd()}\n`

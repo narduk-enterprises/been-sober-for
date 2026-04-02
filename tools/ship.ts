@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { runCommand } from './command'
+import { resolveRepoLayerDrizzleDirs } from './template-layer-selection'
 
 type WranglerRoute = string | { pattern?: string; custom_domain?: boolean }
 type WranglerKvBinding = { binding?: string; id?: string; preview_id?: string }
@@ -49,18 +50,14 @@ function getWranglerD1DatabaseName(wrangler: WranglerConfig): string | null {
   return preferred?.database_name?.trim() || databases[0]?.database_name?.trim() || null
 }
 
-function resolveLayerDrizzleDir(appDir: string): string {
+function resolveLayerDrizzleDirs(appDir: string): string[] {
   const repoRoot = getRepoRoot(appDir)
-  const candidates = [
-    resolve(appDir, 'node_modules', '@narduk-enterprises', 'narduk-nuxt-template-layer', 'drizzle'),
-    resolve(repoRoot, 'layers', 'narduk-nuxt-layer', 'drizzle'),
-  ]
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate
+  const resolved = resolveRepoLayerDrizzleDirs(repoRoot)
+  if (resolved.length > 0) {
+    return resolved
   }
 
-  throw new Error(`Unable to resolve layer drizzle directory for ${appDir}.`)
+  throw new Error(`Unable to resolve any layer drizzle directories for ${appDir}.`)
 }
 
 export function getLayerMigrationIds(drizzleDir: string): string[] {
@@ -470,7 +467,9 @@ async function verifyRemoteD1Readiness(appDir: string): Promise<void> {
   const readiness = evaluateRemoteD1Readiness({
     existingTables,
     appliedMigrations,
-    requiredLayerMigrations: getLayerMigrationIds(resolveLayerDrizzleDir(appDir)),
+    requiredLayerMigrations: resolveLayerDrizzleDirs(appDir).flatMap((dir) =>
+      getLayerMigrationIds(dir),
+    ),
   })
 
   if (readiness.missingMigrations.length > 0) {
