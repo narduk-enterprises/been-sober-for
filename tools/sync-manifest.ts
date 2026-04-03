@@ -6,11 +6,7 @@ import {
 } from './agentic-workflow-manifest'
 
 export const VERBATIM_SYNC_FILES = [
-  '.forgejo/workflows/deploy-main.yml',
   '.dockerignore',
-  'doppler.template.yaml',
-  'config/fleet-sync-repos.json',
-  'config/fleet-app-dir-overrides.json',
   '.githooks/pre-commit',
   '.githooks/post-checkout',
   '.githooks/post-merge',
@@ -26,22 +22,15 @@ export const VERBATIM_SYNC_FILES = [
   'tools/check-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
-  'tools/fleet-git.ts',
   'tools/package-registry.ts',
-  'tools/mirror-fleet-to-forgejo.ts',
   'tools/agentic-workflow-manifest.ts',
   'tools/sync-manifest.ts',
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
-  'tools/run-remote-d1-migrate.mjs',
-  'tools/repair-forgejo-lockfile.mjs',
+  'tools/configure-package-registry-auth.mjs',
+  'tools/run-with-platform-secrets.mjs',
   'tools/sync-github-skills.ts',
-  'tools/web-deploy.cjs',
-  'tools/tail.ts',
-  'tools/ship.ts',
-  'tools/validate-production-env.mjs',
-  'tools/verify-forgejo-package-source.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
@@ -136,9 +125,22 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/version-bump.yml',
   '.github/workflows/template-sync-bot.yml',
   '.github/workflows/sync-fleet.yml',
+  'config/fleet-sync-repos.json',
+  'config/fleet-app-dir-overrides.json',
   '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
+  'tools/fleet-git.ts',
+  'tools/mirror-fleet-to-forgejo.ts',
+  'tools/run-remote-d1-migrate.mjs',
+  'tools/repair-forgejo-lockfile.mjs',
+  'tools/web-deploy.cjs',
+  'tools/tail.ts',
+  'tools/ship.ts',
+  'tools/validate-production-env.mjs',
+  'tools/verify-forgejo-package-source.mjs',
+  'scripts/fleet-quality.sh',
+  'scripts/fleet-status.sh',
   '.cursor/.DS_Store',
   '.cursor/rules/nuxt-v4-template.mdc',
   '.env',
@@ -153,11 +155,14 @@ export const STALE_SYNC_PATHS = [
   'layers/narduk-nuxt-layer/eslint.overrides.mjs',
 ] as const
 
-export const GENERATED_SYNC_FILES = ['.github/workflows/ci.yml'] as const
+export const GENERATED_SYNC_FILES = [
+  '.github/workflows/ci.yml',
+  '.forgejo/workflows/deploy-main.yml',
+] as const
 
 export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   postinstall:
-    "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  New apps: provision via the control plane (see AGENTS.md). Generated starters get .setup-complete from provisioning.\\n')\"",
+    "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  New apps: provision via platform.nard.uk (see AGENTS.md). Generated starters get .setup-complete from provisioning.\\n')\"",
   dev: 'pnpm --filter web dev',
   'build:plugins': 'pnpm --filter @narduk/eslint-config build',
   prelint: 'pnpm run build:plugins',
@@ -165,7 +170,6 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   prebuild: 'node tools/check-setup.cjs',
   preship:
     'node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check',
-  ship: 'pnpm exec tsx tools/ship.ts',
   'sync:github-skills': 'pnpm exec tsx tools/sync-github-skills.ts',
   validate: 'pnpm exec tsx tools/validate.ts',
   'sync-template': 'pnpm exec tsx tools/sync-template.ts .',
@@ -192,8 +196,9 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
 
 export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   predev: 'pnpm run db:ready',
-  dev: '(doppler run -- nuxt dev || nuxt dev)',
-  deploy: 'node ../../tools/web-deploy.cjs',
+  dev: 'nuxt dev',
+  build: 'nuxt build',
+  deploy: 'pnpm exec wrangler deploy --env=""',
   lint: 'eslint . --max-warnings 0',
   quality: "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
 }
@@ -216,16 +221,125 @@ concurrency:
   cancel-in-progress: true
 
 # CI is disabled (workflow_dispatch only) to conserve GitHub Actions minutes.
-# Deploy is done locally via \`pnpm ship\`.
+# Deploy is app-local via \`pnpm --filter web run deploy\`.
 # See .agents/workflows/deploy.md for the local deploy workflow.
 
 jobs:
   quality:
     uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
     secrets:
-      DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
-      GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}
-      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
+      PLATFORM_SECRETS_TOKEN: \${{ secrets.PLATFORM_SECRETS_TOKEN }}
+`
+}
+
+export function getCanonicalDeployMainContent(): string {
+  return `name: Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      run_migrate:
+        description: >
+          Run remote D1 migrations before deploying.
+          Set to "true" only when this deployment includes schema changes.
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: deploy-main-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Production Deploy
+    runs-on: deploy
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    env:
+      PLATFORM_SECRETS_TOKEN: \${{ secrets.PLATFORM_SECRETS_TOKEN }}
+      PLATFORM_SECRETS_BASE_URL: https://platform.nard.uk
+      PLATFORM_SECRETS_APP_NAME: __APP_NAME__
+      PLATFORM_SECRETS_ENVIRONMENT: prd
+      PLATFORM_SECRETS_PROFILE: build
+      NUXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Validate deploy environment
+        run: |
+          set -euo pipefail
+
+          for key in PLATFORM_SECRETS_TOKEN PLATFORM_SECRETS_BASE_URL PLATFORM_SECRETS_APP_NAME PLATFORM_SECRETS_ENVIRONMENT PLATFORM_SECRETS_PROFILE; do
+            if [[ -z "\${!key:-}" ]]; then
+              echo "::error::Missing $key in the repository secrets contract for deploy."
+              exit 1
+            fi
+          done
+
+          if [[ "\${PLATFORM_SECRETS_ENVIRONMENT}" != "prd" ]]; then
+            echo "::error::PLATFORM_SECRETS_ENVIRONMENT must be prd for deploy-main."
+            exit 1
+          fi
+
+          if [[ "\${PLATFORM_SECRETS_PROFILE}" != "build" ]]; then
+            echo "::error::PLATFORM_SECRETS_PROFILE must be build for deploy-main."
+            exit 1
+          fi
+
+          echo "Using platform-managed build carrier for \${PLATFORM_SECRETS_APP_NAME}."
+        working-directory: .
+
+      - name: Configure package registry auth
+        run: |
+          node ./tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- node ./tools/configure-package-registry-auth.mjs
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: apps/web
+        run: |
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
+
+      - name: Migrate (remote D1)
+        if: \${{ inputs.run_migrate == 'true' }}
+        working-directory: apps/web
+        run: |
+          set -euo pipefail
+          cmd=$(node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); const value=(pkg.scripts?.['db:migrate'] || '').replaceAll('--local', '--remote'); process.stdout.write(value)")
+          if [[ -z "$cmd" ]]; then
+            echo "No db:migrate script found, skipping."
+            exit 0
+          fi
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- bash -lc "$cmd"
+
+      - name: Deploy
+        working-directory: apps/web
+        run: |
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run deploy
 `
 }
 

@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import type { AuthUser } from '#layer/server/utils/auth'
 import { users } from '#layer/orm-tables'
+import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { verifyUserPassword } from '#layer/server/utils/password'
 
 export interface DeleteAccountBridgeInput {
@@ -37,7 +38,9 @@ export async function deleteCurrentUserAccountBridge(
 ): Promise<void> {
   const log = useLogger(event).child('Auth')
   const db = useDatabase(event)
-  const dbUser = await db.select().from(users).where(eq(users.id, user.id)).get()
+  const dbUser = await getDatabaseRow<typeof users.$inferSelect>(
+    db.select().from(users).where(eq(users.id, user.id)),
+  )
 
   if (!dbUser) {
     throw createError({
@@ -69,7 +72,7 @@ export async function deleteCurrentUserAccountBridge(
   }
 
   try {
-    await db.delete(users).where(eq(users.id, user.id)).run()
+    await executeDatabaseQuery(db.delete(users).where(eq(users.id, user.id)))
   } catch (error) {
     if (isForeignKeyConstraintError(error)) {
       throw createError({

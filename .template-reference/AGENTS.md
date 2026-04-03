@@ -22,6 +22,10 @@ Do not recreate bundle-provided composables, plugins, middleware, auth helpers,
 rate limiting, OG image building blocks, or base schema files inside `apps/web`
 without first checking the workspace guide.
 
+Generated repos should keep deploy mechanics app-local. Use the repo's own
+`build`, `deploy`, and `db:migrate` scripts and let platform automation own
+rollout orchestration instead of reintroducing template-only fleet helpers.
+
 ## Quality Commands
 
 - Main app quality: `pnpm --filter web run quality`

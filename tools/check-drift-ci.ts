@@ -3,7 +3,6 @@ import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './command'
-import { buildTemplateRemoteUrls } from './fleet-git'
 import {
   GENERATED_SYNC_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
@@ -17,6 +16,8 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
 const GIT_MAX_BUFFER = 64 * 1024 * 1024
+const TEMPLATE_REMOTE_URL =
+  'https://code.platform.nard.uk/narduk-enterprises/narduk-nuxt-template.git'
 
 const strict = process.argv.includes('--strict')
 
@@ -201,11 +202,10 @@ async function main() {
   }
 
   const remotes = run('git', ['remote', '-v'])
-  const templateUrls = buildTemplateRemoteUrls()
   if (!remotes.includes('template')) {
-    run('git', ['remote', 'add', 'template', templateUrls.https])
+    run('git', ['remote', 'add', 'template', TEMPLATE_REMOTE_URL])
   } else {
-    run('git', ['remote', 'set-url', 'template', templateUrls.https])
+    run('git', ['remote', 'set-url', 'template', TEMPLATE_REMOTE_URL])
   }
   run('git', ['fetch', 'template', 'main', '--depth=1'])
 
@@ -259,7 +259,6 @@ async function main() {
     console.log('')
     console.log('  Fix: run local-first sync from your template checkout:')
     console.log(`       pnpm sync-template ${ROOT_DIR}`)
-    console.log('       or run `pnpm sync:fleet` from the template repo.')
     console.log('')
   }
 

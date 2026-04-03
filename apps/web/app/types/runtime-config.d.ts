@@ -32,4 +32,20 @@ declare module 'nuxt/schema' {
   }
 }
 
+declare global {
+  interface Window {
+    __NARDUK_BUILD__?:
+      | {
+          appName: string
+          appVersion: string
+          buildVersion: string
+          buildTime: string
+          localBuildTime?: string
+        }
+      | undefined
+    __NARDUK_BUILD_LOGGED__?: string | undefined
+    __NARDUK_NATIVE_FETCH__?: typeof fetch
+  }
+}
+
 export {}

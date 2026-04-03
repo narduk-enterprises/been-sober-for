@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.17.2",
   "scripts": {
-    "build": "node ../../tools/run-with-platform-secrets.mjs --app been-sober-for --environment prd --profile build -- sh -c 'nuxt build'",
+    "build": "nuxt build",
     "db:ready": "pnpm run db:migrate && pnpm run db:seed",
     "predev": "pnpm run db:ready",
     "dev": "(doppler run -- nuxt dev || nuxt dev)",
@@ -18,7 +18,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "deploy": "node ../../tools/web-deploy.cjs",
+    "deploy": "pnpm exec wrangler deploy --env=\"\"",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:unit": "vitest run",
@@ -34,10 +34,10 @@
     "zod": "^4.3.6",
     "@supabase/auth-js": "^2.100.1",
     "@supabase/supabase-js": "^2.100.1",
-    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.0.12",
-    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.0.12",
-    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.0.12",
-    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.0.12"
+    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.0.16",
+    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.0.16",
+    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.0.16",
+    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.0.16"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",
