@@ -147,7 +147,7 @@ async function main() {
               typeof v !== 'string' || v.length === 0 || v === PLACEHOLDER_KV_NAMESPACE_ID
             if (badKvId(kvBinding.id) || badKvId(kvBinding.preview_id)) {
               console.error(
-                `  ❌ apps/${appDir}/wrangler.json — KV binding "KV" id/preview_id missing or template placeholder (control plane must hydrate).`,
+                `  ❌ apps/${appDir}/wrangler.json — KV binding "KV" id/preview_id missing or template placeholder (platform must hydrate).`,
               )
               allGood = false
             } else {

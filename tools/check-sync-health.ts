@@ -62,8 +62,13 @@ const TEMPLATE_REPO_DIR_HINTS = [
   join(ROOT_DIR, '..', 'narduk-nuxt-template'),
 ]
 const CONTROL_PLANE_REPO_DIR_HINTS = [
+  process.env.PLATFORM_REPO_DIR,
   process.env.CONTROL_PLANE_REPO_DIR,
   ROOT_DIR,
+  join(ROOT_DIR, '..', 'narduk-paas'),
+  join(ROOT_DIR, '..', '..', 'narduk-paas'),
+  join(ROOT_DIR, '..', 'template-apps', 'platform'),
+  join(ROOT_DIR, '..', '..', 'template-apps', 'platform'),
   join(ROOT_DIR, '..', 'template-apps', 'control-plane'),
   join(ROOT_DIR, '..', '..', 'template-apps', 'control-plane'),
 ]
@@ -611,9 +616,9 @@ async function checkFleetManifestParity(): Promise<CheckResult> {
   if (!managedReposPath) {
     return {
       status: 'warn',
-      summary: 'fleet manifest present but no local control-plane clone found',
+      summary: 'fleet manifest present but no local platform clone found',
       detail:
-        'Set CONTROL_PLANE_REPO_DIR to validate config/fleet-sync-repos.json against managed-repos.ts.',
+        'Set PLATFORM_REPO_DIR or CONTROL_PLANE_REPO_DIR to validate config/fleet-sync-repos.json against managed-repos.ts.',
     }
   }
 

@@ -25,13 +25,18 @@ jobs:
   deploy:
     name: Production Deploy
     runs-on: deploy
+    timeout-minutes: 45
 
     permissions:
       contents: read
 
-    defaults:
-      run:
-        working-directory: apps/web
+    env:
+      PLATFORM_SECRETS_TOKEN: ${{ secrets.PLATFORM_SECRETS_TOKEN }}
+      PLATFORM_SECRETS_BASE_URL: https://platform.nard.uk
+      PLATFORM_SECRETS_APP_NAME: been-sober-for
+      PLATFORM_SECRETS_ENVIRONMENT: prd
+      PLATFORM_SECRETS_PROFILE: build
+      NUXT_TELEMETRY_DISABLED: 1
 
     steps:
       - name: Checkout
@@ -46,58 +51,57 @@ jobs:
           node-version: "22"
           cache: pnpm
 
-      - name: Install Doppler CLI
-        run: curl -Ls https://cli.doppler.com/install.sh | sh
-        working-directory: .
-
-      - name: Validate production env
-        run: doppler run --config prd -- node ./tools/validate-production-env.mjs
-        working-directory: .
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-
-      - name: Repair Forgejo lockfile package source
-        run: doppler run --config prd -- node ./tools/repair-forgejo-lockfile.mjs
-        working-directory: .
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-
-      - name: Verify Forgejo package source
-        run: doppler run --config prd -- node ./tools/verify-forgejo-package-source.mjs
-        working-directory: .
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-
-      - name: Install dependencies
+      - name: Validate deploy environment
         run: |
           set -euo pipefail
-          temp_npmrc="$(mktemp)"
-          trap 'rm -f "$temp_npmrc"' EXIT
-          cp .npmrc "$temp_npmrc"
-          doppler run --config prd -- bash -lc \
-            "printf '\n//code.platform.nard.uk/api/packages/narduk-enterprises/npm/:_authToken=%s\n' \"\$FORGEJO_TOKEN\" >> \"$temp_npmrc\""
-          doppler run --config prd -- env PATH="$PATH" NPM_CONFIG_USERCONFIG="$temp_npmrc" pnpm install --frozen-lockfile
+
+          for key in PLATFORM_SECRETS_TOKEN PLATFORM_SECRETS_BASE_URL PLATFORM_SECRETS_APP_NAME PLATFORM_SECRETS_ENVIRONMENT PLATFORM_SECRETS_PROFILE; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Missing $key in the repository secrets contract for deploy."
+              exit 1
+            fi
+          done
+
+          if [[ "${PLATFORM_SECRETS_ENVIRONMENT}" != "prd" ]]; then
+            echo "::error::PLATFORM_SECRETS_ENVIRONMENT must be prd for deploy-main."
+            exit 1
+          fi
+
+          if [[ "${PLATFORM_SECRETS_PROFILE}" != "build" ]]; then
+            echo "::error::PLATFORM_SECRETS_PROFILE must be build for deploy-main."
+            exit 1
+          fi
+
+          echo "Using platform-managed build carrier for ${PLATFORM_SECRETS_APP_NAME}."
         working-directory: .
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-          npm_config_fetch_retries: "0"
-          npm_config_fetch_retry_mintimeout: "1"
-          npm_config_fetch_retry_maxtimeout: "1"
+
+      - name: Configure package registry auth
+        run: |
+          node ./tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- node ./tools/configure-package-registry-auth.mjs
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: doppler run --config prd -- pnpm run build
+        working-directory: apps/web
+        run: |
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run build
         env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=3072
 
       - name: Migrate (remote D1)
         if: ${{ inputs.run_migrate == 'true' }}
-        run: doppler run --config prd -- node ./tools/run-remote-d1-migrate.mjs
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        working-directory: apps/web
+        run: |
+          set -euo pipefail
+          cmd=$(node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); const value=(pkg.scripts?.['db:migrate'] || '').replaceAll('--local', '--remote'); process.stdout.write(value)")
+          if [[ -z "$cmd" ]]; then
+            echo "No db:migrate script found, skipping."
+            exit 0
+          fi
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- bash -lc "$cmd"
 
       - name: Deploy
-        run: doppler run --config prd -- pnpm run deploy
-        env:
-          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-          NARDUK_SHIP_ACTIVE: "1"
+        working-directory: apps/web
+        run: |
+          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run deploy

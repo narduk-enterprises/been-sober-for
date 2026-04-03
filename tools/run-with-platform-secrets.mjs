@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 
 function parseArgs(argv) {
@@ -36,10 +38,6 @@ function parseArgs(argv) {
   return { options, command }
 }
 
-function shouldFallback() {
-  return process.env.PLATFORM_SECRETS_ALLOW_FALLBACK !== '0'
-}
-
 function runCommand(command, env) {
   if (command.length === 0) {
     console.error('run-with-platform-secrets: missing command after --')
@@ -60,6 +58,40 @@ function runCommand(command, env) {
 
     process.exit(code ?? 0)
   })
+}
+
+function inferAppNameFromWrangler() {
+  const candidates = new Set()
+  let current = process.cwd()
+
+  for (let depth = 0; depth < 8; depth += 1) {
+    candidates.add(resolve(current, 'wrangler.json'))
+    candidates.add(resolve(current, 'apps/web/wrangler.json'))
+
+    const parent = dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
+
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) {
+      continue
+    }
+
+    try {
+      const payload = JSON.parse(readFileSync(candidate, 'utf8'))
+      const name = typeof payload?.name === 'string' ? payload.name.trim() : ''
+      if (name) {
+        return name
+      }
+    } catch {
+      // Ignore malformed discovery candidates and keep looking.
+    }
+  }
+
+  return ''
 }
 
 async function resolvePlatformSecrets({ app, environment, profile }) {
@@ -106,21 +138,17 @@ async function resolvePlatformSecrets({ app, environment, profile }) {
 
 async function main() {
   const { options, command } = parseArgs(process.argv.slice(2))
+  const resolvedOptions = {
+    ...options,
+    app: options.app || inferAppNameFromWrangler(),
+  }
 
   try {
-    const values = await resolvePlatformSecrets(options)
+    const values = await resolvePlatformSecrets(resolvedOptions)
     if (!values) {
-      if (!shouldFallback()) {
-        throw new Error(
-          'PLATFORM_SECRETS_TOKEN plus app, environment, and profile are required. PLATFORM_SECRETS_BASE_URL defaults to CONTROL_PLANE_URL or SITE_URL when available.',
-        )
-      }
-
-      console.warn(
-        '[platform-secrets] Missing platform secrets configuration; running command with existing environment.',
+      throw new Error(
+        'PLATFORM_SECRETS_TOKEN plus app, environment, and profile are required. The app name defaults to the nearest wrangler.json name when omitted, and PLATFORM_SECRETS_BASE_URL defaults to CONTROL_PLANE_URL or SITE_URL when available.',
       )
-      runCommand(command, process.env)
-      return
     }
 
     runCommand(command, {
@@ -128,15 +156,8 @@ async function main() {
       ...values,
     })
   } catch (error) {
-    if (!shouldFallback()) {
-      console.error(`[platform-secrets] ${error instanceof Error ? error.message : String(error)}`)
-      process.exit(1)
-    }
-
-    console.warn(
-      `[platform-secrets] ${error instanceof Error ? error.message : String(error)}; falling back to existing environment.`,
-    )
-    runCommand(command, process.env)
+    console.error(`[platform-secrets] ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(1)
   }
 }
 

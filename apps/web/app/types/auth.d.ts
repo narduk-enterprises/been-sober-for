@@ -1,6 +1,11 @@
 declare module '#auth-utils' {
   interface User {
+    id: string
+    email: string
+    name: string | null
+    isAdmin: boolean | null
     authSessionId?: string | null
+    authSessionValidatedAt?: string | null
     authProvider?: string | null
     authProviders?: string[]
     authBackend?: 'local' | 'supabase'

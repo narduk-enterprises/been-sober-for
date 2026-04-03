@@ -11,7 +11,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { users, type User as LocalUser } from '#layer/orm-tables'
 import { authSessions, authUserLinks } from '#server/app-orm-tables'
-import { useDatabase } from '#layer/server/utils/database'
+import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
 import { useAppDatabase } from '#server/utils/database'
 
@@ -27,6 +27,7 @@ export interface AppSessionUser {
   name: string | null
   isAdmin: boolean | null
   authSessionId?: string | null
+  authSessionValidatedAt?: string | null
   authProvider?: string | null
   authProviders?: string[]
   authBackend?: AppAuthBackend
@@ -378,20 +379,22 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
 
   const metadata = extractProviderMetadata(authUser)
   const now = new Date().toISOString()
-  const linked = await appDb
-    .select()
-    .from(authUserLinks)
-    .where(eq(authUserLinks.authUserId, authUser.id))
-    .get()
+  const linked = await getDatabaseRow<typeof authUserLinks.$inferSelect>(
+    appDb.select().from(authUserLinks).where(eq(authUserLinks.authUserId, authUser.id)),
+  )
 
   let localUser: LocalUser | undefined
 
   if (linked) {
-    localUser = await db.select().from(users).where(eq(users.id, linked.localUserId)).get()
+    localUser = await getDatabaseRow<LocalUser>(
+      db.select().from(users).where(eq(users.id, linked.localUserId)),
+    )
   }
 
   if (!localUser) {
-    localUser = await db.select().from(users).where(eq(users.email, normalizedEmail)).get()
+    localUser = await getDatabaseRow<LocalUser>(
+      db.select().from(users).where(eq(users.email, normalizedEmail)),
+    )
   }
 
   if (!localUser) {
@@ -409,7 +412,9 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
       updatedAt: now,
     })
 
-    localUser = await db.select().from(users).where(eq(users.id, newUserId)).get()
+    localUser = await getDatabaseRow<LocalUser>(
+      db.select().from(users).where(eq(users.id, newUserId)),
+    )
   }
 
   if (!localUser) {
@@ -421,7 +426,9 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
 
   const conflictingEmailUser =
     localUser.email !== normalizedEmail
-      ? await db.select({ id: users.id }).from(users).where(eq(users.email, normalizedEmail)).get()
+      ? await getDatabaseRow<LocalUser>(
+          db.select().from(users).where(eq(users.email, normalizedEmail)),
+        )
       : null
 
   if (conflictingEmailUser && conflictingEmailUser.id !== localUser.id) {
@@ -442,13 +449,11 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
     localUpdates.appleId = metadata.appleId
   }
 
-  await db.update(users).set(localUpdates).where(eq(users.id, localUser.id)).run()
+  await executeDatabaseQuery(db.update(users).set(localUpdates).where(eq(users.id, localUser.id)))
 
-  const existingLink = await appDb
-    .select()
-    .from(authUserLinks)
-    .where(eq(authUserLinks.localUserId, localUser.id))
-    .get()
+  const existingLink = await getDatabaseRow<typeof authUserLinks.$inferSelect>(
+    appDb.select().from(authUserLinks).where(eq(authUserLinks.localUserId, localUser.id)),
+  )
 
   const linkValues = {
     localUserId: localUser.id,
@@ -461,11 +466,12 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
   }
 
   if (existingLink) {
-    await appDb
-      .update(authUserLinks)
-      .set(linkValues)
-      .where(eq(authUserLinks.localUserId, localUser.id))
-      .run()
+    await executeDatabaseQuery(
+      appDb
+        .update(authUserLinks)
+        .set(linkValues)
+        .where(eq(authUserLinks.localUserId, localUser.id)),
+    )
   } else {
     await appDb.insert(authUserLinks).values({
       ...linkValues,
@@ -522,7 +528,9 @@ async function persistSupabaseSession(
   }
 
   if (params.sessionId) {
-    await appDb.update(authSessions).set(values).where(eq(authSessions.id, params.sessionId)).run()
+    await executeDatabaseQuery(
+      appDb.update(authSessions).set(values).where(eq(authSessions.id, params.sessionId)),
+    )
   } else {
     await appDb.insert(authSessions).values({
       id: authSessionId,
@@ -555,7 +563,7 @@ async function clearCurrentSession(event: H3Event) {
   const authSessionId = sessionUser?.authSessionId
   if (authSessionId) {
     const appDb = useAppDatabase(event)
-    await appDb.delete(authSessions).where(eq(authSessions.id, authSessionId)).run()
+    await executeDatabaseQuery(appDb.delete(authSessions).where(eq(authSessions.id, authSessionId)))
   }
 
   deleteCookie(event, PKCE_COOKIE_NAME, { path: '/' })
@@ -572,11 +580,9 @@ export async function getCurrentSupabaseContext(event: H3Event) {
   }
 
   const appDb = useAppDatabase(event)
-  const authSession = await appDb
-    .select()
-    .from(authSessions)
-    .where(eq(authSessions.id, sessionUser.authSessionId))
-    .get()
+  const authSession = await getDatabaseRow<typeof authSessions.$inferSelect>(
+    appDb.select().from(authSessions).where(eq(authSessions.id, sessionUser.authSessionId)),
+  )
 
   if (!authSession) {
     await clearUserSession(event)
@@ -593,7 +599,9 @@ export async function getCurrentSupabaseContext(event: H3Event) {
   })
 
   if (error || !data.session || !data.user) {
-    await appDb.delete(authSessions).where(eq(authSessions.id, authSession.id)).run()
+    await executeDatabaseQuery(
+      appDb.delete(authSessions).where(eq(authSessions.id, authSession.id)),
+    )
     await clearUserSession(event)
     throw createError({
       statusCode: 401,
@@ -689,7 +697,9 @@ async function loginWithLocalAuth(event: H3Event, body: LoginInput): Promise<Aut
   const log = useLogger(event).child('AppAuth')
   const db = useDatabase(event)
   const normalizedEmail = normalizeEmail(body.email)
-  const user = await db.select().from(users).where(eq(users.email, normalizedEmail)).get()
+  const user = await getDatabaseRow<LocalUser>(
+    db.select().from(users).where(eq(users.email, normalizedEmail)),
+  )
 
   if (!user || !user.passwordHash) {
     log.warn('Local login failed', { email: normalizedEmail })
@@ -779,7 +789,9 @@ async function registerWithLocalAuth(
   const log = useLogger(event).child('AppAuth')
   const db = useDatabase(event)
   const normalizedEmail = normalizeEmail(body.email)
-  const existingUser = await db.select().from(users).where(eq(users.email, normalizedEmail)).get()
+  const existingUser = await getDatabaseRow<LocalUser>(
+    db.select().from(users).where(eq(users.email, normalizedEmail)),
+  )
 
   if (existingUser) {
     log.warn('Local registration rejected', { email: normalizedEmail })
@@ -798,7 +810,7 @@ async function registerWithLocalAuth(
     passwordHash,
   })
 
-  const user = await db.select().from(users).where(eq(users.id, userId)).get()
+  const user = await getDatabaseRow<LocalUser>(db.select().from(users).where(eq(users.id, userId)))
   if (!user) {
     throw createError({
       statusCode: 500,
@@ -1048,14 +1060,15 @@ export async function updateProfile(event: H3Event, body: UpdateProfileInput) {
     }
 
     const db = useDatabase(event)
-    await db
-      .update(users)
-      .set({
-        ...(name !== undefined ? { name } : {}),
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(users.id, context.localUser.id))
-      .run()
+    await executeDatabaseQuery(
+      db
+        .update(users)
+        .set({
+          ...(name !== undefined ? { name } : {}),
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, context.localUser.id)),
+    )
 
     if (data.user) {
       await ensureLinkedLocalUser(event, data.user)
@@ -1077,14 +1090,15 @@ export async function updateProfile(event: H3Event, body: UpdateProfileInput) {
   }
 
   const db = useDatabase(event)
-  await db
-    .update(users)
-    .set({
-      ...(name !== undefined ? { name } : {}),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(users.id, sessionUser.id))
-    .run()
+  await executeDatabaseQuery(
+    db
+      .update(users)
+      .set({
+        ...(name !== undefined ? { name } : {}),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, sessionUser.id)),
+  )
 
   const refreshedUser = {
     ...sessionUser,
@@ -1154,7 +1168,9 @@ export async function changePassword(event: H3Event, body: ChangePasswordInput) 
   }
 
   const db = useDatabase(event)
-  const dbUser = await db.select().from(users).where(eq(users.id, sessionUser.id)).get()
+  const dbUser = await getDatabaseRow<LocalUser>(
+    db.select().from(users).where(eq(users.id, sessionUser.id)),
+  )
 
   if (!dbUser || !dbUser.passwordHash) {
     throw createError({
@@ -1172,14 +1188,15 @@ export async function changePassword(event: H3Event, body: ChangePasswordInput) 
   }
 
   const hashedPassword = await hashUserPassword(body.newPassword)
-  await db
-    .update(users)
-    .set({
-      passwordHash: hashedPassword,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(users.id, sessionUser.id))
-    .run()
+  await executeDatabaseQuery(
+    db
+      .update(users)
+      .set({
+        passwordHash: hashedPassword,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, sessionUser.id)),
+  )
 
   return { success: true }
 }
@@ -1280,11 +1297,9 @@ export async function deleteSupabaseAuthUser(event: H3Event, localUserId: string
   const config = getAuthConfig(event)
   const appDb = useAppDatabase(event)
 
-  const link = await appDb
-    .select({ authUserId: authUserLinks.authUserId })
-    .from(authUserLinks)
-    .where(eq(authUserLinks.localUserId, localUserId))
-    .get()
+  const link = await getDatabaseRow<typeof authUserLinks.$inferSelect>(
+    appDb.select().from(authUserLinks).where(eq(authUserLinks.localUserId, localUserId)),
+  )
 
   if (!link) {
     return

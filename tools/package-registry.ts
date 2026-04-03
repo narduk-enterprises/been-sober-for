@@ -1,5 +1,3 @@
-import { getFleetGitConfig } from './fleet-git'
-
 export type PackageRegistryProvider = 'github' | 'forgejo'
 
 export interface PackageRegistryConfig {
@@ -12,6 +10,8 @@ export interface PackageRegistryConfig {
 export const DEFAULT_PACKAGE_REGISTRY_PROVIDER: PackageRegistryProvider = 'forgejo'
 export const DEFAULT_PACKAGE_REGISTRY_SCOPE = '@narduk-enterprises'
 export const GITHUB_PACKAGE_REGISTRY_URL = 'https://npm.pkg.github.com'
+export const DEFAULT_PACKAGE_REGISTRY_FORGEJO_BASE_URL = 'https://code.platform.nard.uk'
+export const DEFAULT_PACKAGE_REGISTRY_FORGEJO_OWNER = 'narduk-enterprises'
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
@@ -31,13 +31,14 @@ export function getPackageRegistryConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): PackageRegistryConfig {
   const provider = normalizePackageRegistryProvider(env.PACKAGE_REGISTRY_PROVIDER)
-  const fleetGit = getFleetGitConfig(env)
+  const forgejoBaseUrl = stripTrailingSlash(
+    env.FLEET_FORGEJO_BASE_URL?.trim() || DEFAULT_PACKAGE_REGISTRY_FORGEJO_BASE_URL,
+  )
+  const forgejoOwner = env.FLEET_FORGEJO_OWNER?.trim() || DEFAULT_PACKAGE_REGISTRY_FORGEJO_OWNER
 
   const registryUrl =
     provider === 'forgejo'
-      ? ensureTrailingSlash(
-          `${stripTrailingSlash(fleetGit.forgejoBaseUrl)}/api/packages/${fleetGit.forgejoOwner}/npm`,
-        )
+      ? ensureTrailingSlash(`${forgejoBaseUrl}/api/packages/${forgejoOwner}/npm`)
       : GITHUB_PACKAGE_REGISTRY_URL
 
   const url = new URL(registryUrl)
