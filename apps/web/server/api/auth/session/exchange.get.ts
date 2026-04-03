@@ -1,4 +1,4 @@
-import { getRequestURL, sendRedirect } from 'h3'
+import { getCookie, getRequestHeader, getRequestURL, sendRedirect } from 'h3'
 import { z } from 'zod'
 import { exchangeSupabaseCode } from '#server/utils/app-auth'
 
@@ -66,6 +66,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid auth callback parameters.' })
   }
 
+  const log = useLogger(event).child('AuthCallback')
   const config = useRuntimeConfig(event)
   const returnPath = sanitizeReturnPath(query.data.returnPath, config.public.authCallbackPath)
 
@@ -84,6 +85,33 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, result.redirectTo || config.public.authRedirectPath, 302)
   } catch (error) {
+    const requestHost = getRequestHeader(event, 'host') ?? null
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      typeof error.statusCode === 'number'
+        ? error.statusCode
+        : null
+    const statusMessage =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusMessage' in error &&
+      typeof error.statusMessage === 'string'
+        ? error.statusMessage
+        : error instanceof Error
+          ? error.message
+          : String(error)
+
+    log.error('Auth callback exchange failed', {
+      requestHost,
+      next: query.data.next ?? null,
+      returnPath,
+      hasPkceCookie: Boolean(getCookie(event, 'app_auth_pkce')),
+      statusCode,
+      statusMessage,
+    })
+
     const callbackUrl = new URL(returnPath, getRequestURL(event).origin)
     if (query.data.next) {
       callbackUrl.searchParams.set('next', query.data.next)
