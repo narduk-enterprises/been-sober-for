@@ -87,7 +87,7 @@ jobs:
         run: |
           node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run build
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=5120
 
       - name: Migrate (remote D1)
         if: ${{ inputs.run_migrate == 'true' }}
