@@ -102,6 +102,7 @@ jobs:
             cp .npmrc "$temp_npmrc"
             export PACKAGE_REGISTRY_NPMRC_PATH="$temp_npmrc"
             export NPM_CONFIG_USERCONFIG="$temp_npmrc"
+            export PATH="${PNPM_HOME:-}:${PATH}"
             node ./tools/configure-package-registry-auth.mjs
             pnpm install --frozen-lockfile
           '
@@ -181,7 +182,11 @@ jobs:
 
       - name: Build app from main
         run: |
-          node ./tools/run-with-vault-secrets.mjs -- pnpm run build
+          node ./tools/run-with-vault-secrets.mjs -- bash -lc '
+            set -euo pipefail
+            export PATH="${PNPM_HOME:-}:${PATH}"
+            pnpm run build
+          '
 
       - name: Migrate remote D1
         if: ${{ inputs.run_migrate == 'true' }}
@@ -201,7 +206,11 @@ jobs:
         env:
           NARDUK_ALLOW_DIRECT_DEPLOY: "1"
         run: |
-          node ./tools/run-with-vault-secrets.mjs -- pnpm --filter web run deploy
+          node ./tools/run-with-vault-secrets.mjs -- bash -lc '
+            set -euo pipefail
+            export PATH="${PNPM_HOME:-}:${PATH}"
+            pnpm --filter web run deploy
+          '
 
       - name: Report deploy outcome to platform
         if: ${{ always() && env.MANAGED_APP_OPERATION_ID != '' }}
