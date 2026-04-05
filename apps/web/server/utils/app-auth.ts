@@ -405,16 +405,18 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
     const newUserId = crypto.randomUUID()
     const fallbackName = metadata.displayName || deriveDisplayName(normalizedEmail)
 
-    await db.insert(users).values({
-      id: newUserId,
-      email: normalizedEmail,
-      name: fallbackName,
-      appleId: metadata.appleId,
-      passwordHash: null,
-      isAdmin: false,
-      createdAt: now,
-      updatedAt: now,
-    })
+    await executeDatabaseQuery(
+      db.insert(users).values({
+        id: newUserId,
+        email: normalizedEmail,
+        name: fallbackName,
+        appleId: metadata.appleId,
+        passwordHash: null,
+        isAdmin: false,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    )
 
     localUser = await getDatabaseRow<LocalUser>(
       db.select().from(users).where(eq(users.id, newUserId)),
@@ -477,10 +479,12 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
         .where(eq(authUserLinks.localUserId, localUser.id)),
     )
   } else {
-    await appDb.insert(authUserLinks).values({
-      ...linkValues,
-      createdAt: now,
-    })
+    await executeDatabaseQuery(
+      appDb.insert(authUserLinks).values({
+        ...linkValues,
+        createdAt: now,
+      }),
+    )
   }
 
   log.info('Linked shared auth user to local user', {
@@ -536,11 +540,13 @@ async function persistSupabaseSession(
       appDb.update(authSessions).set(values).where(eq(authSessions.id, params.sessionId)),
     )
   } else {
-    await appDb.insert(authSessions).values({
-      id: authSessionId,
-      createdAt: now,
-      ...values,
-    })
+    await executeDatabaseQuery(
+      appDb.insert(authSessions).values({
+        id: authSessionId,
+        createdAt: now,
+        ...values,
+      }),
+    )
   }
 
   return {
@@ -807,12 +813,14 @@ async function registerWithLocalAuth(
 
   const userId = crypto.randomUUID()
   const passwordHash = await hashUserPassword(body.password)
-  await db.insert(users).values({
-    id: userId,
-    email: normalizedEmail,
-    name: body.name.trim(),
-    passwordHash,
-  })
+  await executeDatabaseQuery(
+    db.insert(users).values({
+      id: userId,
+      email: normalizedEmail,
+      name: body.name.trim(),
+      passwordHash,
+    }),
+  )
 
   const user = await getDatabaseRow<LocalUser>(db.select().from(users).where(eq(users.id, userId)))
   if (!user) {
