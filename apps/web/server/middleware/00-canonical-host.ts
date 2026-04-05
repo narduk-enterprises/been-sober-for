@@ -5,6 +5,10 @@ function isLocalHost(host: string) {
 }
 
 export default defineEventHandler((event) => {
+  if (import.meta.prerender) {
+    return
+  }
+
   if (event.method !== 'GET' && event.method !== 'HEAD') {
     return
   }

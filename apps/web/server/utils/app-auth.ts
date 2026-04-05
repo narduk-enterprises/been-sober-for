@@ -12,7 +12,10 @@ import { eq } from 'drizzle-orm'
 import { users, type User as LocalUser } from '#layer/orm-tables'
 import { authSessions, authUserLinks } from '#server/app-orm-tables'
 import { useDatabase } from '#layer/server/utils/database'
-import { executeDatabaseQuery, getDatabaseRow } from '#server/utils/databaseCompat'
+import {
+  executeCompatDatabaseQuery as executeDatabaseQuery,
+  getCompatDatabaseRow as getDatabaseRow,
+} from '#server/utils/databaseCompat'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
 import { useAppDatabase } from '#server/utils/database'
 
