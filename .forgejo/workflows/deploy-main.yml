@@ -1,4 +1,4 @@
-name: Production Deploy
+name: Deploy From Main
 
 on:
   push:
@@ -6,10 +6,29 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      operation_id:
+        description: Managed control-plane operation id
+        required: false
+        type: string
+      app_slug:
+        description: Managed app slug
+        required: false
+        type: string
+      operation_type:
+        description: Managed operation type
+        required: false
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - template-sync
+      environment:
+        description: Managed environment lane
+        required: false
+        default: prd
+        type: string
       run_migrate:
-        description: >
-          Run remote D1 migrations before deploying.
-          Set to "true" only when this deployment includes schema changes.
+        description: Run remote D1 migrations before deploying.
         required: false
         default: "false"
         type: choice
@@ -18,29 +37,32 @@ on:
           - "true"
 
 concurrency:
-  group: deploy-main-${{ github.ref }}
+  group: deploy-${{ github.repository }}
   cancel-in-progress: true
+
+env:
+  VAULT_BASE_URL: ${{ secrets.VAULT_BASE_URL }}
+  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+  VAULT_PROJECT_SLUG: ${{ secrets.VAULT_PROJECT_SLUG }}
+  VAULT_ENVIRONMENT_SLUG: ${{ secrets.VAULT_ENVIRONMENT_SLUG }}
+  VAULT_CONFIG_SET: ${{ secrets.VAULT_CONFIG_SET }}
+  CONTROL_PLANE_URL: https://platform.nard.uk
+  MANAGED_APP_OPERATION_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.operation_id || '' }}
+  MANAGED_APP_OPERATION_APP_SLUG: ${{ github.event_name == 'workflow_dispatch' && inputs.app_slug || '' }}
+  MANAGED_APP_OPERATION_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation_type || '' }}
+  MANAGED_APP_OPERATION_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || '' }}
+  NUXT_TELEMETRY_DISABLED: "1"
+  NODE_OPTIONS: --max-old-space-size=5120
 
 jobs:
   deploy:
-    name: Production Deploy
     runs-on: deploy
     timeout-minutes: 45
-
     permissions:
       contents: read
 
-    env:
-      PLATFORM_SECRETS_TOKEN: ${{ secrets.PLATFORM_SECRETS_TOKEN }}
-      PLATFORM_SECRETS_BASE_URL: https://platform.nard.uk
-      PLATFORM_SECRETS_APP_NAME: been-sober-for
-      PLATFORM_SECRETS_ENVIRONMENT: prd
-      PLATFORM_SECRETS_PROFILE: build
-      NUXT_TELEMETRY_DISABLED: 1
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -55,53 +77,132 @@ jobs:
         run: |
           set -euo pipefail
 
-          for key in PLATFORM_SECRETS_TOKEN PLATFORM_SECRETS_BASE_URL PLATFORM_SECRETS_APP_NAME PLATFORM_SECRETS_ENVIRONMENT PLATFORM_SECRETS_PROFILE; do
+          for key in VAULT_BASE_URL VAULT_TOKEN VAULT_PROJECT_SLUG VAULT_ENVIRONMENT_SLUG; do
             if [[ -z "${!key:-}" ]]; then
               echo "::error::Missing $key in the repository secrets contract for deploy."
               exit 1
             fi
           done
 
-          if [[ "${PLATFORM_SECRETS_ENVIRONMENT}" != "prd" ]]; then
-            echo "::error::PLATFORM_SECRETS_ENVIRONMENT must be prd for deploy-main."
-            exit 1
+          if [[ -n "${MANAGED_APP_OPERATION_ID:-}" ]]; then
+            for key in MANAGED_APP_OPERATION_APP_SLUG MANAGED_APP_OPERATION_TYPE MANAGED_APP_OPERATION_ENVIRONMENT; do
+              if [[ -z "${!key:-}" ]]; then
+                echo "::error::Missing $key for managed operation callback."
+                exit 1
+              fi
+            done
           fi
-
-          if [[ "${PLATFORM_SECRETS_PROFILE}" != "build" ]]; then
-            echo "::error::PLATFORM_SECRETS_PROFILE must be build for deploy-main."
-            exit 1
-          fi
-
-          echo "Using platform-managed build carrier for ${PLATFORM_SECRETS_APP_NAME}."
-        working-directory: .
-
-      - name: Configure package registry auth
-        run: |
-          node ./tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- node ./tools/configure-package-registry-auth.mjs
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        working-directory: apps/web
         run: |
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run build
+          node ./tools/run-with-vault-secrets.mjs -- bash -lc '
+            set -euo pipefail
+            temp_npmrc="$(mktemp)"
+            trap '\''rm -f "$temp_npmrc"'\'' EXIT
+            cp .npmrc "$temp_npmrc"
+            export PACKAGE_REGISTRY_NPMRC_PATH="$temp_npmrc"
+            node ./tools/configure-package-registry-auth.mjs
+            env PATH="$PATH" NPM_CONFIG_USERCONFIG="$temp_npmrc" pnpm install --frozen-lockfile
+          '
         env:
-          NODE_OPTIONS: --max-old-space-size=5120
+          npm_config_fetch_retries: "0"
+          npm_config_fetch_retry_mintimeout: "1"
+          npm_config_fetch_retry_maxtimeout: "1"
 
-      - name: Migrate (remote D1)
+      - name: Validate resolved build target
+        run: |
+          node ./tools/run-with-vault-secrets.mjs -- node - <<'NODE'
+          const required = ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'FORGEJO_TOKEN']
+          const missing = required.filter((name) => !(process.env[name] || '').trim())
+          if (missing.length > 0) {
+            console.error(
+              `Resolved build target for ${process.env.VAULT_PROJECT_SLUG || 'unknown-app'} is missing required environment variables: ${missing.join(', ')}.`,
+            )
+            process.exit(1)
+          }
+          console.log(`Resolved build target env validated for ${process.env.VAULT_PROJECT_SLUG || 'unknown-app'}.`)
+          NODE
+
+      - name: Validate resolved runtime config
+        run: |
+          node ./tools/run-with-vault-secrets.mjs -- node - <<'NODE'
+          const required = [
+            'SITE_URL',
+            'AUTH_AUTHORITY_URL',
+            'SUPABASE_AUTH_ANON_KEY',
+            'SUPABASE_AUTH_SERVICE_ROLE_KEY',
+            'AUTH_PROVIDERS',
+            'NUXT_SESSION_PASSWORD',
+          ]
+          const missing = required.filter((name) => !(process.env[name] || '').trim())
+          if (missing.length > 0) {
+            console.error(`Missing required environment variables: ${missing.join(', ')}.`)
+            process.exit(1)
+          }
+
+          const siteUrl = process.env.SITE_URL || ''
+          let parsed
+          try {
+            parsed = new URL(siteUrl)
+          } catch {
+            console.error(`SITE_URL must be a valid absolute URL, received ${siteUrl}.`)
+            process.exit(1)
+          }
+
+          if (parsed.protocol !== 'https:') {
+            console.error(`SITE_URL must use https, received ${siteUrl}.`)
+            process.exit(1)
+          }
+
+          if (process.env.AUTH_AUTHORITY_URL !== 'https://auth.platform.nard.uk') {
+            console.error(
+              `AUTH_AUTHORITY_URL must be https://auth.platform.nard.uk, received ${process.env.AUTH_AUTHORITY_URL}.`,
+            )
+            process.exit(1)
+          }
+
+          const providers = (process.env.AUTH_PROVIDERS || '')
+            .split(',')
+            .map((value) => value.trim().toLowerCase())
+            .filter(Boolean)
+          if (!providers.includes('email')) {
+            console.error(`AUTH_PROVIDERS must include email, received ${process.env.AUTH_PROVIDERS}.`)
+            process.exit(1)
+          }
+
+          console.log(`Production deploy env validated for ${siteUrl}.`)
+          NODE
+
+      - name: Report deploy start to platform
+        if: ${{ env.MANAGED_APP_OPERATION_ID != '' }}
+        run: |
+          node ./tools/run-with-vault-secrets.mjs -- env APP_OPERATION_REPORT_STAGE=start node ./tools/report-app-operation.mjs
+
+      - name: Build app from main
+        run: |
+          node ./tools/run-with-vault-secrets.mjs -- pnpm run build
+
+      - name: Migrate remote D1
         if: ${{ inputs.run_migrate == 'true' }}
-        working-directory: apps/web
         run: |
-          set -euo pipefail
-          cmd=$(node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); const value=(pkg.scripts?.['db:migrate'] || '').replaceAll('--local', '--remote'); process.stdout.write(value)")
-          if [[ -z "$cmd" ]]; then
-            echo "No db:migrate script found, skipping."
-            exit 0
-          fi
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- bash -lc "$cmd"
+          node ./tools/run-with-vault-secrets.mjs -- bash -lc '
+            set -euo pipefail
+            cd apps/web
+            cmd=$(node -e "const fs=require('\''node:fs'\''); const pkg=JSON.parse(fs.readFileSync('\''package.json'\'', '\''utf8'\'')); const value=(pkg.scripts?.['\''db:migrate'\''] || '').replaceAll('\''--local'\'', '\''--remote'\''); process.stdout.write(value)")
+            if [[ -z "$cmd" ]]; then
+              echo "No db:migrate script found, skipping."
+              exit 0
+            fi
+            bash -lc "$cmd"
+          '
 
-      - name: Deploy
-        working-directory: apps/web
+      - name: Deploy app from main
         run: |
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run deploy
+          node ./tools/run-with-vault-secrets.mjs -- env NARDUK_ALLOW_DIRECT_DEPLOY=1 pnpm --filter web run deploy
+
+      - name: Report deploy outcome to platform
+        if: ${{ always() && env.MANAGED_APP_OPERATION_ID != '' }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          node ./tools/run-with-vault-secrets.mjs -- env APP_OPERATION_REPORT_STAGE=outcome JOB_STATUS="${JOB_STATUS}" node ./tools/report-app-operation.mjs

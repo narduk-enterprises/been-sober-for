@@ -8,7 +8,7 @@
     "predev": "node tools/check-setup.cjs",
     "dev": "pnpm --filter web dev",
     "prebuild": "node tools/check-setup.cjs",
-    "build": "doppler run -- pnpm -r build",
+    "build": "pnpm -r build",
     "build:plugins": "pnpm --filter @narduk/eslint-config build",
     "preship": "node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check",
     "prelint": "pnpm run build:plugins",
