@@ -101,8 +101,9 @@ jobs:
             trap '\''rm -f "$temp_npmrc"'\'' EXIT
             cp .npmrc "$temp_npmrc"
             export PACKAGE_REGISTRY_NPMRC_PATH="$temp_npmrc"
+            export NPM_CONFIG_USERCONFIG="$temp_npmrc"
             node ./tools/configure-package-registry-auth.mjs
-            env PATH="$PATH" NPM_CONFIG_USERCONFIG="$temp_npmrc" pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile
           '
         env:
           npm_config_fetch_retries: "0"
@@ -197,8 +198,10 @@ jobs:
           '
 
       - name: Deploy app from main
+        env:
+          NARDUK_ALLOW_DIRECT_DEPLOY: "1"
         run: |
-          node ./tools/run-with-vault-secrets.mjs -- env NARDUK_ALLOW_DIRECT_DEPLOY=1 pnpm --filter web run deploy
+          node ./tools/run-with-vault-secrets.mjs -- pnpm --filter web run deploy
 
       - name: Report deploy outcome to platform
         if: ${{ always() && env.MANAGED_APP_OPERATION_ID != '' }}
