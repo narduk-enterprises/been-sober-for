@@ -1,21 +1,24 @@
-export const OPTIONAL_LAYER_BUNDLE_IDS = ['auth', 'analytics', 'maps', 'uploads'] as const
-export const LAYER_BUNDLE_IDS = ['core', ...OPTIONAL_LAYER_BUNDLE_IDS, 'full-compat'] as const
+export const OPTIONAL_LAYER_BUNDLE_IDS = [
+  'seo',
+  'auth',
+  'analytics',
+  'ai',
+  'maps',
+  'uploads',
+] as const
+export const LAYER_BUNDLE_IDS = ['core', ...OPTIONAL_LAYER_BUNDLE_IDS] as const
 
 export type OptionalLayerBundleId = (typeof OPTIONAL_LAYER_BUNDLE_IDS)[number]
 export type LayerBundleId = (typeof LAYER_BUNDLE_IDS)[number]
 
-export type TemplateLayerSelection =
-  | { mode: 'legacy-full' }
-  | { mode: 'bundled'; bundles: OptionalLayerBundleId[] }
+export type TemplateLayerSelection = { mode: 'bundled'; bundles: OptionalLayerBundleId[] }
 
 export interface LayerBundleDefinition {
   id: LayerBundleId
   packageName: string
   description: string
   optional: boolean
-  ownedRuntimePaths: string[]
-  ownedTestPaths: string[]
-  ownedMigrationPaths: string[]
+  hasDrizzlePayload: boolean
   requiredAppDependencies: string[]
   requiredEnvKeys: string[]
 }
@@ -24,87 +27,18 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
   core: {
     id: 'core',
     packageName: '@narduk-enterprises/narduk-nuxt-template-layer-core',
-    description: 'Core UI, worker runtime, SEO, and shared utilities.',
+    description: 'Core UI, worker runtime, database helpers, and shared utilities.',
     optional: false,
-    ownedRuntimePaths: [
-      'app/app.config.ts',
-      'app/app.vue',
-      'app/assets/css/main.css',
-      'app/components/AppConfirmModal.vue',
-      'app/components/AppCopyButton.vue',
-      'app/components/AppEmptyState.vue',
-      'app/components/AppLightbox.vue',
-      'app/components/AppPresetLayout.vue',
-      'app/components/AppSettingsProfile.vue',
-      'app/components/AppShareButtons.vue',
-      'app/components/AppTabs.vue',
-      'app/components/LayerAppFooter.vue',
-      'app/components/LayerAppHeader.vue',
-      'app/components/LayerAppShell.vue',
-      'app/components/LayerChromelessShell.vue',
-      'app/components/presets/**',
-      'app/composables/useAppFetch.ts',
-      'app/composables/useBreadcrumbs.ts',
-      'app/composables/useColorModeToggle.ts',
-      'app/composables/useCsrfFetch.ts',
-      'app/composables/useFormHandler.ts',
-      'app/composables/useFormat.ts',
-      'app/composables/useHaptics.ts',
-      'app/composables/useLayoutPresets.ts',
-      'app/composables/useMarkdown.ts',
-      'app/composables/useOgImageData.ts',
-      'app/composables/usePersistentTab.ts',
-      'app/composables/useSchemaOrg.ts',
-      'app/composables/useScrollReveal.ts',
-      'app/composables/useSeo.ts',
-      'app/error.vue',
-      'app/layouts/landing.vue',
-      'app/layouts/preset-surface.vue',
-      'app/plugins/build-info.client.ts',
-      'app/plugins/build-meta.ts',
-      'app/plugins/fetch.client.ts',
-      'app/types/api.ts',
-      'app/types/layoutPresets.ts',
-      'app/types/page-meta.d.ts',
-      'app/types/runtime-config.d.ts',
-      'app/utils/formatBuildTimeLocal.ts',
-      'app/utils/ogPreview.ts',
-      'app/utils/persistentTab.ts',
-      'app/utils/xaiModels.ts',
-      'components/OgImage/**',
-      'public/**',
-      'server/api/control-plane/**',
-      'server/api/health.get.ts',
-      'server/routes/cdn-cgi/image/**',
-      'server/database/pg-schema.ts',
-      'server/database/schema.ts',
-      'server/middleware/canonicalRedirect.ts',
-      'server/middleware/cors.ts',
-      'server/middleware/csrf.ts',
-      'server/middleware/d1.ts',
-      'server/middleware/requestLogger.ts',
-      'server/middleware/securityHeaders.ts',
-      'server/plugins/error-logger.ts',
-      'server/types/h3.d.ts',
-      'server/utils/cron.ts',
-      'server/utils/d1Cache.ts',
-      'server/utils/database.ts',
-      'server/utils/demo.ts',
-      'server/utils/hyperdrive.ts',
-      'server/utils/kv.ts',
-      'server/utils/logger.ts',
-      'server/utils/mutation.ts',
-      'server/utils/auth.ts',
-      'server/utils/password.ts',
-      'server/utils/rateLimit.ts',
-      'server/utils/sse.ts',
-      'server/utils/systemPrompts.ts',
-      'server/utils/xai.ts',
-      'shared/controlPlaneProxy.ts',
-      'drizzle/**',
-    ],
-    ownedTestPaths: ['testing/**', 'tests/**'],
-    ownedMigrationPaths: ['drizzle'],
+    hasDrizzlePayload: true,
+    requiredAppDependencies: ['@supabase/auth-js', '@supabase/supabase-js'],
+    requiredEnvKeys: [],
+  },
+  seo: {
+    id: 'seo',
+    packageName: '@narduk-enterprises/narduk-nuxt-template-layer-seo',
+    description: 'Public SEO, Schema.org, and Open Graph helpers for SSR apps.',
+    optional: true,
+    hasDrizzlePayload: false,
     requiredAppDependencies: [],
     requiredEnvKeys: [],
   },
@@ -113,36 +47,8 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
     packageName: '@narduk-enterprises/narduk-nuxt-template-layer-auth',
     description: 'Auth, user session, and protected-route capabilities.',
     optional: true,
-    ownedRuntimePaths: [
-      'app/components/AppNotificationCenter.vue',
-      'app/components/AppUserMenu.vue',
-      'app/components/AuthLoginCard.vue',
-      'app/components/AuthRegisterCard.vue',
-      'app/components/admin/AdminAiTab.vue',
-      'app/components/admin/AdminOgImagePreview.vue',
-      'app/components/admin/AdminOgImagesTab.vue',
-      'app/components/admin/AdminUsersTab.vue',
-      'app/composables/useAdminAi.ts',
-      'app/composables/useAuth.ts',
-      'app/composables/useAuthApi.ts',
-      'app/composables/useNotifications.ts',
-      'app/middleware/auth.ts',
-      'app/middleware/guest.ts',
-      'app/pages/dashboard/index.vue',
-      'app/pages/login.vue',
-      'app/pages/register.vue',
-      'app/types/auth.d.ts',
-      'server/api/admin/ai/**',
-      'server/api/admin/system-prompts/**',
-      'server/api/admin/users/**',
-      'server/api/auth/**',
-      'server/api/notifications/**',
-      'server/utils/accountDeletion.ts',
-      'server/utils/notifications.ts',
-    ],
-    ownedTestPaths: ['tests/app/auth/**', 'tests/server/auth/**'],
-    ownedMigrationPaths: [],
-    requiredAppDependencies: ['@supabase/auth-js', '@supabase/supabase-js'],
+    hasDrizzlePayload: false,
+    requiredAppDependencies: [],
     requiredEnvKeys: ['NUXT_SESSION_PASSWORD'],
   },
   analytics: {
@@ -150,41 +56,36 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
     packageName: '@narduk-enterprises/narduk-nuxt-template-layer-analytics',
     description: 'PostHog, GA, and indexing helpers.',
     optional: true,
-    ownedRuntimePaths: [
-      'app/composables/usePosthog.ts',
-      'app/plugins/gtag.client.ts',
-      'app/plugins/posthog.client.ts',
-      'app/types/posthog.d.ts',
-      'server/api/indexnow/**',
-      'server/api/admin/ga/**',
-      'server/api/admin/gsc/**',
-      'server/api/admin/indexing/**',
-      'server/api/owner-tag.post.ts',
-      'server/api/owner/posthog-bootstrap.get.ts',
-      'server/middleware/indexnow.ts',
-      'server/utils/analyticsCache.ts',
-      'server/utils/google.ts',
-      'server/utils/indexNow.ts',
-    ],
-    ownedTestPaths: ['tests/server/analytics/**'],
-    ownedMigrationPaths: [],
+    hasDrizzlePayload: false,
     requiredAppDependencies: [],
-    requiredEnvKeys: ['GA_MEASUREMENT_ID', 'POSTHOG_PUBLIC_KEY', 'POSTHOG_HOST'],
+    requiredEnvKeys: [
+      'GA_MEASUREMENT_ID',
+      'POSTHOG_PUBLIC_KEY',
+      'POSTHOG_HOST',
+      'GA_PROPERTY_ID',
+      'GSC_SERVICE_ACCOUNT_JSON',
+      'GSC_SITE_URL',
+      'POSTHOG_PROJECT_ID',
+      'POSTHOG_PERSONAL_API_KEY',
+      'POSTHOG_DOMAIN',
+      'POSTHOG_API_HOST',
+    ],
+  },
+  ai: {
+    id: 'ai',
+    packageName: '@narduk-enterprises/narduk-nuxt-template-layer-ai',
+    description: 'Shared AI runtime utilities, system prompts, and admin model controls.',
+    optional: true,
+    hasDrizzlePayload: true,
+    requiredAppDependencies: [],
+    requiredEnvKeys: ['XAI_API_KEY'],
   },
   maps: {
     id: 'maps',
     packageName: '@narduk-enterprises/narduk-nuxt-template-layer-maps',
     description: 'Apple Maps and map-kit helpers.',
     optional: true,
-    ownedRuntimePaths: [
-      'app/components/AppMapKit.vue',
-      'app/composables/useMapKit.ts',
-      'server/api/mapkit-token.get.ts',
-      'server/utils/apple-maps.ts',
-      'server/utils/appleMapToken.ts',
-    ],
-    ownedTestPaths: ['tests/app/maps/**', 'tests/server/maps/**'],
-    ownedMigrationPaths: [],
+    hasDrizzlePayload: false,
     requiredAppDependencies: [],
     requiredEnvKeys: [
       'APPLE_TEAM_ID',
@@ -198,43 +99,126 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
     packageName: '@narduk-enterprises/narduk-nuxt-template-layer-uploads',
     description: 'R2 upload and image delivery helpers.',
     optional: true,
-    ownedRuntimePaths: [
-      'app/composables/useUpload.ts',
-      'server/api/upload.post.ts',
-      'server/routes/images/**',
-      'server/utils/r2.ts',
-      'server/utils/upload.ts',
-    ],
-    ownedTestPaths: ['tests/app/uploads/**', 'tests/server/uploads/**'],
-    ownedMigrationPaths: [],
+    hasDrizzlePayload: false,
     requiredAppDependencies: [],
     requiredEnvKeys: ['R2_BUCKET'],
   },
-  'full-compat': {
-    id: 'full-compat',
-    packageName: '@narduk-enterprises/narduk-nuxt-template-layer',
-    description: 'Legacy full layer surface for existing downstream apps.',
-    optional: false,
-    ownedRuntimePaths: ['layers/narduk-nuxt-layer/**'],
-    ownedTestPaths: ['layers/narduk-nuxt-layer/testing/**', 'layers/narduk-nuxt-layer/tests/**'],
-    ownedMigrationPaths: ['layers/narduk-nuxt-layer/drizzle'],
-    requiredAppDependencies: ['@supabase/auth-js', '@supabase/supabase-js'],
-    requiredEnvKeys: [],
-  },
-} as const
+}
 
-export const DEFAULT_LAYER_BUNDLE_ID: LayerBundleId = 'full-compat'
-export const COMPAT_LAYER_PACKAGE_NAME = LAYER_BUNDLE_MANIFEST[DEFAULT_LAYER_BUNDLE_ID].packageName
 export const DEFAULT_TEMPLATE_LAYER_SELECTION: TemplateLayerSelection = {
   mode: 'bundled',
   bundles: [],
 }
 
-export function getLayerBundleDefinition(bundleId: LayerBundleId = DEFAULT_LAYER_BUNDLE_ID) {
+export function isKnownOptionalLayerBundleId(value: string): value is OptionalLayerBundleId {
+  return OPTIONAL_LAYER_BUNDLE_IDS.includes(value as OptionalLayerBundleId)
+}
+
+export function ensureOptionalLayerBundleOrder(
+  bundles: readonly OptionalLayerBundleId[],
+): OptionalLayerBundleId[] {
+  return OPTIONAL_LAYER_BUNDLE_IDS.filter((bundleId) => bundles.includes(bundleId))
+}
+
+export function createBundledLayerSelection(
+  bundles: readonly OptionalLayerBundleId[],
+): TemplateLayerSelection {
+  return {
+    mode: 'bundled',
+    bundles: ensureOptionalLayerBundleOrder(bundles),
+  }
+}
+
+export function getLegacyCompatMigrationSelection(): TemplateLayerSelection {
+  return createBundledLayerSelection(OPTIONAL_LAYER_BUNDLE_IDS)
+}
+
+export function isLegacyCompatSelection(
+  selection: { mode?: string } | string | null | undefined,
+): boolean {
+  if (typeof selection === 'string') {
+    return selection === 'legacy-full'
+  }
+
+  return selection?.mode === 'legacy-full'
+}
+
+export function normalizeTemplateLayerSelection(
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
+): TemplateLayerSelection {
+  if (selection == null) {
+    return DEFAULT_TEMPLATE_LAYER_SELECTION
+  }
+
+  if (typeof selection === 'string') {
+    if (isLegacyCompatSelection(selection)) {
+      throw new Error('legacy-full is no longer supported. Use bundled layer selections only.')
+    }
+
+    return DEFAULT_TEMPLATE_LAYER_SELECTION
+  }
+
+  if (isLegacyCompatSelection(selection)) {
+    throw new Error('legacy-full is no longer supported. Use bundled layer selections only.')
+  }
+
+  if (selection.mode !== 'bundled') {
+    return DEFAULT_TEMPLATE_LAYER_SELECTION
+  }
+
+  return createBundledLayerSelection(
+    Array.isArray(selection.bundles) ? selection.bundles.filter(isKnownOptionalLayerBundleId) : [],
+  )
+}
+
+export function parseTemplateLayerSelectionJson(
+  value: string | null | undefined,
+): TemplateLayerSelection {
+  if (!value?.trim()) return DEFAULT_TEMPLATE_LAYER_SELECTION
+
+  try {
+    const parsed = JSON.parse(value) as
+      | TemplateLayerSelection
+      | { mode?: string; bundles?: string[] }
+    return normalizeTemplateLayerSelection(parsed)
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return DEFAULT_TEMPLATE_LAYER_SELECTION
+    }
+
+    throw error
+  }
+}
+
+export function parseOptionalLayerBundles(value: string): OptionalLayerBundleId[] {
+  const bundles = value
+    .split(',')
+    .map((bundle) => bundle.trim())
+    .filter(isKnownOptionalLayerBundleId)
+
+  return ensureOptionalLayerBundleOrder([...new Set(bundles)])
+}
+
+export function parseOptionalLayerBundleArgs(
+  value: string | null | undefined,
+): TemplateLayerSelection {
+  if (!value?.trim()) {
+    return DEFAULT_TEMPLATE_LAYER_SELECTION
+  }
+
+  return createBundledLayerSelection(parseOptionalLayerBundles(value))
+}
+
+export function getLayerBundleDefinition(bundleId: LayerBundleId = 'core') {
   return LAYER_BUNDLE_MANIFEST[bundleId]
 }
 
-export function getLayerBundlePackageName(bundleId: LayerBundleId = DEFAULT_LAYER_BUNDLE_ID) {
+export function getLayerBundlePackageName(bundleId: LayerBundleId = 'core') {
   return getLayerBundleDefinition(bundleId).packageName
 }
 
@@ -251,46 +235,17 @@ export function listLayerBundleDefinitions(): LayerBundleDefinition[] {
   return Object.values(LAYER_BUNDLE_MANIFEST)
 }
 
-export function normalizeTemplateLayerSelection(
-  selection: TemplateLayerSelection | null | undefined,
-): TemplateLayerSelection {
-  if (selection?.mode === 'legacy-full') {
-    return { mode: 'legacy-full' }
-  }
-
-  const requestedBundles = selection?.mode === 'bundled' ? selection.bundles : []
-  return {
-    mode: 'bundled',
-    bundles: OPTIONAL_LAYER_BUNDLE_IDS.filter((bundle, index, allBundles) => {
-      return requestedBundles?.includes(bundle) && allBundles.indexOf(bundle) === index
-    }),
-  }
-}
-
-export function parseTemplateLayerSelectionJson(
-  value: string | null | undefined,
-): TemplateLayerSelection {
-  if (!value?.trim()) return DEFAULT_TEMPLATE_LAYER_SELECTION
-
-  try {
-    const parsed = JSON.parse(value) as TemplateLayerSelection
-    return normalizeTemplateLayerSelection(parsed)
-  } catch {
-    return DEFAULT_TEMPLATE_LAYER_SELECTION
-  }
-}
-
 export function mapLegacyLayerBundleIdToSelection(
-  bundleId: LayerBundleId | null | undefined,
+  bundleId: LayerBundleId | OptionalLayerBundleId | null | undefined,
 ): TemplateLayerSelection {
   switch (bundleId) {
+    case 'seo':
     case 'auth':
     case 'analytics':
+    case 'ai':
     case 'maps':
     case 'uploads':
-      return { mode: 'bundled', bundles: [bundleId] }
-    case 'full-compat':
-      return { mode: 'legacy-full' }
+      return createBundledLayerSelection([bundleId])
     case 'core':
     default:
       return DEFAULT_TEMPLATE_LAYER_SELECTION
@@ -298,19 +253,25 @@ export function mapLegacyLayerBundleIdToSelection(
 }
 
 export function resolveSelectedOptionalBundles(
-  selection: TemplateLayerSelection | null | undefined,
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
 ): OptionalLayerBundleId[] {
-  const normalized = normalizeTemplateLayerSelection(selection)
-  return normalized.mode === 'legacy-full' ? [...OPTIONAL_LAYER_BUNDLE_IDS] : normalized.bundles
+  return normalizeTemplateLayerSelection(selection).bundles
 }
 
 export function resolveSelectedLayerPackageNames(
-  selection: TemplateLayerSelection | null | undefined,
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
 ): string[] {
   const normalized = normalizeTemplateLayerSelection(selection)
-  if (normalized.mode === 'legacy-full') {
-    return [COMPAT_LAYER_PACKAGE_NAME]
-  }
 
   return [
     LAYER_BUNDLE_MANIFEST.core.packageName,
@@ -318,12 +279,43 @@ export function resolveSelectedLayerPackageNames(
   ]
 }
 
-export function resolveRequiredAppDependencies(
-  selection: TemplateLayerSelection | null | undefined,
+export function resolveSelectedLayerDrizzlePackageNames(
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
 ): string[] {
   const normalized = normalizeTemplateLayerSelection(selection)
-  const bundleIds: LayerBundleId[] =
-    normalized.mode === 'legacy-full' ? ['full-compat'] : ['core', ...normalized.bundles]
+  const bundleIds: LayerBundleId[] = ['core', ...normalized.bundles]
+
+  return bundleIds
+    .filter((bundleId) => LAYER_BUNDLE_MANIFEST[bundleId].hasDrizzlePayload)
+    .map((bundleId) => LAYER_BUNDLE_MANIFEST[bundleId].packageName)
+}
+
+export function resolvePrimaryLayerPackageName(
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
+): string {
+  return resolveSelectedLayerPackageNames(selection)[0]
+}
+
+export function resolveRequiredAppDependencies(
+  selection:
+    | TemplateLayerSelection
+    | { mode?: string; bundles?: string[] }
+    | string
+    | null
+    | undefined,
+): string[] {
+  const normalized = normalizeTemplateLayerSelection(selection)
+  const bundleIds: LayerBundleId[] = ['core', ...normalized.bundles]
 
   const dependencies = bundleIds.flatMap(
     (bundleId) => LAYER_BUNDLE_MANIFEST[bundleId].requiredAppDependencies,

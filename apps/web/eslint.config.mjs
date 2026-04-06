@@ -7,9 +7,10 @@ let layerFragments
 try {
   layerFragments =
     await import('@narduk-enterprises/narduk-nuxt-template-layer-core/eslint-nuxt-flat-fragments')
-} catch {
-  layerFragments =
-    await import('@narduk-enterprises/narduk-nuxt-template-layer/eslint-nuxt-flat-fragments')
+} catch (error) {
+  throw new Error(
+    `Missing core layer ESLint fragments; install workspace dependencies before linting: ${String(error)}`,
+  )
 }
 
 const { importXVueCoreModuleFragment, redundantNuxtAutoImportFlatConfig } = layerFragments

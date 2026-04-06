@@ -9,15 +9,20 @@ import {
   REFERENCE_BASELINE_FILES,
   STALE_SYNC_PATHS,
   VERBATIM_SYNC_FILES,
-  getCanonicalCiContent,
+  getGeneratedSyncFileContent,
   normalizeManagedContent,
+  resolveGeneratedSyncContext,
 } from './sync-manifest'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
 const GIT_MAX_BUFFER = 64 * 1024 * 1024
-const TEMPLATE_REMOTE_URL =
-  'https://code.platform.nard.uk/narduk-enterprises/narduk-nuxt-template.git'
+const TEMPLATE_REMOTE_URL = 'https://code.platform.nard.uk/narduk-enterprises/narduk-template.git'
+const STARTER_REF_PREFIX = 'starters/default'
+const AUTHORING_REPO_SLUGS = [
+  'narduk-enterprises/narduk-template',
+  'narduk-enterprises/narduk-nuxt-template',
+] as const
 
 const strict = process.argv.includes('--strict')
 
@@ -35,7 +40,7 @@ function run(command: string, args: string[]): string {
 
 function isTemplateRepo(): boolean {
   const url = run('git', ['config', '--get', 'remote.origin.url'])
-  return url.includes('narduk-enterprises/narduk-nuxt-template')
+  return AUTHORING_REPO_SLUGS.some((slug) => url.includes(slug))
 }
 
 function getTemplateRef(): string {
@@ -87,8 +92,16 @@ function listTreeEntriesAtRef(
   }
 }
 
-function getFileContentsAtRef(ref: string, relativePaths: readonly string[]): Map<string, string> {
-  const entries = listTreeEntriesAtRef(ref, relativePaths, false).filter(
+function getStarterRefPath(relativePath: string): string {
+  return `${STARTER_REF_PREFIX}/${relativePath}`
+}
+
+function getFileContentsAtRef(
+  ref: string,
+  refPathsByRelativePath: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const refPaths = [...new Set(refPathsByRelativePath.values())]
+  const entries = listTreeEntriesAtRef(ref, refPaths, false).filter(
     (entry) => entry.type === 'blob',
   )
   if (entries.length === 0) return new Map()
@@ -121,15 +134,23 @@ function getFileContentsAtRef(ref: string, relativePaths: readonly string[]): Ma
     offset = contentEnd + 1
   }
 
-  const contentsByPath = new Map<string, string>()
+  const contentsByRefPath = new Map<string, string>()
   for (const entry of entries) {
     const content = contentsByOid.get(entry.oid)
     if (content !== undefined) {
-      contentsByPath.set(entry.path, content)
+      contentsByRefPath.set(entry.path, content)
     }
   }
 
-  return contentsByPath
+  const contentsByRelativePath = new Map<string, string>()
+  for (const [relativePath, refPath] of refPathsByRelativePath.entries()) {
+    const content = contentsByRefPath.get(refPath)
+    if (content !== undefined) {
+      contentsByRelativePath.set(relativePath, content)
+    }
+  }
+
+  return contentsByRelativePath
 }
 
 function listFilesAtRef(ref: string, directory: string): string[] {
@@ -159,40 +180,38 @@ function getLocalFile(relativePath: string): string | null {
   return readFileSync(absolutePath, 'utf-8')
 }
 
-function buildTrackedFiles(ref: string): string[] {
-  const tracked = new Set<string>()
+function buildTrackedFiles(ref: string): Map<string, string> {
+  const tracked = new Map<string, string>()
 
   for (const file of VERBATIM_SYNC_FILES) {
-    if (hasBlobAtRef(ref, file)) {
-      tracked.add(file)
+    const starterRefPath = getStarterRefPath(file)
+    if (hasBlobAtRef(ref, starterRefPath)) {
+      tracked.set(file, starterRefPath)
     }
   }
 
   for (const file of REFERENCE_BASELINE_FILES) {
-    if (hasBlobAtRef(ref, file)) {
-      tracked.add(file)
+    const starterRefPath = getStarterRefPath(file)
+    if (hasBlobAtRef(ref, starterRefPath)) {
+      tracked.set(file, starterRefPath)
     }
   }
 
   for (const directory of RECURSIVE_SYNC_DIRECTORIES) {
-    for (const file of listFilesAtRef(ref, directory)) {
-      tracked.add(file)
+    for (const file of listFilesAtRef(ref, getStarterRefPath(directory))) {
+      tracked.set(file.slice(STARTER_REF_PREFIX.length + 1), file)
     }
   }
 
   for (const generatedFile of GENERATED_SYNC_FILES) {
-    tracked.add(generatedFile)
+    tracked.set(generatedFile, generatedFile)
   }
 
-  return [...tracked].sort()
+  return new Map([...tracked.entries()].sort(([left], [right]) => left.localeCompare(right)))
 }
 
 function getGeneratedFileContent(relativePath: string): string | null {
-  if (relativePath === '.github/workflows/ci.yml') {
-    return getCanonicalCiContent()
-  }
-
-  return null
+  return getGeneratedSyncFileContent(relativePath, resolveGeneratedSyncContext(ROOT_DIR))
 }
 
 async function main() {
@@ -213,7 +232,11 @@ async function main() {
   const trackedFiles = buildTrackedFiles(ref)
   const templateContents = getFileContentsAtRef(
     ref,
-    trackedFiles.filter((relativePath) => getGeneratedFileContent(relativePath) === null),
+    new Map(
+      [...trackedFiles.entries()].filter(
+        ([relativePath]) => getGeneratedFileContent(relativePath) === null,
+      ),
+    ),
   )
   const matched: string[] = []
   const drifted: string[] = []
@@ -224,7 +247,7 @@ async function main() {
   console.log(`  Comparing against: ${ref}`)
   console.log('')
 
-  for (const relativePath of trackedFiles) {
+  for (const relativePath of trackedFiles.keys()) {
     const templateContent =
       getGeneratedFileContent(relativePath) ?? templateContents.get(relativePath) ?? null
     if (templateContent === null) continue
@@ -275,7 +298,7 @@ async function main() {
   }
 
   console.log('════════════════════════════════════════════════════')
-  console.log(` Score: ${matched.length}/${trackedFiles.length} files match template`)
+  console.log(` Score: ${matched.length}/${trackedFiles.size} files match template`)
 
   if (drifted.length === 0 && missing.length === 0 && stale.length === 0) {
     console.log(' ✅ All infrastructure files are in sync!')

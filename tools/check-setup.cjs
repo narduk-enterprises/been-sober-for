@@ -2,8 +2,8 @@
  * check-setup.js — Bootstrap Guard
  * ─────────────────────────────────
  * Runs as a `pre*` hook before dev/build/deploy to ensure a `.setup-complete`
- * sentinel exists (written by the platform provisioning pipeline’s hydrate
- * step for new apps, or committed for authoring monorepos).
+ * sentinel exists (written by bootstrap/setup flows for new apps, or
+ * committed for authoring monorepos).
  */
 const fs = require('node:fs')
 const path = require('node:path')
@@ -16,19 +16,19 @@ if (!fs.existsSync(SENTINEL)) {
   console.error('┌──────────────────────────────────────────────────────────────┐')
   console.error('│  🚨  PROJECT SETUP NOT COMPLETE                             │')
   console.error('│                                                              │')
-  console.error('│  New fleet apps are provisioned only through platform        │')
-  console.error('│  (the provisioning pipeline hydrates the repo and writes     │')
-  console.error('│  .setup-complete). There is no local init.ts.                │')
+  console.error('│  This repo is missing the .setup-complete sentinel.          │')
+  console.error('│  Finish your setup/bootstrap flow or restore the sentinel    │')
+  console.error('│  before running dev/build/deploy commands.                   │')
   console.error('│                                                              │')
-  console.error('│  PROVISION (API):                                            │')
-  console.error('│    POST https://platform.nard.uk/api/fleet/provision         │')
-  console.error('│    Authorization: Bearer $PROVISION_API_KEY                  │')
+  console.error('│  APP REPOS:                                                  │')
+  console.error('│    Run the repo-specific setup/bootstrap process until       │')
+  console.error('│    it writes .setup-complete.                                │')
   console.error('│                                                              │')
-  console.error('│  AUTHORING (template / platform monorepo):                   │')
+  console.error('│  AUTHORING WORKSPACES:                                       │')
   console.error('│    This clone should include a tracked .setup-complete.      │')
   console.error('│    If you removed it, restore from git or re-clone.          │')
   console.error('│                                                              │')
-  console.error('│  See docs/agents/operations.md and AGENTS.md.                 │')
+  console.error('│  See AGENTS.md and local setup docs.                          │')
   console.error('└──────────────────────────────────────────────────────────────┘')
   console.error()
   process.exit(1)

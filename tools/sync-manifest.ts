@@ -1,9 +1,7 @@
 import { existsSync, lstatSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import {
-  INHERITED_AGENTIC_WORKFLOW_DIRECTORIES,
-  INHERITED_AGENTIC_WORKFLOW_FILES,
-} from './agentic-workflow-manifest'
+import { listLayerBundleDefinitions } from './layer-bundle-manifest'
+import { getProvisionDisplayName, readProvisionMetadata } from './provision-metadata'
 
 export const VERBATIM_SYNC_FILES = [
   '.dockerignore',
@@ -12,25 +10,22 @@ export const VERBATIM_SYNC_FILES = [
   '.githooks/post-merge',
   'tools/install-git-hooks.cjs',
   'tools/command.ts',
-  'tools/gsc-verify.ts',
   'tools/layer-bundle-manifest.ts',
   'tools/provision-metadata.ts',
   'tools/template-layer-selection.ts',
-  'tools/update-layer.ts',
-  'tools/validate.ts',
-
+  'tools/theme-manifest.ts',
+  'tools/app-template-manifest.ts',
+  'tools/starter-composition.ts',
   'tools/check-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
   'tools/package-registry.ts',
-  'tools/agentic-workflow-manifest.ts',
   'tools/sync-manifest.ts',
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
   'tools/configure-package-registry-auth.mjs',
   'tools/run-with-platform-secrets.mjs',
-  'tools/sync-github-skills.ts',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
@@ -38,9 +33,6 @@ export const VERBATIM_SYNC_FILES = [
   'turbo.json',
   'pnpm-workspace.yaml',
   'renovate.json',
-  '.github/copilot-instructions.md',
-  '.github/prompts/ui-ux-pro-max/PROMPT.md',
-  ...INHERITED_AGENTIC_WORKFLOW_FILES,
   '.cursor/rules/user-global-skills.mdc',
   'apps/web/.nuxtrc',
   'apps/web/.npmrc',
@@ -78,12 +70,15 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/server/api/auth/oauth/start.post.ts',
   'apps/web/server/api/auth/password/reset.post.ts',
   'apps/web/server/api/auth/register.post.ts',
+  'apps/web/server/api/auth/session/exchange.get.ts',
   'apps/web/server/api/auth/session/exchange.post.ts',
+  'apps/web/server/middleware/00-canonical-host.ts',
   'apps/web/server/middleware/auth-session-refresh.ts',
   'apps/web/server/database/auth-bridge-pg-schema.ts',
   'apps/web/server/database/auth-bridge-schema.ts',
   'apps/web/server/database/pg-app-schema.ts',
   'apps/web/server/database/pg-schema.ts',
+  'apps/web/server/utils/auth-callback.ts',
   'apps/web/server/utils/app-auth.ts',
   'apps/web/server/utils/accountDeletionBridge.ts',
   'apps/web/server/utils/session-user.ts',
@@ -106,39 +101,65 @@ export const REFERENCE_BASELINE_FILES = [
 ] as const
 
 export const RECURSIVE_SYNC_DIRECTORIES = [
-  ...INHERITED_AGENTIC_WORKFLOW_DIRECTORIES,
-  '.github/skills',
   'deploy/preview',
-  'packages/eslint-config',
+  'patches',
+  'vendor',
   'tools/guardrails',
   '.agents/workflows',
-  'layers/narduk-nuxt-layer',
 ] as const
 
 export const STALE_SYNC_PATHS = [
   '.agents/skills',
   '.agents/.DS_Store',
+  '.github/aw',
+  '.github/skills',
+  '.github/copilot-instructions.md',
+  '.github/prompts/ui-ux-pro-max',
+  '.github/workflows/gh-aw-compile.yml',
+  '.github/workflows/provisioned-app-build.lock.yml',
+  '.github/workflows/provisioned-app-build.md',
+  '.github/workflows/pr-guardrails-review.lock.yml',
+  '.github/workflows/pr-guardrails-review.md',
+  '.github/workflows/repo-bug-finder.lock.yml',
+  '.github/workflows/repo-bug-finder.md',
+  '.github/workflows/nuxt-consistency-sweep.lock.yml',
+  '.github/workflows/nuxt-consistency-sweep.md',
+  '.github/workflows/seo-content-sweep.lock.yml',
+  '.github/workflows/seo-content-sweep.md',
+  '.github/workflows/shared',
   '.github/workflows/publish-layer.yml',
   '.github/workflows/deploy-showcase.yml',
   'apps/showcase',
   '.github/workflows/deploy.yml',
   '.github/workflows/version-bump.yml',
   '.github/workflows/template-sync-bot.yml',
+  '.github/workflows/template-sync-reconcile.yml',
   '.github/workflows/sync-fleet.yml',
   'config/fleet-sync-repos.json',
   'config/fleet-app-dir-overrides.json',
   '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
+  'tools/agentic-workflow-manifest.ts',
   'tools/fleet-git.ts',
+  'tools/fleet-projects.ts',
+  'tools/fleet-runner.ts',
+  'tools/gsc-verify.ts',
   'tools/mirror-fleet-to-forgejo.ts',
+  'tools/reconcile-template-sync-prs.ts',
   'tools/run-remote-d1-migrate.mjs',
   'tools/repair-forgejo-lockfile.mjs',
+  'tools/report-app-operation.mjs',
   'tools/web-deploy.cjs',
   'tools/tail.ts',
   'tools/ship.ts',
+  'tools/sync-copilot-secrets.ts',
+  'tools/sync-github-skills.ts',
+  'tools/template-sync-bot.ts',
+  'tools/validate.ts',
   'tools/validate-production-env.mjs',
   'tools/verify-forgejo-package-source.mjs',
+  'packages/eslint-config',
   'scripts/fleet-quality.sh',
   'scripts/fleet-status.sh',
   '.cursor/.DS_Store',
@@ -149,10 +170,7 @@ export const STALE_SYNC_PATHS = [
   '.template-reference/.DS_Store',
   '.template-reference/build-visibility.md',
   '.template-reference/ui-ux-pro-max',
-  'layers/narduk-nuxt-layer/coverage',
-  'layers/narduk-nuxt-layer/app/utils/format.ts',
-  'layers/narduk-nuxt-layer/app/utils/safeLinkTarget.ts',
-  'layers/narduk-nuxt-layer/eslint.overrides.mjs',
+  'layers/narduk-nuxt-layer',
 ] as const
 
 export const GENERATED_SYNC_FILES = [
@@ -160,36 +178,106 @@ export const GENERATED_SYNC_FILES = [
   '.forgejo/workflows/deploy-main.yml',
 ] as const
 
+const STARTER_APP_NAME_PLACEHOLDER = '__APP_NAME__'
+const STARTER_DISPLAY_NAME_PLACEHOLDER = '__DISPLAY_NAME__'
+const STARTER_SITE_URL_PLACEHOLDER = '__SITE_URL__'
+
+const DEPLOY_REPO_SECRET_KEYS = [
+  'APP_BACKEND_PRESET',
+  'AUTH_AUTHORITY_URL',
+  'AUTH_BACKEND',
+  'AUTH_ENFORCE_CANONICAL_HOST',
+  'AUTH_PROVIDERS',
+  'AUTH_PUBLIC_SIGNUP',
+  'AUTH_REQUIRE_MFA',
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CLOUDFLARE_API_TOKEN',
+  'SECRETS_KEYRING',
+  'SECRETS_MASTER_KEY',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_AUTH_ANON_KEY',
+  'SUPABASE_AUTH_SERVICE_ROLE_KEY',
+  'SUPABASE_PUBLISHABLE_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_URL',
+  'TURNSTILE_SECRET_KEY',
+  'TURNSTILE_SITE_KEY',
+  ...listLayerBundleDefinitions().flatMap((bundle) => bundle.requiredEnvKeys),
+] as const
+
+const UNIQUE_DEPLOY_REPO_SECRET_KEYS = [...new Set(DEPLOY_REPO_SECRET_KEYS)]
+const REQUIRED_DEPLOY_SECRET_KEYS = [
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_ACCOUNT_ID',
+  'FORGEJO_TOKEN',
+] as const
+
+export interface GeneratedSyncContext {
+  appDisplayName: string
+  appName: string
+  siteUrl: string
+}
+
+function quoteYamlString(value: string): string {
+  return JSON.stringify(value)
+}
+
+function buildDeployRepoSecretEnvLines(indent = '      '): string {
+  return UNIQUE_DEPLOY_REPO_SECRET_KEYS.map(
+    (key) => `${indent}${key}: \${{ secrets.${key} }}`,
+  ).join('\n')
+}
+
+export function getDefaultGeneratedSyncContext(): GeneratedSyncContext {
+  return {
+    appName: STARTER_APP_NAME_PLACEHOLDER,
+    appDisplayName: STARTER_DISPLAY_NAME_PLACEHOLDER,
+    siteUrl: STARTER_SITE_URL_PLACEHOLDER,
+  }
+}
+
+export function resolveGeneratedSyncContext(rootDir: string): GeneratedSyncContext {
+  const provision = readProvisionMetadata(rootDir)
+  const defaults = getDefaultGeneratedSyncContext()
+
+  return {
+    appName: provision.name || defaults.appName,
+    appDisplayName: getProvisionDisplayName(provision, defaults.appDisplayName),
+    siteUrl: provision.url || defaults.siteUrl,
+  }
+}
+
+// These are the root package.json keys that the starter owns downstream.
 export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   postinstall:
-    "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  New apps: provision via platform.nard.uk (see AGENTS.md). Generated starters get .setup-complete from provisioning.\\n')\"",
-  dev: 'pnpm --filter web dev',
-  'build:plugins': 'pnpm --filter @narduk/eslint-config build',
-  prelint: 'pnpm run build:plugins',
+    "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  This repo is incomplete until project setup finishes (writes .setup-complete). See AGENTS.md and local setup docs.\\n')\"",
   predev: 'node tools/check-setup.cjs',
+  dev: 'pnpm --filter web dev',
   prebuild: 'node tools/check-setup.cjs',
+  build: 'pnpm -r build',
+  'package-registry:auth': 'node tools/configure-package-registry-auth.mjs',
   preship:
-    'node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check',
-  'sync:github-skills': 'pnpm exec tsx tools/sync-github-skills.ts',
-  validate: 'pnpm exec tsx tools/validate.ts',
+    'node tools/check-setup.cjs && pnpm run package-registry:auth && pnpm install && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit',
   'sync-template': 'pnpm exec tsx tools/sync-template.ts .',
-  'update-layer': 'pnpm exec tsx tools/update-layer.ts',
+  lint: 'turbo run lint',
+  typecheck: 'turbo run typecheck',
   'check:sync-health': 'pnpm exec tsx tools/check-sync-health.ts',
   'hooks:install': 'node tools/install-git-hooks.cjs',
   'guardrails:repo': 'pnpm exec tsx tools/check-guardrails.ts',
+  quality: 'pnpm run quality:fix && pnpm run quality:check',
+  'quality:check': "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
+  'quality:fix': 'turbo run lint --force -- --fix && pnpm run format',
+  check: 'pnpm run quality:check',
   clean:
     "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
-  'clean:install': 'pnpm run clean && pnpm install && pnpm --filter web run db:ready',
+  'clean:install':
+    'pnpm run clean && pnpm run package-registry:auth && pnpm install && pnpm --filter web run db:ready',
   'db:migrate': 'pnpm --filter web run db:migrate',
   'dev:kill': 'sh scripts/dev-kill.sh',
   'cleanup:node-leaks': 'sh scripts/cleanup-node-leaks.sh',
   'test:e2e': 'playwright test',
   'test:e2e:web': 'pnpm --filter web test:e2e',
   'generate:favicons': 'pnpm exec tsx tools/generate-favicons.ts',
-  quality: 'pnpm run quality:fix && pnpm run quality:check',
-  'quality:check': "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
-  'quality:fix': 'turbo run lint --force -- --fix && pnpm run format',
-  check: 'pnpm run quality:check',
   format: 'prettier --write "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}"',
   'format:check': 'prettier --check "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}"',
 }
@@ -226,13 +314,22 @@ concurrency:
 
 jobs:
   quality:
-    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
+    uses: narduk-enterprises/narduk-template/.github/workflows/reusable-quality.yml@main
     secrets:
-      PLATFORM_SECRETS_TOKEN: \${{ secrets.PLATFORM_SECRETS_TOKEN }}
+      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
 `
 }
 
-export function getCanonicalDeployMainContent(): string {
+export function getCanonicalDeployMainContent(
+  context: Partial<GeneratedSyncContext> = {},
+): string {
+  const resolvedContext = {
+    ...getDefaultGeneratedSyncContext(),
+    ...context,
+  }
+  const deployRepoSecretEnvLines = buildDeployRepoSecretEnvLines()
+  const requiredDeployKeys = REQUIRED_DEPLOY_SECRET_KEYS.join(' ')
+
   return `name: Production Deploy
 
 on:
@@ -266,12 +363,16 @@ jobs:
       contents: read
 
     env:
-      PLATFORM_SECRETS_TOKEN: \${{ secrets.PLATFORM_SECRETS_TOKEN }}
-      PLATFORM_SECRETS_BASE_URL: https://platform.nard.uk
-      PLATFORM_SECRETS_APP_NAME: __APP_NAME__
-      PLATFORM_SECRETS_ENVIRONMENT: prd
-      PLATFORM_SECRETS_PROFILE: build
-      NUXT_TELEMETRY_DISABLED: 1
+      APP_NAME: ${quoteYamlString(resolvedContext.appDisplayName)}
+      CI: "true"
+      FLEET_FORGEJO_BASE_URL: "https://code.platform.nard.uk"
+      FLEET_FORGEJO_OWNER: "narduk-enterprises"
+      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
+      NODE_AUTH_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
+      PACKAGE_REGISTRY_PROVIDER: "forgejo"
+      NUXT_TELEMETRY_DISABLED: "1"
+      SITE_URL: ${quoteYamlString(resolvedContext.siteUrl)}
+${deployRepoSecretEnvLines}
 
     steps:
       - name: Checkout
@@ -290,37 +391,26 @@ jobs:
         run: |
           set -euo pipefail
 
-          for key in PLATFORM_SECRETS_TOKEN PLATFORM_SECRETS_BASE_URL PLATFORM_SECRETS_APP_NAME PLATFORM_SECRETS_ENVIRONMENT PLATFORM_SECRETS_PROFILE; do
+          for key in ${requiredDeployKeys}; do
             if [[ -z "\${!key:-}" ]]; then
-              echo "::error::Missing $key in the repository secrets contract for deploy."
+              echo "::error::Missing $key for deploy."
               exit 1
             fi
           done
 
-          if [[ "\${PLATFORM_SECRETS_ENVIRONMENT}" != "prd" ]]; then
-            echo "::error::PLATFORM_SECRETS_ENVIRONMENT must be prd for deploy-main."
-            exit 1
-          fi
-
-          if [[ "\${PLATFORM_SECRETS_PROFILE}" != "build" ]]; then
-            echo "::error::PLATFORM_SECRETS_PROFILE must be build for deploy-main."
-            exit 1
-          fi
-
-          echo "Using platform-managed build carrier for \${PLATFORM_SECRETS_APP_NAME}."
+          echo "Using repository-managed deploy secrets."
         working-directory: .
 
       - name: Configure package registry auth
         run: |
-          node ./tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- node ./tools/configure-package-registry-auth.mjs
+          node ./tools/configure-package-registry-auth.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build
         working-directory: apps/web
-        run: |
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run build
+        run: pnpm run build
         env:
           NODE_OPTIONS: --max-old-space-size=3072
 
@@ -334,13 +424,27 @@ jobs:
             echo "No db:migrate script found, skipping."
             exit 0
           fi
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- bash -lc "$cmd"
+          bash -lc "$cmd"
 
       - name: Deploy
         working-directory: apps/web
-        run: |
-          node ../../tools/run-with-platform-secrets.mjs --app "$PLATFORM_SECRETS_APP_NAME" --environment "$PLATFORM_SECRETS_ENVIRONMENT" --profile "$PLATFORM_SECRETS_PROFILE" -- pnpm run deploy
+        run: pnpm run deploy
 `
+}
+
+export function getGeneratedSyncFileContent(
+  relativePath: string,
+  context: Partial<GeneratedSyncContext> = {},
+): string | null {
+  if (relativePath === '.github/workflows/ci.yml') {
+    return getCanonicalCiContent()
+  }
+
+  if (relativePath === '.forgejo/workflows/deploy-main.yml') {
+    return getCanonicalDeployMainContent(context)
+  }
+
+  return null
 }
 
 function shouldIgnoreEntry(fullPath: string): boolean {
@@ -405,27 +509,13 @@ export function collectManagedTemplateFiles(templateRoot: string): string[] {
     }
   }
 
-  tracked.add('.github/workflows/ci.yml')
+  for (const file of GENERATED_SYNC_FILES) {
+    tracked.add(file)
+  }
 
   return [...tracked].sort()
 }
 
 export function normalizeManagedContent(relativePath: string, content: string): string {
-  if (relativePath !== 'layers/narduk-nuxt-layer/package.json') {
-    return content
-  }
-
-  try {
-    const parsed = JSON.parse(content) as Record<string, any>
-    if (parsed.repository) {
-      parsed.repository = {
-        ...parsed.repository,
-        url: '__APP_ORIGIN__',
-      }
-    }
-
-    return JSON.stringify(parsed, null, 2) + '\n'
-  } catch {
-    return content
-  }
+  return content
 }

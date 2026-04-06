@@ -5,6 +5,7 @@ const { logout } = useAuth()
 useSeo({
   title: 'Signing Out',
   description: 'Clearing your app session.',
+  robots: 'noindex, nofollow',
 })
 
 useWebPageSchema({

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Scraper New Profile"
-  short_description: "Create a new scraper site profile"
-  default_prompt: "Create or update a scraper profile for a new site in the boat-search workflow."

@@ -1,5 +1,6 @@
-import { getCookie, getRequestHeader, getRequestURL, sendRedirect } from 'h3'
+import { getRequestURL, sendRedirect } from 'h3'
 import { z } from 'zod'
+import { getAuthCallbackErrorMessage, logAuthCallbackFailure } from '#server/utils/auth-callback'
 import { exchangeSupabaseCode } from '#server/utils/app-auth'
 
 const emailVerificationTypeSchema = z.enum([
@@ -25,26 +26,6 @@ const querySchema = z.union([
   }),
 ])
 
-function toErrorMessage(error: unknown) {
-  if (!error || typeof error !== 'object') {
-    return 'The auth callback could not be exchanged for a session.'
-  }
-
-  const maybeError = error as {
-    statusMessage?: string
-    message?: string
-    data?: { statusMessage?: string; message?: string }
-  }
-
-  return (
-    maybeError.statusMessage ||
-    maybeError.message ||
-    maybeError.data?.statusMessage ||
-    maybeError.data?.message ||
-    'The auth callback could not be exchanged for a session.'
-  )
-}
-
 function sanitizeReturnPath(value: string | undefined, fallback: string) {
   if (!value) return fallback
 
@@ -66,7 +47,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid auth callback parameters.' })
   }
 
-  const log = useLogger(event).child('AuthCallback')
   const config = useRuntimeConfig(event)
   const returnPath = sanitizeReturnPath(query.data.returnPath, config.public.authCallbackPath)
 
@@ -85,31 +65,9 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, result.redirectTo || config.public.authRedirectPath, 302)
   } catch (error) {
-    const requestHost = getRequestHeader(event, 'host') ?? null
-    const statusCode =
-      typeof error === 'object' &&
-      error !== null &&
-      'statusCode' in error &&
-      typeof error.statusCode === 'number'
-        ? error.statusCode
-        : null
-    const statusMessage =
-      typeof error === 'object' &&
-      error !== null &&
-      'statusMessage' in error &&
-      typeof error.statusMessage === 'string'
-        ? error.statusMessage
-        : error instanceof Error
-          ? error.message
-          : String(error)
-
-    log.error('Auth callback exchange failed', {
-      requestHost,
+    logAuthCallbackFailure(event, error, {
       next: query.data.next ?? null,
       returnPath,
-      hasPkceCookie: Boolean(getCookie(event, 'app_auth_pkce')),
-      statusCode,
-      statusMessage,
     })
 
     const callbackUrl = new URL(returnPath, getRequestURL(event).origin)
@@ -117,7 +75,7 @@ export default defineEventHandler(async (event) => {
       callbackUrl.searchParams.set('next', query.data.next)
     }
     callbackUrl.searchParams.set('error', 'callback_exchange_failed')
-    callbackUrl.searchParams.set('error_description', toErrorMessage(error))
+    callbackUrl.searchParams.set('error_description', getAuthCallbackErrorMessage(error))
 
     return sendRedirect(event, callbackUrl.toString(), 302)
   }

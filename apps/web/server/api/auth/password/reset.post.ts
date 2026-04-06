@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePublicMutation, withValidatedBody } from '#layer/server/utils/mutation'
+import { definePublicMutation, requireMutationBody, withValidatedBody } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
 import { requestPasswordReset } from '#server/utils/app-auth'
 
@@ -13,5 +13,5 @@ export default definePublicMutation(
     rateLimit: RATE_LIMIT_POLICIES.authRegister,
     parseBody: withValidatedBody(bodySchema.parse),
   },
-  async ({ event, body }) => requestPasswordReset(event, body),
+  async ({ event, body }) => requestPasswordReset(event, requireMutationBody(body)),
 )

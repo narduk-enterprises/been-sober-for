@@ -1,6 +1,6 @@
 # **DISPLAY_NAME**
 
-Starter generated from `narduk-nuxt-template`.
+Starter generated from `narduk-template`.
 
 ## Workspace Shape
 

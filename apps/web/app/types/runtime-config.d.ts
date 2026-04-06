@@ -24,6 +24,7 @@ declare module 'nuxt/schema' {
     authLogoutPath: string
     authRedirectPath: string
     authProviders: string[]
+    authEnforceCanonicalHost: boolean
     authPublicSignup: boolean
     authRequireMfa: boolean
     authTurnstileSiteKey: string

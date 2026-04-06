@@ -4,7 +4,7 @@ Use this file as the entry point for agent work in this repository.
 
 ## Repository Identity
 
-- This checkout is a downstream app created from `narduk-nuxt-template`.
+- This checkout is a downstream app created from `narduk-template`.
 - The main shipped application lives in `apps/web/`.
 - The starter export depends on a published Narduk bundle package.
 
@@ -21,10 +21,6 @@ Use this file as the entry point for agent work in this repository.
 Do not recreate bundle-provided composables, plugins, middleware, auth helpers,
 rate limiting, OG image building blocks, or base schema files inside `apps/web`
 without first checking the workspace guide.
-
-Generated repos should keep deploy mechanics app-local. Use the repo's own
-`build`, `deploy`, and `db:migrate` scripts and let platform automation own
-rollout orchestration instead of reintroducing template-only fleet helpers.
 
 ## Quality Commands
 

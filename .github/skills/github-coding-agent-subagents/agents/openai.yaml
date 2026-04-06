@@ -1,8 +1,0 @@
-interface:
-  display_name: "GitHub Coding Agents"
-  short_description: "Delegate repo work to GitHub coding agents"
-  brand_color: "#24292F"
-  default_prompt: "Use $github-coding-agent-subagents to delegate this repo-scoped task to a GitHub coding agent and track the resulting session."
-
-policy:
-  allow_implicit_invocation: true

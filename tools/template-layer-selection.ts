@@ -1,15 +1,36 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  COMPAT_LAYER_PACKAGE_NAME,
   LAYER_BUNDLE_MANIFEST,
+  OPTIONAL_LAYER_BUNDLE_IDS,
+  createBundledLayerSelection,
   getLayerBundleByPackageName,
-  normalizeTemplateLayerSelection,
+  isLegacyCompatSelection,
   parseTemplateLayerSelectionJson,
   resolveSelectedLayerPackageNames,
   type OptionalLayerBundleId,
   type TemplateLayerSelection,
 } from './layer-bundle-manifest'
+import {
+  DEFAULT_BASE_THEME_SELECTION,
+  getBaseThemeByPackageName,
+  normalizeBaseThemeSelection,
+  parseBaseThemeArg,
+  parseBaseThemeSelectionJson,
+  type BaseThemeSelection,
+} from './theme-manifest'
+import {
+  getAppTemplateByPackageName,
+  normalizeAppTemplateSelection,
+  parseAppTemplateArg,
+  parseAppTemplateSelectionJson,
+  type AppTemplateSelection,
+} from './app-template-manifest'
+import {
+  normalizeStarterCompositionSelection,
+  resolveSelectedStarterPackageNames,
+  type NormalizedStarterCompositionSelection,
+} from './starter-composition'
 
 interface PackageJson {
   dependencies?: Record<string, string>
@@ -18,7 +39,23 @@ interface PackageJson {
 
 interface ProvisionJson {
   templateLayer?: TemplateLayerSelection | string | null
+  baseTheme?: BaseThemeSelection | string | null
+  appTemplate?: AppTemplateSelection | string | null
 }
+
+const LEGACY_COMPAT_PACKAGE_NAME = '@narduk-enterprises/narduk-nuxt-template-layer'
+const LEGACY_PUBLIC_SEO_FILE_PATTERN = /\.(?:ts|mts|js|mjs|vue)$/i
+const LEGACY_PUBLIC_SEO_PATTERNS = [
+  'useSeo(',
+  'useWebPageSchema(',
+  'useArticleSchema(',
+  'useProductSchema(',
+  'useFAQSchema(',
+  'useLocalBusinessSchema(',
+  'useBreadcrumbSchema(',
+  'schemaOrg:',
+  'defineOgImage(',
+] as const
 
 function readJsonIfExists<T>(path: string): T | null {
   if (!existsSync(path)) return null
@@ -50,9 +87,62 @@ function listDeclaredPackages(pkg: PackageJson | null): string[] {
   ]
 }
 
+function readTextIfExists(path: string): string {
+  if (!existsSync(path)) return ''
+  return readFileSync(path, 'utf8')
+}
+
+function directoryContainsLegacyPublicSeo(dir: string): boolean {
+  if (!existsSync(dir)) return false
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue
+
+    const entryPath = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (directoryContainsLegacyPublicSeo(entryPath)) return true
+      continue
+    }
+
+    if (!LEGACY_PUBLIC_SEO_FILE_PATTERN.test(entry.name)) continue
+
+    const content = readTextIfExists(entryPath)
+    if (LEGACY_PUBLIC_SEO_PATTERNS.some((pattern) => content.includes(pattern))) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function repoDisablesSsr(repoRoot: string): boolean {
+  return /\bssr\s*:\s*false\b/.test(readTextIfExists(join(repoRoot, 'apps', 'web', 'nuxt.config.ts')))
+}
+
+function repoUsesLegacyPublicSeo(repoRoot: string): boolean {
+  if (repoDisablesSsr(repoRoot)) return false
+
+  const nuxtConfig = readTextIfExists(join(repoRoot, 'apps', 'web', 'nuxt.config.ts'))
+  if (LEGACY_PUBLIC_SEO_PATTERNS.some((pattern) => nuxtConfig.includes(pattern))) {
+    return true
+  }
+
+  return directoryContainsLegacyPublicSeo(join(repoRoot, 'apps', 'web', 'app'))
+}
+
+function withLegacySeoBundle(
+  repoRoot: string,
+  selection: TemplateLayerSelection,
+): TemplateLayerSelection {
+  if (selection.bundles.includes('seo')) return selection
+  if (!repoUsesLegacyPublicSeo(repoRoot)) return selection
+
+  return createBundledLayerSelection([...selection.bundles, 'seo'])
+}
+
 function inferSelectionFromDeclaredPackages(packageNames: string[]): TemplateLayerSelection | null {
-  if (packageNames.includes(COMPAT_LAYER_PACKAGE_NAME)) {
-    return { mode: 'legacy-full' }
+  if (packageNames.includes(LEGACY_COMPAT_PACKAGE_NAME)) {
+    return createBundledLayerSelection(OPTIONAL_LAYER_BUNDLE_IDS)
   }
 
   const bundles: OptionalLayerBundleId[] = packageNames
@@ -65,37 +155,130 @@ function inferSelectionFromDeclaredPackages(packageNames: string[]): TemplateLay
     return null
   }
 
-  return normalizeTemplateLayerSelection({
-    mode: 'bundled',
-    bundles,
-  })
+  return createBundledLayerSelection(bundles)
+}
+
+function parseProvisionBaseThemeSelection(
+  selection: BaseThemeSelection | string | null | undefined,
+): BaseThemeSelection {
+  if (typeof selection === 'string') {
+    return selection.trim().startsWith('{')
+      ? parseBaseThemeSelectionJson(selection)
+      : parseBaseThemeArg(selection)
+  }
+
+  return normalizeBaseThemeSelection(selection)
+}
+
+function parseProvisionAppTemplateSelection(
+  selection: AppTemplateSelection | string | null | undefined,
+): AppTemplateSelection | null {
+  if (typeof selection === 'string') {
+    return selection.trim().startsWith('{')
+      ? parseAppTemplateSelectionJson(selection)
+      : parseAppTemplateArg(selection)
+  }
+
+  return normalizeAppTemplateSelection(selection)
+}
+
+function inferBaseThemeSelectionFromDeclaredPackages(
+  packageNames: string[],
+): BaseThemeSelection | null {
+  const theme = packageNames
+    .map((packageName) => getBaseThemeByPackageName(packageName))
+    .find((definition): definition is NonNullable<typeof definition> => definition != null)
+
+  return theme ? { id: theme.id } : null
+}
+
+function inferAppTemplateSelectionFromDeclaredPackages(
+  packageNames: string[],
+): AppTemplateSelection | null {
+  const appTemplate = packageNames
+    .map((packageName) => getAppTemplateByPackageName(packageName))
+    .find((definition): definition is NonNullable<typeof definition> => definition != null)
+
+  return appTemplate ? { id: appTemplate.id } : null
 }
 
 export function resolveRepoTemplateLayerSelection(repoRoot: string): TemplateLayerSelection {
   const provision = readJsonIfExists<ProvisionJson>(getRepoProvisionJsonPath(repoRoot))
   const provisionSelection = provision?.templateLayer
   if (typeof provisionSelection === 'string') {
-    return parseTemplateLayerSelectionJson(provisionSelection)
+    if (isLegacyCompatSelection(provisionSelection)) {
+      return withLegacySeoBundle(repoRoot, createBundledLayerSelection(OPTIONAL_LAYER_BUNDLE_IDS))
+    }
+
+    return withLegacySeoBundle(repoRoot, parseTemplateLayerSelectionJson(provisionSelection))
   }
   if (provisionSelection && typeof provisionSelection === 'object') {
-    return normalizeTemplateLayerSelection(provisionSelection)
+    if (isLegacyCompatSelection(provisionSelection)) {
+      return withLegacySeoBundle(repoRoot, createBundledLayerSelection(OPTIONAL_LAYER_BUNDLE_IDS))
+    }
+
+    return withLegacySeoBundle(
+      repoRoot,
+      createBundledLayerSelection(provisionSelection.bundles || []),
+    )
   }
 
   const webPackage = readJsonIfExists<PackageJson>(getRepoWebPackageJsonPath(repoRoot))
   const inferredSelection = inferSelectionFromDeclaredPackages(listDeclaredPackages(webPackage))
   if (inferredSelection) {
-    return inferredSelection
+    return withLegacySeoBundle(repoRoot, inferredSelection)
   }
 
   if (existsSync(getRepoCompatLayerDir(repoRoot))) {
-    return { mode: 'legacy-full' }
+    return withLegacySeoBundle(repoRoot, createBundledLayerSelection(OPTIONAL_LAYER_BUNDLE_IDS))
   }
 
-  return { mode: 'bundled', bundles: [] }
+  return withLegacySeoBundle(repoRoot, { mode: 'bundled', bundles: [] })
+}
+
+export function resolveRepoBaseThemeSelection(repoRoot: string): BaseThemeSelection {
+  const provision = readJsonIfExists<ProvisionJson>(getRepoProvisionJsonPath(repoRoot))
+  if (provision && 'baseTheme' in provision) {
+    return parseProvisionBaseThemeSelection(provision.baseTheme)
+  }
+
+  const webPackage = readJsonIfExists<PackageJson>(getRepoWebPackageJsonPath(repoRoot))
+  const inferredSelection = inferBaseThemeSelectionFromDeclaredPackages(
+    listDeclaredPackages(webPackage),
+  )
+  if (inferredSelection) {
+    return inferredSelection
+  }
+
+  return DEFAULT_BASE_THEME_SELECTION
+}
+
+export function resolveRepoAppTemplateSelection(repoRoot: string): AppTemplateSelection | null {
+  const provision = readJsonIfExists<ProvisionJson>(getRepoProvisionJsonPath(repoRoot))
+  if (provision && 'appTemplate' in provision) {
+    return parseProvisionAppTemplateSelection(provision.appTemplate)
+  }
+
+  const webPackage = readJsonIfExists<PackageJson>(getRepoWebPackageJsonPath(repoRoot))
+  return inferAppTemplateSelectionFromDeclaredPackages(listDeclaredPackages(webPackage))
+}
+
+export function resolveRepoStarterCompositionSelection(
+  repoRoot: string,
+): NormalizedStarterCompositionSelection {
+  return normalizeStarterCompositionSelection({
+    templateLayerSelection: resolveRepoTemplateLayerSelection(repoRoot),
+    baseThemeSelection: resolveRepoBaseThemeSelection(repoRoot),
+    appTemplateSelection: resolveRepoAppTemplateSelection(repoRoot),
+  })
 }
 
 export function repoUsesBundledLayers(repoRoot: string): boolean {
   return resolveRepoTemplateLayerSelection(repoRoot).mode === 'bundled'
+}
+
+export function resolveRepoStarterPackageNames(repoRoot: string): string[] {
+  return resolveSelectedStarterPackageNames(resolveRepoStarterCompositionSelection(repoRoot))
 }
 
 export function resolveRepoLayerPackageNames(repoRoot: string): string[] {
@@ -103,19 +286,7 @@ export function resolveRepoLayerPackageNames(repoRoot: string): string[] {
 }
 
 export function resolveRepoLayerPackageDirs(repoRoot: string): string[] {
-  const selection = resolveRepoTemplateLayerSelection(repoRoot)
-
-  if (selection.mode === 'legacy-full') {
-    const localCompatLayerDir = getRepoCompatLayerDir(repoRoot)
-    if (existsSync(localCompatLayerDir)) {
-      return [localCompatLayerDir]
-    }
-
-    const installedCompatDir = getInstalledPackageDir(repoRoot, COMPAT_LAYER_PACKAGE_NAME)
-    return existsSync(installedCompatDir) ? [installedCompatDir] : []
-  }
-
-  return resolveSelectedLayerPackageNames(selection)
+  return resolveSelectedLayerPackageNames(resolveRepoTemplateLayerSelection(repoRoot))
     .map((packageName) => getInstalledPackageDir(repoRoot, packageName))
     .filter((dir, index, dirs) => existsSync(dir) && dirs.indexOf(dir) === index)
 }
@@ -127,15 +298,6 @@ export function resolveRepoLayerDrizzleDirs(repoRoot: string): string[] {
 }
 
 export function resolveRepoLayerPublicDir(repoRoot: string): string | null {
-  const selection = resolveRepoTemplateLayerSelection(repoRoot)
-
-  if (selection.mode === 'legacy-full') {
-    const localCompatLayerDir = getRepoCompatLayerDir(repoRoot)
-    if (existsSync(join(localCompatLayerDir, 'public'))) {
-      return join(localCompatLayerDir, 'public')
-    }
-  }
-
   const corePackageDir = getInstalledPackageDir(repoRoot, LAYER_BUNDLE_MANIFEST.core.packageName)
   return existsSync(join(corePackageDir, 'public')) ? join(corePackageDir, 'public') : null
 }
