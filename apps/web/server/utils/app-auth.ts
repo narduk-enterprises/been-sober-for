@@ -11,11 +11,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { users, type User as LocalUser } from '#layer/orm-tables'
 import { authSessions, authUserLinks } from '#server/app-orm-tables'
-import { useDatabase } from '#layer/server/utils/database'
-import {
-  executeCompatDatabaseQuery as executeDatabaseQuery,
-  getCompatDatabaseRow as getDatabaseRow,
-} from '#server/utils/databaseCompat'
+import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
 import { useAppDatabase } from '#server/utils/database'
 
@@ -369,48 +365,10 @@ function toSupabaseHttpError(error: AuthError, fallbackStatusCode = 400): never 
   })
 }
 
-async function releaseConflictingAppleIdentity(
+export async function ensureLinkedLocalUser(
   event: H3Event,
-  params: {
-    duplicateUser: LocalUser
-    canonicalUser: LocalUser
-    now: string
-  },
-) {
-  const log = useLogger(event).child('AppAuth')
-  const db = useDatabase(event)
-  const appDb = useAppDatabase(event)
-
-  const existingLink = await getDatabaseRow<typeof authUserLinks.$inferSelect>(
-    appDb.select().from(authUserLinks).where(eq(authUserLinks.localUserId, params.duplicateUser.id)),
-  )
-  const existingSession = await getDatabaseRow<typeof authSessions.$inferSelect>(
-    appDb.select().from(authSessions).where(eq(authSessions.localUserId, params.duplicateUser.id)),
-  )
-
-  if (existingLink || existingSession) {
-    return false
-  }
-
-  await executeDatabaseQuery(
-    db
-      .update(users)
-      .set({
-        appleId: null,
-        updatedAt: params.now,
-      })
-      .where(eq(users.id, params.duplicateUser.id)),
-  )
-
-  log.warn('Released stale Apple identity from duplicate local user', {
-    duplicateUserId: params.duplicateUser.id,
-    canonicalUserId: params.canonicalUser.id,
-  })
-
-  return true
-}
-
-async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Promise<LocalUser> {
+  authUser: SupabaseUser,
+): Promise<LocalUser> {
   const log = useLogger(event).child('AppAuth')
   const db = useDatabase(event)
   const appDb = useAppDatabase(event)
@@ -436,49 +394,32 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
     )
   }
 
-  const appleIdentityUser =
-    metadata.appleId
-      ? await getDatabaseRow<LocalUser>(
-          db.select().from(users).where(eq(users.appleId, metadata.appleId)),
-        )
-      : null
-  const emailIdentityUser = await getDatabaseRow<LocalUser>(
-    db.select().from(users).where(eq(users.email, normalizedEmail)),
-  )
-
   if (!localUser) {
-    if (
-      appleIdentityUser &&
-      emailIdentityUser &&
-      appleIdentityUser.id !== emailIdentityUser.id &&
-      (await releaseConflictingAppleIdentity(event, {
-        duplicateUser: appleIdentityUser,
-        canonicalUser: emailIdentityUser,
-        now,
-      }))
-    ) {
-      localUser = emailIdentityUser
-    } else {
-      localUser = appleIdentityUser ?? emailIdentityUser ?? undefined
-    }
+    localUser = await getDatabaseRow<LocalUser>(
+      db.select().from(users).where(eq(users.email, normalizedEmail)),
+    )
+  }
+
+  if (!localUser && metadata.appleId) {
+    localUser = await getDatabaseRow<LocalUser>(
+      db.select().from(users).where(eq(users.appleId, metadata.appleId)),
+    )
   }
 
   if (!localUser) {
     const newUserId = crypto.randomUUID()
     const fallbackName = metadata.displayName || deriveDisplayName(normalizedEmail)
 
-    await executeDatabaseQuery(
-      db.insert(users).values({
-        id: newUserId,
-        email: normalizedEmail,
-        name: fallbackName,
-        appleId: metadata.appleId,
-        passwordHash: null,
-        isAdmin: false,
-        createdAt: now,
-        updatedAt: now,
-      }),
-    )
+    await db.insert(users).values({
+      id: newUserId,
+      email: normalizedEmail,
+      name: fallbackName,
+      appleId: metadata.appleId,
+      passwordHash: null,
+      isAdmin: false,
+      createdAt: now,
+      updatedAt: now,
+    })
 
     localUser = await getDatabaseRow<LocalUser>(
       db.select().from(users).where(eq(users.id, newUserId)),
@@ -541,12 +482,10 @@ async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Pr
         .where(eq(authUserLinks.localUserId, localUser.id)),
     )
   } else {
-    await executeDatabaseQuery(
-      appDb.insert(authUserLinks).values({
-        ...linkValues,
-        createdAt: now,
-      }),
-    )
+    await appDb.insert(authUserLinks).values({
+      ...linkValues,
+      createdAt: now,
+    })
   }
 
   log.info('Linked shared auth user to local user', {
@@ -602,13 +541,11 @@ async function persistSupabaseSession(
       appDb.update(authSessions).set(values).where(eq(authSessions.id, params.sessionId)),
     )
   } else {
-    await executeDatabaseQuery(
-      appDb.insert(authSessions).values({
-        id: authSessionId,
-        createdAt: now,
-        ...values,
-      }),
-    )
+    await appDb.insert(authSessions).values({
+      id: authSessionId,
+      createdAt: now,
+      ...values,
+    })
   }
 
   return {
@@ -875,14 +812,12 @@ async function registerWithLocalAuth(
 
   const userId = crypto.randomUUID()
   const passwordHash = await hashUserPassword(body.password)
-  await executeDatabaseQuery(
-    db.insert(users).values({
-      id: userId,
-      email: normalizedEmail,
-      name: body.name.trim(),
-      passwordHash,
-    }),
-  )
+  await db.insert(users).values({
+    id: userId,
+    email: normalizedEmail,
+    name: body.name.trim(),
+    passwordHash,
+  })
 
   const user = await getDatabaseRow<LocalUser>(db.select().from(users).where(eq(users.id, userId)))
   if (!user) {

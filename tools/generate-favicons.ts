@@ -50,8 +50,8 @@ const args = Object.fromEntries(
   }),
 ) as Record<string, string | true>
 
-const defaultTargetDir = existsSync(resolve(ROOT_DIR, 'layers/narduk-nuxt-layer/public'))
-  ? 'layers/narduk-nuxt-layer/public'
+const defaultTargetDir = existsSync(resolve(ROOT_DIR, 'layers/core/public'))
+  ? 'layers/core/public'
   : 'apps/web/public'
 const targetDir = resolve(
   ROOT_DIR,

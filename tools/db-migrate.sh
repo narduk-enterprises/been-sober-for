@@ -14,8 +14,8 @@
 #   --reset   Wipe local D1 state before migrating. REFUSES --remote.
 #
 # Designed to be called from package.json scripts:
-#   "db:migrate": "bash ../../tools/db-migrate.sh my-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle"
-#   "db:reset":   "bash ../../tools/db-migrate.sh my-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle --reset"
+#   "db:migrate": "bash ../../tools/db-migrate.sh my-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer-core/drizzle --dir drizzle"
+#   "db:reset":   "bash ../../tools/db-migrate.sh my-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer-core/drizzle --dir drizzle --reset"
 set -euo pipefail
 
 DB_NAME="${1:?Usage: db-migrate.sh <db-name> --local|--remote [--dir <path>]...}"

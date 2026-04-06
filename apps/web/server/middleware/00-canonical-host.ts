@@ -1,19 +1,20 @@
 import { getRequestHeader, getRequestURL, sendRedirect } from 'h3'
 
-function isLocalHost(host: string) {
-  return host.startsWith('localhost') || host.startsWith('127.0.0.1')
+function isLocalHost(hostname: string) {
+  return hostname.startsWith('localhost') || hostname.startsWith('127.0.0.1')
 }
 
 export default defineEventHandler((event) => {
-  if (import.meta.prerender) {
-    return
-  }
-
   if (event.method !== 'GET' && event.method !== 'HEAD') {
     return
   }
 
-  const appUrl = useRuntimeConfig(event).public.appUrl?.trim()
+  const config = useRuntimeConfig(event)
+  if (!config.public.authEnforceCanonicalHost) {
+    return
+  }
+
+  const appUrl = config.public.appUrl?.trim()
   if (!appUrl) {
     return
   }
@@ -38,7 +39,10 @@ export default defineEventHandler((event) => {
   }
 
   const requestUrl = getRequestURL(event)
-  const redirectUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, canonicalUrl)
+  const redirectUrl = new URL(
+    `${requestUrl.pathname}${requestUrl.search}${requestUrl.hash}`,
+    canonicalUrl,
+  )
 
   return sendRedirect(event, redirectUrl.toString(), 308)
 })

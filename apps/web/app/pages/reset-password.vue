@@ -8,6 +8,7 @@ const { user, changePassword, requestPasswordReset } = useAuth()
 useSeo({
   title: 'Reset Password',
   description: 'Request a password reset link or set a new password after recovery.',
+  robots: 'noindex, nofollow',
 })
 
 useWebPageSchema({

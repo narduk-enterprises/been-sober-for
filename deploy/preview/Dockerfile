@@ -18,8 +18,6 @@ COPY .npmrc ./
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/web/.npmrc apps/web/.npmrc
-COPY layers/narduk-nuxt-layer/package.json layers/narduk-nuxt-layer/package.json
-COPY packages/eslint-config/package.json packages/eslint-config/package.json
 
 # Package registry auth is mounted as a BuildKit secret so the token never
 # lands in build args, image metadata, or committed files.
@@ -40,8 +38,6 @@ RUN --mount=type=secret,id=registry_token,required=false \
   rm -f "${temp_npmrc}"
 
 COPY apps/web apps/web
-COPY layers/narduk-nuxt-layer layers/narduk-nuxt-layer
-COPY packages/eslint-config packages/eslint-config
 COPY scripts scripts
 COPY tools tools
 

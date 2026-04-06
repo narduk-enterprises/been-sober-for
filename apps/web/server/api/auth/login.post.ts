@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePublicMutation, withValidatedBody } from '#layer/server/utils/mutation'
+import { definePublicMutation, requireMutationBody, withValidatedBody } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
 import { loginUser } from '#server/utils/app-auth'
 
@@ -14,5 +14,5 @@ export default definePublicMutation(
     rateLimit: RATE_LIMIT_POLICIES.authLogin,
     parseBody: withValidatedBody(loginSchema.parse),
   },
-  async ({ event, body }) => loginUser(event, body),
+  async ({ event, body }) => loginUser(event, requireMutationBody(body)),
 )

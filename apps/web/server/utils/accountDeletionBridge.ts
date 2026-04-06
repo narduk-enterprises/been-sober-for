@@ -2,12 +2,8 @@ import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import type { AuthUser } from '#layer/server/utils/auth'
 import { users } from '#layer/orm-tables'
-import { useDatabase } from '#layer/server/utils/database'
+import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { verifyUserPassword } from '#layer/server/utils/password'
-import {
-  executeCompatDatabaseQuery as executeDatabaseQuery,
-  getCompatDatabaseRow as getDatabaseRow,
-} from '#server/utils/databaseCompat'
 
 export interface DeleteAccountBridgeInput {
   currentPassword?: string

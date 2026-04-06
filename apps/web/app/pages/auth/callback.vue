@@ -2,6 +2,7 @@
 useSeo({
   title: 'Finishing Sign In',
   description: 'Completing your authentication callback.',
+  robots: 'noindex, nofollow',
 })
 
 useWebPageSchema({

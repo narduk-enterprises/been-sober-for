@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Prettier configuration for the narduk-nuxt-template monorepo.
+ * Prettier configuration for the narduk-template monorepo.
  *
  * Notes:
  * - eslint-config-prettier (already in @narduk/eslint-config) disables every ESLint

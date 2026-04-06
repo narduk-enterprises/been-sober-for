@@ -42,12 +42,7 @@ const authProviders =
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
-  extends: [
-    '@narduk-enterprises/narduk-nuxt-template-layer-core',
-    '@narduk-enterprises/narduk-nuxt-template-layer-auth',
-    '@narduk-enterprises/narduk-nuxt-template-layer-analytics',
-    '@narduk-enterprises/narduk-nuxt-template-layer-uploads',
-  ],
+  extends: ['@narduk-enterprises/narduk-nuxt-template-layer-theme-balanced', '@narduk-enterprises/narduk-nuxt-template-layer-core', '@narduk-enterprises/narduk-nuxt-template-layer-seo', '@narduk-enterprises/narduk-nuxt-template-layer-auth', '@narduk-enterprises/narduk-nuxt-template-layer-analytics', '@narduk-enterprises/narduk-nuxt-template-layer-uploads'],
 
   alias: {
     '#server/app-orm-tables': fileURLToPath(new URL(appOrmTablesEntry, import.meta.url)),
@@ -104,6 +99,7 @@ export default defineNuxtConfig({
       authLogoutPath: '/logout',
       authRedirectPath: '/dashboard/',
       authProviders,
+      authEnforceCanonicalHost: process.env.AUTH_ENFORCE_CANONICAL_HOST === 'true',
       authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',
       authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',
       authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',

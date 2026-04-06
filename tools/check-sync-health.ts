@@ -2,17 +2,18 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import {
   getProvisionDisplayName,
   getProvisionShortName,
   readProvisionMetadata,
 } from './provision-metadata'
-import { REFERENCE_BASELINE_FILES } from './sync-manifest'
+import { FLEET_ROOT_SCRIPT_PATCHES, REFERENCE_BASELINE_FILES } from './sync-manifest'
 import {
   repoUsesBundledLayers,
   resolveRepoLayerPackageDirs,
   resolveRepoLayerPublicDir,
+  resolveRepoStarterPackageNames,
 } from './template-layer-selection'
 
 interface CheckResult {
@@ -24,14 +25,12 @@ interface CheckResult {
 interface PackageJson {
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
+  scripts?: Record<string, string>
   pnpm?: {
     overrides?: Record<string, string>
+    patchedDependencies?: Record<string, string>
   }
   overrides?: Record<string, string>
-}
-
-interface FleetSyncManifest {
-  repos?: unknown
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -45,7 +44,7 @@ const APP_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'app', 'app.config.ts')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 
-/** Paths referenced by `layers/narduk-nuxt-layer/nuxt.config.ts` `app.head.link`. */
+/** Paths referenced by the core layer `nuxt.config.ts` `app.head.link`. */
 const LAYER_HEAD_ASSET_FILES = [
   'favicon.svg',
   'favicon-32x32.png',
@@ -55,23 +54,7 @@ const LAYER_HEAD_ASSET_FILES = [
 ] as const
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
-const TEMPLATE_REPO_DIR_HINTS = [
-  process.env.TEMPLATE_REPO_DIR,
-  ROOT_DIR,
-  join(ROOT_DIR, '..', '..', 'narduk-nuxt-template'),
-  join(ROOT_DIR, '..', 'narduk-nuxt-template'),
-]
-const CONTROL_PLANE_REPO_DIR_HINTS = [
-  process.env.PLATFORM_REPO_DIR,
-  process.env.CONTROL_PLANE_REPO_DIR,
-  ROOT_DIR,
-  join(ROOT_DIR, '..', 'narduk-paas'),
-  join(ROOT_DIR, '..', '..', 'narduk-paas'),
-  join(ROOT_DIR, '..', 'template-apps', 'platform'),
-  join(ROOT_DIR, '..', '..', 'template-apps', 'platform'),
-  join(ROOT_DIR, '..', 'template-apps', 'control-plane'),
-  join(ROOT_DIR, '..', '..', 'template-apps', 'control-plane'),
-]
+const AUTHORING_WORKSPACE_NAMES = new Set(['narduk-template', 'narduk-nuxt-template'])
 
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
@@ -80,15 +63,13 @@ function readJson<T>(path: string): T | null {
 
 function isAuthoringWorkspace(): boolean {
   const rootPackage = readJson<{ name?: string }>(ROOT_PACKAGE_PATH)
-  return rootPackage?.name === 'narduk-nuxt-template'
+  return !!rootPackage?.name && AUTHORING_WORKSPACE_NAMES.has(rootPackage.name)
 }
 
-function firstExistingPath(candidates: Array<string | undefined>): string | null {
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    if (existsSync(candidate)) return candidate
-  }
-  return null
+function resolveManagedRootPackagePath(): string {
+  return isAuthoringWorkspace()
+    ? join(ROOT_DIR, 'starters', 'default', 'package.json')
+    : ROOT_PACKAGE_PATH
 }
 
 function parseVersionParts(input: string | null | undefined): [number, number, number] | null {
@@ -272,21 +253,64 @@ function checkFontsCompatibility(rootPkg: PackageJson, layerPkg: PackageJson | n
   }
 }
 
-function checkNuxtOgImageInstall(rootPkg: PackageJson): CheckResult {
-  const expected = getExpectedNuxtOgImageVersion(rootPkg)
-  if (!expected) {
+function checkTemplateManagedRootPackage(): CheckResult {
+  const packagePath = resolveManagedRootPackagePath()
+  const packageJson = readJson<PackageJson>(packagePath)
+  if (!packageJson) {
     return {
-      status: 'warn',
-      summary: 'no nuxt-og-image override declared',
+      status: 'fail',
+      summary: 'starter-managed root package.json is missing',
+      detail: packagePath,
     }
   }
 
+  const scripts = packageJson.scripts || {}
+  const scriptDrift = Object.entries(FLEET_ROOT_SCRIPT_PATCHES)
+    .filter(([name, command]) => scripts[name] !== command)
+    .map(
+      ([name, command]) =>
+        `${name}: expected "${command}" but found "${scripts[name] || '(missing)'}"`,
+    )
+
+  const packageDir = dirname(packagePath)
+  const missingPatchPayloads = Object.entries(packageJson.pnpm?.patchedDependencies || {})
+    .filter(([, relativePath]) => !existsSync(join(packageDir, relativePath)))
+    .map(
+      ([name, relativePath]) =>
+        `pnpm.patchedDependencies["${name}"] -> missing file "${relativePath}"`,
+    )
+
+  if (scriptDrift.length === 0 && missingPatchPayloads.length === 0) {
+    return {
+      status: 'pass',
+      summary: isAuthoringWorkspace()
+        ? 'starter-managed root package fields are aligned in starters/default/package.json'
+        : 'starter-managed root package fields are aligned in package.json',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: `starter-managed root package drift detected (${scriptDrift.length} script mismatch(es), ${missingPatchPayloads.length} missing patch payload(s))`,
+    detail: [...scriptDrift, ...missingPatchPayloads].join('\n'),
+  }
+}
+
+function checkNuxtOgImageInstall(rootPkg: PackageJson): CheckResult {
+  const expected = getExpectedNuxtOgImageVersion(rootPkg)
   const installedVersions = listVirtualStoreVersions('nuxt-og-image')
   if (installedVersions.length === 0) {
     return {
       status: 'warn',
       summary: 'nuxt-og-image not present in the pnpm virtual store',
       detail: 'Run `pnpm install --frozen-lockfile` before shipping.',
+    }
+  }
+
+  if (!expected) {
+    return {
+      status: 'pass',
+      summary: `nuxt-og-image ${installedVersions.join(', ')} is present in the pnpm virtual store without a local override`,
     }
   }
 
@@ -345,7 +369,7 @@ function checkAppConfigUiShape(): CheckResult {
   if (!uiObject) {
     return {
       status: 'pass',
-      summary: 'apps/web/app/app.config.ts inherits layer ui.colors defaults',
+      summary: 'apps/web/app/app.config.ts inherits theme layer ui.colors defaults',
     }
   }
 
@@ -370,6 +394,91 @@ function checkAppConfigUiShape(): CheckResult {
     summary: 'apps/web/app/app.config.ts overrides ui without declaring ui.colors',
     detail:
       'Prefer explicit ui.colors keys so downstream theming edits follow the Nuxt UI v4 contract.',
+  }
+}
+
+function readAppWebPackage(): PackageJson | null {
+  return readJson<PackageJson>(join(ROOT_DIR, 'apps', 'web', 'package.json'))
+}
+
+function listDeclaredAppWebDependencies(pkg: PackageJson | null): string[] {
+  if (!pkg) return []
+
+  return [
+    ...new Set([...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})]),
+  ]
+}
+
+function parseNuxtExtendsPackageNames(content: string): string[] | null {
+  const match = content.match(/^\s*extends:\s*\[([\s\S]*?)\],/m)
+  if (!match?.[1]) return null
+
+  return match[1]
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => entry.replace(/^['"`]/, '').replace(/['"`]$/, ''))
+}
+
+function checkStarterPackageSelectionDependencies(): CheckResult {
+  const webPackage = readAppWebPackage()
+  if (!webPackage) {
+    return {
+      status: 'warn',
+      summary: 'apps/web/package.json not found',
+    }
+  }
+
+  const expectedPackageNames = resolveRepoStarterPackageNames(ROOT_DIR)
+  const declaredPackages = new Set(listDeclaredAppWebDependencies(webPackage))
+  const missing = expectedPackageNames.filter((packageName) => !declaredPackages.has(packageName))
+
+  if (missing.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'selected starter packages are declared in apps/web/package.json',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'selected starter packages are missing from apps/web/package.json',
+    detail: missing.join('\n'),
+  }
+}
+
+function checkNuxtExtendsSelection(): CheckResult {
+  if (!existsSync(APP_NUXT_CONFIG_PATH)) {
+    return {
+      status: 'warn',
+      summary: 'apps/web/nuxt.config.ts not found',
+    }
+  }
+
+  const content = readFileSync(APP_NUXT_CONFIG_PATH, 'utf8')
+  const actualPackageNames = parseNuxtExtendsPackageNames(content)
+  if (!actualPackageNames) {
+    return {
+      status: 'fail',
+      summary: 'apps/web/nuxt.config.ts is missing an extends array',
+    }
+  }
+
+  const expectedPackageNames = resolveRepoStarterPackageNames(ROOT_DIR)
+  if (JSON.stringify(actualPackageNames) === JSON.stringify(expectedPackageNames)) {
+    return {
+      status: 'pass',
+      summary: 'apps/web/nuxt.config.ts extends match the selected starter package order',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'apps/web/nuxt.config.ts extends drift from the selected starter package order',
+    detail: [
+      `expected: ${expectedPackageNames.join(', ')}`,
+      `actual:   ${actualPackageNames.join(', ')}`,
+    ].join('\n'),
   }
 }
 
@@ -450,7 +559,7 @@ function checkLayerHeadPublicAssets(): CheckResult {
       ...allMissing.map((f) => `${detailPrefix}/${f}`),
       repoUsesBundledLayers(ROOT_DIR)
         ? 'Reinstall layer packages or republish the core bundle if public assets are missing.'
-        : 'Run: pnpm run generate:favicons -- --target=layers/narduk-nuxt-layer/public',
+        : 'Run: pnpm run generate:favicons -- --target=layers/core/public',
     ].join('\n'),
   }
 }
@@ -565,19 +674,19 @@ function checkReferenceBaselines(): CheckResult {
 
 function checkLockfileState(rootPkg: PackageJson): CheckResult {
   const expected = getExpectedNuxtOgImageVersion(rootPkg)
-  if (!expected) {
-    return {
-      status: 'warn',
-      summary: 'no nuxt-og-image override declared',
-    }
-  }
-
   const lockedVersions = listLockfileVersions('nuxt-og-image')
   if (lockedVersions.length === 0) {
     return {
       status: 'warn',
       summary: 'nuxt-og-image not present in pnpm-lock.yaml',
       detail: 'Run `pnpm install --frozen-lockfile` to refresh the lockfile state.',
+    }
+  }
+
+  if (!expected) {
+    return {
+      status: 'pass',
+      summary: `pnpm-lock.yaml includes nuxt-og-image ${lockedVersions.join(', ')} without a local override`,
     }
   }
 
@@ -595,86 +704,6 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
-async function checkFleetManifestParity(): Promise<CheckResult> {
-  const manifestPath = firstExistingPath(
-    TEMPLATE_REPO_DIR_HINTS.map((dir) =>
-      dir ? join(dir, 'config', 'fleet-sync-repos.json') : undefined,
-    ),
-  )
-  if (!manifestPath) {
-    return {
-      status: 'pass',
-      summary: 'fleet manifest parity not applicable in this checkout',
-    }
-  }
-
-  const managedReposPath = firstExistingPath(
-    CONTROL_PLANE_REPO_DIR_HINTS.map((dir) =>
-      dir ? join(dir, 'apps', 'web', 'server', 'data', 'managed-repos.ts') : undefined,
-    ),
-  )
-  if (!managedReposPath) {
-    return {
-      status: 'warn',
-      summary: 'fleet manifest present but no local platform clone found',
-      detail:
-        'Set PLATFORM_REPO_DIR or CONTROL_PLANE_REPO_DIR to validate config/fleet-sync-repos.json against managed-repos.ts.',
-    }
-  }
-
-  const manifest = readJson<FleetSyncManifest>(manifestPath)
-  if (
-    !manifest ||
-    !Array.isArray(manifest.repos) ||
-    manifest.repos.some((repo) => typeof repo !== 'string')
-  ) {
-    return {
-      status: 'fail',
-      summary: 'fleet sync manifest is invalid',
-      detail: manifestPath,
-    }
-  }
-
-  const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
-    getSyncManagedRepos?: () => Array<{ name: string }>
-  }
-  if (typeof managedReposModule.getSyncManagedRepos !== 'function') {
-    return {
-      status: 'fail',
-      summary: 'managed-repos module does not export getSyncManagedRepos()',
-      detail: managedReposPath,
-    }
-  }
-
-  const expectedRepos = managedReposModule
-    .getSyncManagedRepos()
-    .map((repo) => repo.name)
-    .sort((left, right) => left.localeCompare(right))
-  const actualRepos = [...new Set(manifest.repos)].sort((left, right) => left.localeCompare(right))
-  const missing = expectedRepos.filter((repo) => !actualRepos.includes(repo))
-  const extra = actualRepos.filter((repo) => !expectedRepos.includes(repo))
-
-  if (missing.length === 0 && extra.length === 0) {
-    return {
-      status: 'pass',
-      summary: `fleet sync manifest matches ${expectedRepos.length} sync-managed repo(s)`,
-    }
-  }
-
-  return {
-    status: 'fail',
-    summary: `fleet sync manifest drift detected (${missing.length} missing, ${extra.length} extra)`,
-    detail: [
-      missing.length > 0 ? `missing: ${missing.join(', ')}` : null,
-      extra.length > 0 ? `extra: ${extra.join(', ')}` : null,
-      `manifest: ${manifestPath}`,
-      `source: ${managedReposPath}`,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-  }
-}
-
 async function main() {
   const rootPkg = readJson<PackageJson>(ROOT_PACKAGE_PATH)
   if (!rootPkg) {
@@ -687,9 +716,12 @@ async function main() {
     ? readJson<PackageJson>(join(primaryLayerPackageDir, 'package.json'))
     : null
   const checks: Array<[string, CheckResult]> = [
+    ['starter-managed root package', checkTemplateManagedRootPackage()],
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],
     ['pnpm lockfile', checkLockfileState(rootPkg)],
+    ['starter package deps', checkStarterPackageSelectionDependencies()],
+    ['nuxt extends order', checkNuxtExtendsSelection()],
     ['app config ui shape', checkAppConfigUiShape()],
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
@@ -698,7 +730,6 @@ async function main() {
     ['provision manifest parity', checkProvisionManifestMetadata()],
     ['google verification files', checkAuthoringWorkspaceGoogleVerificationFiles()],
     ['reference baselines', checkReferenceBaselines()],
-    ['fleet manifest parity', await checkFleetManifestParity()],
   ]
 
   console.log('\nSync Health Check')

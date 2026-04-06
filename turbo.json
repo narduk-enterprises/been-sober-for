@@ -6,11 +6,15 @@
       "dependsOn": ["^build"],
       "outputs": [".output/**", ".nuxt/**", "**/dist/**"]
     },
+    "nuxt:prepare": {
+      "dependsOn": ["^nuxt:prepare"],
+      "outputs": [".nuxt/**"]
+    },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["nuxt:prepare", "^nuxt:prepare"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["nuxt:prepare", "^nuxt:prepare"]
     },
     "format:check": {},
     "quality": {

@@ -1,24 +1,46 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './command'
 import {
-  normalizeTemplateLayerSelection,
+  parseOptionalLayerBundleArgs,
   parseTemplateLayerSelectionJson,
-  type OptionalLayerBundleId,
   type TemplateLayerSelection,
 } from './layer-bundle-manifest'
+import {
+  parseBaseThemeArg,
+  parseBaseThemeSelectionJson,
+  type BaseThemeSelection,
+} from './theme-manifest'
+import {
+  parseAppTemplateArg,
+  parseAppTemplateSelectionJson,
+  type AppTemplateSelection,
+} from './app-template-manifest'
 import { runAppSync } from './sync-core'
+import {
+  resolveRepoAppTemplateSelection,
+  resolveRepoBaseThemeSelection,
+  resolveRepoTemplateLayerSelection,
+} from './template-layer-selection'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
+const AUTHORING_REPO_SLUGS = [
+  'narduk-enterprises/narduk-template',
+  'narduk-enterprises/narduk-nuxt-template',
+] as const
+const AUTHORING_WORKSPACE_NAMES = new Set(['narduk-template', 'narduk-nuxt-template'])
+const TEMPLATE_DIR_HINT_NAMES = ['narduk-template', 'narduk-nuxt-template'] as const
 
 const rawArgs = process.argv.slice(2)
 const positionalArgs: string[] = []
 const flags = new Set<string>()
 let fromValue: string | undefined
 let templateLayerSelection: TemplateLayerSelection | undefined
-const requestedBundles = new Set<OptionalLayerBundleId>()
+let baseThemeSelection: BaseThemeSelection | undefined
+let appTemplateSelection: AppTemplateSelection | null | undefined
 
 for (let index = 0; index < rawArgs.length; index += 1) {
   const argument = rawArgs[index]
@@ -41,18 +63,42 @@ for (let index = 0; index < rawArgs.length; index += 1) {
     continue
   }
 
-  if (argument === '--legacy-full') {
-    templateLayerSelection = { mode: 'legacy-full' }
+  if (argument.startsWith('--base-theme-selection-json=')) {
+    baseThemeSelection = parseBaseThemeSelectionJson(
+      argument.slice('--base-theme-selection-json='.length),
+    )
     continue
   }
 
+  if (argument.startsWith('--app-template-selection-json=')) {
+    appTemplateSelection = parseAppTemplateSelectionJson(
+      argument.slice('--app-template-selection-json='.length),
+    )
+    continue
+  }
+
+  if (argument === '--legacy-full') {
+    console.error('legacy-full is no longer supported. Use bundled layer selections only.')
+    process.exit(1)
+  }
+
   if (argument.startsWith('--bundles=')) {
-    const bundleValue = argument.slice('--bundles='.length)
-    for (const bundle of bundleValue.split(',')) {
-      const normalized = bundle.trim()
-      if (!normalized) continue
-      requestedBundles.add(normalized as OptionalLayerBundleId)
-    }
+    templateLayerSelection = parseOptionalLayerBundleArgs(argument.slice('--bundles='.length))
+    continue
+  }
+
+  if (argument.startsWith('--theme=')) {
+    baseThemeSelection = parseBaseThemeArg(argument.slice('--theme='.length))
+    continue
+  }
+
+  if (argument.startsWith('--base-theme=')) {
+    baseThemeSelection = parseBaseThemeArg(argument.slice('--base-theme='.length))
+    continue
+  }
+
+  if (argument.startsWith('--app-template=')) {
+    appTemplateSelection = parseAppTemplateArg(argument.slice('--app-template='.length))
     continue
   }
 
@@ -75,7 +121,7 @@ function isAuthoringWorkspace(rootDir: string): boolean {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
     })
-    if (originUrl.includes('narduk-enterprises/narduk-nuxt-template')) {
+    if (AUTHORING_REPO_SLUGS.some((slug) => originUrl.includes(slug))) {
       return true
     }
   } catch {
@@ -86,7 +132,7 @@ function isAuthoringWorkspace(rootDir: string): boolean {
     const rootPackage = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {
       name?: string
     }
-    if (rootPackage.name === 'narduk-nuxt-template') {
+    if (rootPackage.name && AUTHORING_WORKSPACE_NAMES.has(rootPackage.name)) {
       return true
     }
   } catch {
@@ -105,61 +151,121 @@ function resolveTemplateDir(rootDir: string): string {
     return rootDir
   }
 
-  return join(process.env.HOME || '', 'new-code', 'narduk-nuxt-template')
+  for (const dirName of TEMPLATE_DIR_HINT_NAMES) {
+    const candidate = join(process.env.HOME || '', 'new-code', dirName)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return join(process.env.HOME || '', 'new-code', TEMPLATE_DIR_HINT_NAMES[0])
+}
+
+function resolveTemplateSha(templateDir: string): string {
+  try {
+    return runCommand('git', ['rev-parse', 'HEAD'], {
+      cwd: templateDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return ''
+  }
+}
+
+function materializeStarterTemplate(
+  templateDir: string,
+  selection: TemplateLayerSelection | undefined,
+  themeSelection: BaseThemeSelection | undefined,
+  selectedAppTemplate: AppTemplateSelection | null | undefined,
+): string {
+  const tempTemplateDir = mkdtempSync(join(tmpdir(), 'narduk-template-sync-'))
+  const args = ['exec', 'tsx', 'tools/export-starter.ts', tempTemplateDir, '--force']
+  if (selection) {
+    args.push(`--template-layer-selection-json=${JSON.stringify(selection)}`)
+  }
+  if (themeSelection) {
+    args.push(`--base-theme-selection-json=${JSON.stringify(themeSelection)}`)
+  }
+  if (selectedAppTemplate !== undefined) {
+    args.push(`--app-template-selection-json=${JSON.stringify(selectedAppTemplate)}`)
+  }
+
+  runCommand('pnpm', args, {
+    cwd: templateDir,
+    stdio: 'inherit',
+  })
+
+  return tempTemplateDir
 }
 
 const authoringWorkspace = isAuthoringWorkspace(ROOT_DIR)
 const appDirArg = authoringWorkspace ? positionalArgs[0] : positionalArgs[0] || '.'
 
-if (!templateLayerSelection && requestedBundles.size > 0) {
-  templateLayerSelection = normalizeTemplateLayerSelection({
-    mode: 'bundled',
-    bundles: [...requestedBundles],
-  })
-}
-
 if (!appDirArg) {
   console.error(
-    'Usage: pnpm exec tsx tools/sync-template.ts <app-directory> [--from /path/to/narduk-nuxt-template] [--template-layer-selection-json=<json> | --legacy-full | --bundles=auth,maps] [--dry-run] [--strict] [--skip-install] [--skip-quality] [--allow-dirty-app] [--allow-dirty-template]',
+    'Usage: pnpm exec tsx tools/sync-template.ts <app-directory> [--from /path/to/narduk-template] [--template-layer-selection-json=<json> | --bundles=auth,analytics,ai] [--theme=balanced|console|editorial|marketing] [--app-template=dashboard|marketing|docs|search] [--dry-run] [--strict] [--skip-install] [--skip-quality] [--allow-dirty-app] [--allow-dirty-template]',
   )
   process.exit(1)
 }
 
 const resolvedAppDir = resolve(expandHome(appDirArg))
 const templateDir = resolve(resolveTemplateDir(ROOT_DIR))
+const resolvedTemplateLayerSelection =
+  templateLayerSelection ?? resolveRepoTemplateLayerSelection(resolvedAppDir)
+const resolvedBaseThemeSelection =
+  baseThemeSelection ?? resolveRepoBaseThemeSelection(resolvedAppDir)
+const resolvedAppTemplateSelection =
+  appTemplateSelection === undefined
+    ? resolveRepoAppTemplateSelection(resolvedAppDir)
+    : appTemplateSelection
 
 if (!existsSync(resolvedAppDir)) {
   console.error(`App directory not found: ${resolvedAppDir}`)
   process.exit(1)
 }
 
-if (!existsSync(join(templateDir, 'layers', 'narduk-nuxt-layer'))) {
+if (!existsSync(join(templateDir, 'starters', 'default'))) {
   console.error(`Template directory not found or incomplete: ${templateDir}`)
-  console.error(
-    'Pass --from /path/to/narduk-nuxt-template or clone the authoring workspace locally.',
-  )
+  console.error('Pass --from /path/to/narduk-template or clone the authoring workspace locally.')
   process.exit(1)
 }
 
 if (!authoringWorkspace && resolvedAppDir === templateDir) {
   console.error('Template source resolves to the current app checkout.')
-  console.error('Pass --from /path/to/narduk-nuxt-template to sync from the authoring workspace.')
+  console.error('Pass --from /path/to/narduk-template to sync from the authoring workspace.')
   process.exit(1)
 }
 
+const templateSha = resolveTemplateSha(templateDir)
+const tempStarterDir = materializeStarterTemplate(
+  templateDir,
+  resolvedTemplateLayerSelection,
+  resolvedBaseThemeSelection,
+  resolvedAppTemplateSelection,
+)
+
 runAppSync({
   appDir: resolvedAppDir,
-  templateDir,
+  templateDir: tempStarterDir,
   mode: 'full',
   dryRun: flags.has('--dry-run'),
   strict: flags.has('--strict'),
   skipInstall: flags.has('--skip-install'),
   skipQuality: flags.has('--skip-quality'),
   allowDirtyApp: flags.has('--allow-dirty-app'),
-  allowDirtyTemplate: flags.has('--allow-dirty-template'),
-  templateLayerSelection,
-}).catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error)
-  console.error(message)
-  process.exit(1)
+  allowDirtyTemplate: true,
+  skipRewriteRepo: true,
+  templateLayerSelection: resolvedTemplateLayerSelection,
+  baseThemeSelection: resolvedBaseThemeSelection,
+  appTemplateSelection: resolvedAppTemplateSelection,
+  templateSha,
 })
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
+    process.exitCode = 1
+  })
+  .finally(() => {
+    rmSync(tempStarterDir, { recursive: true, force: true })
+  })

@@ -2,6 +2,7 @@
 useSeo({
   title: 'Confirming Your Email',
   description: 'Verifying your email confirmation link and finishing sign-in.',
+  robots: 'noindex, nofollow',
 })
 
 useWebPageSchema({
