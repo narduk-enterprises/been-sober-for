@@ -1,3 +1,5 @@
+import type { Page } from '@playwright/test'
+
 export {
   createUniqueEmail,
   expect,
@@ -15,8 +17,6 @@ export {
   markAllNotificationsReadViaApi,
   updateProfileViaApi,
 } from '../../../../layers/narduk-nuxt-layer/testing/e2e/fixtures.ts'
-
-import type { Page } from '@playwright/test'
 
 // ─── Date helpers ──────────────────────────────────────────
 

@@ -36,7 +36,7 @@ test.describe('milestone and print pages', () => {
       // Each milestone page should have a heading
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       // Should have relevant content about the milestone
-      await expect(page).toHaveTitle(new RegExp(label.replace(/\s/g, '.*'), 'i'))
+      await expect(page).toHaveTitle(new RegExp(label.replaceAll(/\s/g, '.*'), 'i'))
     })
   }
 
