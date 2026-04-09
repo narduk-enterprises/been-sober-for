@@ -17,5 +17,304 @@
   "baseTheme": {
     "id": "balanced"
   },
-  "appTemplate": null
+  "appTemplate": null,
+  "cloudflare": {
+    "workersBuilds": {
+      "rootDirectory": "/apps/web",
+      "buildCommand": "pnpm run cf:build",
+      "deployCommand": "pnpm run cf:deploy",
+      "previewDeployCommand": "pnpm run cf:deploy:preview",
+      "skipDependencyInstall": true,
+      "requiredBuildSecrets": [
+        "NARDUK_PLATFORM_GH_PACKAGES_RW"
+      ],
+      "requiredRuntimeVariables": [
+        "SITE_URL",
+        "NUXT_SESSION_PASSWORD"
+      ]
+    }
+  },
+  "envContract": {
+    "version": 1,
+    "requirements": [
+      {
+        "key": "AUTH_AUTHORITY_URL",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Supabase auth authority. Callback-form URLs normalize to the project base URL."
+      },
+      {
+        "key": "AUTH_BACKEND",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Managed auth apps use supabase."
+      },
+      {
+        "key": "AUTH_PROVIDERS",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Comma-separated provider list such as apple,email."
+      },
+      {
+        "key": "AUTH_PUBLIC_SIGNUP",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Public signup toggle for auth screens."
+      },
+      {
+        "key": "AUTH_REQUIRE_MFA",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Server and client MFA requirement toggle."
+      },
+      {
+        "key": "GA_MEASUREMENT_ID",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Public GA client identifier."
+      },
+      {
+        "key": "GA_PROPERTY_ID",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "Server-only GA property id for admin analytics routes."
+      },
+      {
+        "key": "GSC_SERVICE_ACCOUNT_JSON",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "secret",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-secret"
+        ],
+        "notes": "Server-side Google Search Console service account."
+      },
+      {
+        "key": "GSC_SITE_URL",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "Search Console property id or sc-domain key."
+      },
+      {
+        "key": "NUXT_SESSION_PASSWORD",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "secret",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-secret"
+        ],
+        "notes": "Keep stable across deploys to preserve sessions."
+      },
+      {
+        "key": "POSTHOG_API_HOST",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "Server-side PostHog API base URL."
+      },
+      {
+        "key": "POSTHOG_DOMAIN",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "Server-side domain resolution for analytics sync."
+      },
+      {
+        "key": "POSTHOG_HOST",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Client analytics ingest host."
+      },
+      {
+        "key": "POSTHOG_PERSONAL_API_KEY",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "secret",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-secret"
+        ],
+        "notes": "Server-side PostHog API token."
+      },
+      {
+        "key": "POSTHOG_PROJECT_ID",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "Server-side analytics query context."
+      },
+      {
+        "key": "POSTHOG_PUBLIC_KEY",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Client analytics key."
+      },
+      {
+        "key": "R2_BUCKET",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-var"
+        ],
+        "notes": "R2 bucket binding name or bucket identifier for uploads."
+      },
+      {
+        "key": "SITE_URL",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "expectedValueFrom": "provision.url",
+        "notes": "Canonical app origin for deployed routes and DNS zone resolution."
+      },
+      {
+        "key": "SUPABASE_ANON_KEY",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Alias for the publishable key."
+      },
+      {
+        "key": "SUPABASE_PUBLISHABLE_KEY",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Public auth/browser key."
+      },
+      {
+        "key": "SUPABASE_SERVICE_ROLE_KEY",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "secret",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-secret"
+        ],
+        "notes": "Server-only Supabase admin key."
+      },
+      {
+        "key": "SUPABASE_URL",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Optional explicit Supabase base URL."
+      },
+      {
+        "key": "TURNSTILE_SECRET_KEY",
+        "managedBy": "template",
+        "phase": "runtime",
+        "sensitivity": "secret",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "runtime-secret"
+        ],
+        "notes": "Server-side Turnstile verification secret."
+      },
+      {
+        "key": "TURNSTILE_SITE_KEY",
+        "managedBy": "template",
+        "phase": "build + runtime",
+        "sensitivity": "plain",
+        "canonicalProvider": "cloudflare",
+        "cloudflarePlanes": [
+          "build-var",
+          "runtime-var"
+        ],
+        "notes": "Public captcha key."
+      }
+    ]
+  }
 }

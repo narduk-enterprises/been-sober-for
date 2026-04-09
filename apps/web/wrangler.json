@@ -110,5 +110,10 @@
       "pattern": "www.beensoberfor.com",
       "custom_domain": true
     }
+  ],
+  "tail_consumers": [
+    {
+      "service": "platform-runtime-logs"
+    }
   ]
 }

@@ -86,7 +86,7 @@ Write the code in the appropriate layer directory from Step 0.
 ### If adding new runtime config
 
 Add keys to `layers/narduk-nuxt-layer/app/types/runtime-config.d.ts` and
-document them. Downstream apps will set values via Doppler.
+document them. Downstream apps will set values via Vault.
 
 ### If modifying nuxt.config.ts
 

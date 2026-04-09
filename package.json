@@ -10,7 +10,7 @@
     "prebuild": "node tools/check-setup.cjs",
     "build": "pnpm -r build",
     "build:plugins": "pnpm --filter @narduk/eslint-config build",
-    "preship": "node tools/check-setup.cjs && pnpm run package-registry:auth && pnpm install && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
+    "preship": "node tools/check-setup.cjs && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_RW:-}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
     "prelint": "pnpm run build:plugins",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -25,7 +25,7 @@
     "sync:copilot-secrets": "pnpm exec tsx tools/sync-copilot-secrets.ts",
     "check:sync-health": "pnpm exec tsx tools/check-sync-health.ts",
     "clean": "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
-    "clean:install": "pnpm run clean && pnpm run package-registry:auth && pnpm install && pnpm --filter web run db:ready",
+    "clean:install": "pnpm run clean && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_RW:-}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready",
     "db:migrate": "pnpm --filter web run db:migrate",
     "dev:kill": "sh scripts/dev-kill.sh",
     "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
@@ -47,6 +47,7 @@
       "@cloudflare/workers-types": "4.20260307.1",
       "@typescript-eslint/utils": "^8.57.0",
       "@nuxt/eslint": "^1.15.2",
+      "nuxt-og-image": "6.3.3",
       "eslint-plugin-unicorn": "^63.0.0",
       "svgo": "4.0.1",
       "tar": "7.5.11",
@@ -96,7 +97,8 @@
       "workerd"
     ],
     "patchedDependencies": {
-      "@nuxt/image@2.0.0": "patches/@nuxt__image@2.0.0.patch"
+      "@nuxt/image@2.0.0": "patches/@nuxt__image@2.0.0.patch",
+      "@narduk-enterprises/narduk-nuxt-template-layer-core@1.2.18": "patches/@narduk-enterprises__narduk-nuxt-template-layer-core@1.2.18.patch"
     }
   },
   "volta": {

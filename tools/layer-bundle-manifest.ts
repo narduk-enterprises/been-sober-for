@@ -1,6 +1,7 @@
 export const OPTIONAL_LAYER_BUNDLE_IDS = [
   'seo',
   'auth',
+  'operator',
   'analytics',
   'ai',
   'maps',
@@ -50,6 +51,15 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
     hasDrizzlePayload: false,
     requiredAppDependencies: [],
     requiredEnvKeys: ['NUXT_SESSION_PASSWORD'],
+  },
+  operator: {
+    id: 'operator',
+    packageName: '@narduk-enterprises/narduk-nuxt-template-layer-operator',
+    description: 'Operator-console shell, tables, and admin workspace primitives.',
+    optional: true,
+    hasDrizzlePayload: false,
+    requiredAppDependencies: [],
+    requiredEnvKeys: [],
   },
   analytics: {
     id: 'analytics',
@@ -171,9 +181,16 @@ export function normalizeTemplateLayerSelection(
     return DEFAULT_TEMPLATE_LAYER_SELECTION
   }
 
-  return createBundledLayerSelection(
-    Array.isArray(selection.bundles) ? selection.bundles.filter(isKnownOptionalLayerBundleId) : [],
-  )
+  const bundles = Array.isArray(selection.bundles)
+    ? selection.bundles.reduce<OptionalLayerBundleId[]>((accumulator, bundle) => {
+        if (isKnownOptionalLayerBundleId(bundle)) {
+          accumulator.push(bundle)
+        }
+        return accumulator
+      }, [])
+    : []
+
+  return createBundledLayerSelection(bundles)
 }
 
 export function parseTemplateLayerSelectionJson(
@@ -303,7 +320,7 @@ export function resolvePrimaryLayerPackageName(
     | null
     | undefined,
 ): string {
-  return resolveSelectedLayerPackageNames(selection)[0]
+  return resolveSelectedLayerPackageNames(selection)[0] || LAYER_BUNDLE_MANIFEST.core.packageName
 }
 
 export function resolveRequiredAppDependencies(

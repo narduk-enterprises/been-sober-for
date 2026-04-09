@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
-import { runCommand } from './command'
+import { runCommand, type CommandOptions } from './command'
 import {
   buildPackageRegistryLine,
   getPackageRegistryConfig,
@@ -78,6 +78,7 @@ export interface RunAppSyncOptions {
   baseThemeSelection?: BaseThemeSelection | null
   appTemplateSelection?: AppTemplateSelection | null
   templateSha?: string | null
+  quietChildCommands?: boolean
   log?: (message: string) => void
 }
 
@@ -110,6 +111,8 @@ const RECURSIVE_SOURCE_SKIP_DIRECTORIES = new Set([
   '.wrangler',
   'node_modules',
 ])
+const SILENT_CHILD_COMMAND_STDIO: CommandOptions['stdio'] = ['ignore', 'pipe', 'pipe']
+let childCommandStdio: CommandOptions['stdio'] = 'inherit'
 
 function resolveSyncTemplateLayerSelection(
   appDir: string,
@@ -160,13 +163,23 @@ function getSeedLayerPackageName(selection: TemplateLayerSelection): string {
 
 function buildExpectedExtendsLiteral(selection: StarterCompositionSelection): string {
   const packageNames = resolveSelectedStarterPackageNames(selection)
-  return `  extends: [${packageNames.map((packageName) => `'${packageName}'`).join(', ')}],`
+  if (packageNames.length === 0) {
+    throw new Error(
+      'resolveSelectedStarterPackageNames() must return at least one package for starter composition sync.',
+    )
+  }
+
+  return [
+    '  extends: [',
+    ...packageNames.map((packageName) => `    '${packageName}',`),
+    '  ],',
+  ].join('\n')
 }
 
 function run(command: string, args: string[], cwd: string) {
   runCommand(command, args, {
     cwd,
-    stdio: 'inherit',
+    stdio: childCommandStdio,
   })
 }
 
@@ -492,10 +505,13 @@ function patchJsonFile<T extends object>(
   if (!existsSync(filePath)) return false
 
   const current = JSON.parse(readFileSync(filePath, 'utf-8')) as T
-  const changed = mutate(current)
+  const before = JSON.stringify(current, null, 2) + '\n'
+  mutate(current)
+  const after = JSON.stringify(current, null, 2) + '\n'
+  const changed = before !== after
   if (!changed || dryRun) return changed
 
-  writeFileSync(filePath, JSON.stringify(current, null, 2) + '\n', 'utf-8')
+  writeFileSync(filePath, after, 'utf-8')
   return changed
 }
 
@@ -650,7 +666,6 @@ function patchRootPackage(
   const staleRootScripts = [
     'dev:workspace',
     'dev:showcase',
-    'dev:showcase:no-doppler',
     'dev:e2e',
     'db:ready:all',
     'build:showcase',
@@ -660,8 +675,6 @@ function patchRootPackage(
     'test:e2e:mapkit',
     'ship',
     'quality:fleet',
-    'mirror:fleet:forgejo',
-    'mirror:fleet:forgejo:dry',
     'sync:fleet',
     'sync:fleet:fast',
     'sync:fleet:dry',
@@ -669,7 +682,6 @@ function patchRootPackage(
     'ship:fleet',
     'migrate-to-org',
     'check:reach',
-    'check:fleet-doppler',
     'validate:fleet',
     'backfill:packages-read',
     'tail:fleet',
@@ -699,8 +711,7 @@ function patchRootPackage(
     }
   }
 
-  let touched = false
-  patchJsonFile<Record<string, any>>(
+  const touched = patchJsonFile<Record<string, any>>(
     appPackagePath,
     (pkg) => {
       let changed = false
@@ -777,7 +788,6 @@ function patchRootPackage(
         changed = true
       }
 
-      touched ||= changed
       return changed
     },
     dryRun,
@@ -790,38 +800,10 @@ function patchRootPackage(
   return touched
 }
 
-function patchDopplerTemplate(
-  appDir: string,
-  dryRun: boolean,
-  mode: 'full' | 'layer',
-  log: (message: string) => void,
-): boolean {
-  if (mode !== 'full') return false
-
-  const appPackagePath = join(appDir, 'package.json')
-  const dopplerTemplatePath = join(appDir, 'doppler.template.yaml')
-  if (!existsSync(appPackagePath) || !existsSync(dopplerTemplatePath)) return false
-
-  const appPackage = JSON.parse(readFileSync(appPackagePath, 'utf-8')) as { name?: string }
-  const appName = appPackage.name?.trim()
-  if (!appName) return false
-
-  const content = readFileSync(dopplerTemplatePath, 'utf-8')
-  const updated = content.replace(/^(\s*project:\s*).+$/m, `$1${appName}`)
-  if (updated === content) return false
-
-  log('  UPDATE: doppler.template.yaml project')
-  if (!dryRun) {
-    writeFileSync(dopplerTemplatePath, updated, 'utf-8')
-  }
-
-  return true
-}
-
 /**
  * `apps/web/wrangler.json` is not copied verbatim (would wipe D1 ids, routes,
- * domains). When the layer expects Workers KV, merge a missing `KV` binding
- * from the template so `nitro-cloudflare-dev` matches new layer routes.
+ * domains). When the template expects extra runtime bindings, merge them
+ * without clobbering app-specific IDs and routes.
  */
 function mergeWebWranglerKvBinding(
   appDir: string,
@@ -838,25 +820,62 @@ function mergeWebWranglerKvBinding(
 
   const templateWrangler = JSON.parse(readFileSync(templatePath, 'utf-8')) as {
     kv_namespaces?: Array<{ binding?: string; id?: string; preview_id?: string }>
+    r2_buckets?: Array<{ binding?: string; bucket_name?: string; preview_bucket_name?: string }>
+    tail_consumers?: Array<{ service?: string; environment?: string }>
   }
   const templateKv = templateWrangler.kv_namespaces?.find((n) => n?.binding === 'KV')
-  if (!templateKv) return false
+  const templateBucket = templateWrangler.r2_buckets?.find((bucket) => bucket?.binding === 'BUCKET')
+  const templateRuntimeLogsConsumer = templateWrangler.tail_consumers?.find(
+    (consumer) => consumer?.service === 'platform-runtime-logs',
+  )
+  if (!templateKv && !templateBucket && !templateRuntimeLogsConsumer) return false
 
   const changed = patchJsonFile<Record<string, unknown>>(
     appPath,
     (w) => {
-      const list = (w.kv_namespaces as Array<{ binding?: string }> | undefined) ?? []
-      if (list.some((n) => n?.binding === 'KV')) {
-        return false
+      let didChange = false
+
+      if (templateKv) {
+        const list = (w.kv_namespaces as Array<{ binding?: string }> | undefined) ?? []
+        if (!list.some((n) => n?.binding === 'KV')) {
+          w.kv_namespaces = [
+            ...list,
+            JSON.parse(JSON.stringify(templateKv)) as Record<string, unknown>,
+          ]
+          didChange = true
+        }
       }
-      w.kv_namespaces = [...list, JSON.parse(JSON.stringify(templateKv)) as Record<string, unknown>]
-      return true
+
+      if (templateBucket) {
+        const buckets = (w.r2_buckets as Array<{ binding?: string }> | undefined) ?? []
+        if (!buckets.some((bucket) => bucket?.binding === 'BUCKET')) {
+          w.r2_buckets = [
+            ...buckets,
+            JSON.parse(JSON.stringify(templateBucket)) as Record<string, unknown>,
+          ]
+          didChange = true
+        }
+      }
+
+      if (templateRuntimeLogsConsumer) {
+        const consumers =
+          (w.tail_consumers as Array<{ service?: string; environment?: string }> | undefined) ?? []
+        if (!consumers.some((consumer) => consumer?.service === 'platform-runtime-logs')) {
+          w.tail_consumers = [
+            ...consumers,
+            JSON.parse(JSON.stringify(templateRuntimeLogsConsumer)) as Record<string, unknown>,
+          ]
+          didChange = true
+        }
+      }
+
+      return didChange
     },
     dryRun,
   )
 
   if (changed) {
-    log('  UPDATE: apps/web/wrangler.json (merged KV binding from template)')
+    log('  UPDATE: apps/web/wrangler.json (merged runtime bindings from template)')
   }
 
   return changed
@@ -897,79 +916,62 @@ function patchWebNuxtConfig(
     content = lines.join('\n')
   }
 
-  const configuredAuthBackendAnchor = 'const configuredAuthBackend = process.env.AUTH_BACKEND'
-  const preludeBlocks = [
-    {
-      anchor: 'const appBackendPreset =',
-      lines: [
-        'const appBackendPreset =',
-        "  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'",
-      ],
-    },
-    {
-      anchor: 'const supabaseUrl =',
-      lines: [
-        "const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''",
-      ],
-    },
-    {
-      anchor: 'const supabasePublishableKey =',
-      lines: [
-        'const supabasePublishableKey =',
-        '  process.env.SUPABASE_PUBLISHABLE_KEY ||',
-        '  process.env.SUPABASE_ANON_KEY ||',
-        '  process.env.SUPABASE_AUTH_ANON_KEY ||',
-        "  ''",
-      ],
-    },
-    {
-      anchor: 'const supabaseServiceRoleKey =',
-      lines: [
-        'const supabaseServiceRoleKey =',
-        "  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''",
-      ],
-    },
-  ]
-  const missingPreludeBlocks = preludeBlocks
-    .filter(({ anchor }) => !content.includes(anchor))
-    .flatMap(({ lines }) => lines)
+  if (!content.includes("from './auth-environment'")) {
+    const provisionImportLine =
+      "import { getProvisionDisplayName, readProvisionMetadata } from '../../tools/provision-metadata'"
+    const authEnvironmentImportLine = "import { resolveAuthEnvironment } from './auth-environment'"
 
-  if (missingPreludeBlocks.length > 0 && content.includes(configuredAuthBackendAnchor)) {
-    content = content.replace(
-      configuredAuthBackendAnchor,
-      `${missingPreludeBlocks.join('\n')}\n${configuredAuthBackendAnchor}`,
-    )
-  }
-
-  if (!content.includes('const appOrmTablesEntry =')) {
-    const appOrmTablesBlock = [
-      'const appOrmTablesEntry =',
-      "  process.env.NUXT_DATABASE_BACKEND === 'postgres'",
-      "    ? './server/database/pg-app-schema.ts'",
-      "    : './server/database/app-schema.ts'",
-      '',
-    ].join('\n')
-
-    if (content.includes('function parseAuthProviders(value: string | undefined)')) {
+    if (content.includes(provisionImportLine)) {
       content = content.replace(
-        'function parseAuthProviders(value: string | undefined) {',
-        `${appOrmTablesBlock}function parseAuthProviders(value: string | undefined) {`,
+        provisionImportLine,
+        `${provisionImportLine}\n${authEnvironmentImportLine}`,
       )
-    } else {
-      const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
-      const exportDefaultAnchor = 'export default defineNuxtConfig({'
-      if (content.includes(anchor)) {
-        content = content.replace(anchor, `${appOrmTablesBlock}${anchor}`)
-      } else if (content.includes(exportDefaultAnchor)) {
-        content = content.replace(exportDefaultAnchor, `${appOrmTablesBlock}${exportDefaultAnchor}`)
-      }
+    } else if (content.includes('const __dirname =')) {
+      content = content.replace(
+        'const __dirname =',
+        `${authEnvironmentImportLine}\n\nconst __dirname =`,
+      )
     }
   }
 
-  if (!content.includes('function parseAuthProviders(value: string | undefined)')) {
-    const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
-    const exportDefaultAnchor = 'export default defineNuxtConfig({'
-    const authSetupBlock = [
+  const authEnvironmentBlock = [
+    'const {',
+    '  appBackendPreset,',
+    '  authAuthorityUrl,',
+    '  authBackend,',
+    '  authProviders,',
+    '  supabasePublishableKey,',
+    '  supabaseServiceRoleKey,',
+    '  supabaseUrl,',
+    '} = resolveAuthEnvironment(process.env)',
+    '',
+  ].join('\n')
+  const authPreludeStart = content.indexOf('const appBackendPreset =')
+  const authPreludeEnd = content.indexOf('const appOrmTablesEntry =')
+
+  if (authPreludeStart !== -1 && authPreludeEnd !== -1 && authPreludeStart < authPreludeEnd) {
+    content = `${content.slice(0, authPreludeStart)}${authEnvironmentBlock}${content.slice(authPreludeEnd)}`
+  } else if (!content.includes('resolveAuthEnvironment(process.env)')) {
+    const authAnchor = 'const appOrmTablesEntry ='
+    if (content.includes(authAnchor)) {
+      content = content.replace(authAnchor, `${authEnvironmentBlock}${authAnchor}`)
+    }
+  }
+
+  if (content.includes('resolveAuthEnvironment(process.env)')) {
+    content = content.replace(
+      /\nfunction parseAuthProviders\(value: string \| undefined\) \{[\s\S]*?\nconst authProviders =\n  authBackend === 'supabase' \? parseAuthProviders\(process\.env\.AUTH_PROVIDERS\) : \['email'\]\n/m,
+      '\n',
+    )
+  }
+
+  const needsLegacyAuthProviders =
+    content.includes('authProviders') &&
+    !content.includes('const authProviders =') &&
+    !content.includes('resolveAuthEnvironment(process.env)')
+
+  if (needsLegacyAuthProviders) {
+    const legacyAuthProvidersBlock = [
       'function parseAuthProviders(value: string | undefined) {',
       "  return (value || 'apple,email')",
       "    .split(',')",
@@ -982,10 +984,35 @@ function patchWebNuxtConfig(
       '',
     ].join('\n')
 
+    const authProvidersAnchor = 'const appOrmTablesEntry ='
+    if (content.includes(authProvidersAnchor)) {
+      content = content.replace(
+        authProvidersAnchor,
+        `${legacyAuthProvidersBlock}${authProvidersAnchor}`,
+      )
+    } else if (content.includes('export default defineNuxtConfig({')) {
+      content = content.replace(
+        'export default defineNuxtConfig({',
+        `${legacyAuthProvidersBlock}export default defineNuxtConfig({`,
+      )
+    }
+  }
+
+  if (!content.includes('const appOrmTablesEntry =')) {
+    const appOrmTablesBlock = [
+      'const appOrmTablesEntry =',
+      "  process.env.NUXT_DATABASE_BACKEND === 'postgres'",
+      "    ? './server/database/pg-app-schema.ts'",
+      "    : './server/database/app-schema.ts'",
+      '',
+    ].join('\n')
+
+    const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
+    const exportDefaultAnchor = 'export default defineNuxtConfig({'
     if (content.includes(anchor)) {
-      content = content.replace(anchor, `${authSetupBlock}${anchor}`)
+      content = content.replace(anchor, `${appOrmTablesBlock}${anchor}`)
     } else if (content.includes(exportDefaultAnchor)) {
-      content = content.replace(exportDefaultAnchor, `${authSetupBlock}${exportDefaultAnchor}`)
+      content = content.replace(exportDefaultAnchor, `${appOrmTablesBlock}${exportDefaultAnchor}`)
     }
   }
 
@@ -1546,8 +1573,7 @@ function patchWebPackage(
     ...listAppTemplateDefinitions().flatMap((appTemplate) => appTemplate.requiredAppDependencies),
   ])
 
-  let touched = false
-  patchJsonFile<Record<string, any>>(
+  const touched = patchJsonFile<Record<string, any>>(
     webPackagePath,
     (pkg) => {
       let changed = false
@@ -1698,7 +1724,6 @@ function patchWebPackage(
         }
       }
 
-      touched ||= changed
       return changed
     },
     dryRun,
@@ -1759,7 +1784,7 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
 
   let content = readFileSync(gitignorePath, 'utf-8')
   const original = content
-  const requiredEntries = ['.env', '.env.*', '.dev.vars', 'doppler.yaml', 'doppler.json']
+  const requiredEntries = ['.env', '.env.*', '.dev.vars']
 
   if (!content.includes('.turbo')) {
     content = content.replace(/\.cache\n/, '.cache\n.turbo\n')
@@ -1939,9 +1964,7 @@ function warnIfBootstrapArtifactsMissing(appDir: string, log: (message: string) 
   if (!existsSync(join(appDir, '.setup-complete'))) {
     missing.push('.setup-complete')
   }
-  if (!existsSync(join(appDir, 'doppler.yaml'))) {
-    missing.push('doppler.yaml')
-  }
+
   if (missing.length === 0) return
 
   log(`  WARN: bootstrap-managed files missing (${missing.join(', ')})`)
@@ -2065,6 +2088,7 @@ export async function runAppSync(options: RunAppSyncOptions): Promise<RunAppSync
   const strict = options.strict ?? false
   const allowDirtyApp = options.allowDirtyApp ?? false
   const allowDirtyTemplate = options.allowDirtyTemplate ?? false
+  const quietChildCommands = options.quietChildCommands ?? false
   const log = options.log ?? console.log
   const counters = createCounters()
   const templateLayerSelection = resolveSyncTemplateLayerSelection(
@@ -2085,151 +2109,156 @@ export async function runAppSync(options: RunAppSyncOptions): Promise<RunAppSync
   ensureAppState(options.appDir, allowDirtyApp, dryRun, log)
   const templateSha =
     options.templateSha ?? getOutput('git', ['rev-parse', 'HEAD'], options.templateDir)
+  const previousChildCommandStdio = childCommandStdio
+  childCommandStdio = quietChildCommands ? SILENT_CHILD_COMMAND_STDIO : 'inherit'
 
-  log('')
-  log(
-    `${mode === 'full' ? 'Template Sync' : 'Layer Sync'}: ${options.appDir}${dryRun ? ' [DRY RUN]' : ''}`,
-  )
-  log('═══════════════════════════════════════════════════════════════')
-  log(`  App:      ${options.appDir}`)
-  log(`  Template: ${options.templateDir}`)
-  log(`  Layers:   ${JSON.stringify(templateLayerSelection)}`)
-  log(`  Theme:    ${JSON.stringify(baseThemeSelection)}`)
-  log(`  App tpl:  ${JSON.stringify(appTemplateSelection)}`)
-  if (templateSha) {
-    log(`  SHA:      ${templateSha.slice(0, 12)}`)
-  }
-  log('')
-
-  removeLegacyAuthApiComposableCasing(options.appDir, dryRun, counters, log)
-
-  syncManagedFiles(
-    options.templateDir,
-    options.appDir,
-    counters,
-    dryRun,
-    mode,
-    templateLayerSelection,
-    log,
-  )
-  syncGeneratedFiles(options.appDir, counters, dryRun, mode, log)
-  removeStalePaths(options.appDir, counters, dryRun, mode, log)
-
-  log('')
-  log(
-    `Phase 4: Applying ${mode === 'full' ? 'package and repo' : 'layer compatibility'} patches...`,
-  )
-
-  const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
-  counters.patched += packageTouched ? 1 : 0
-  const webPackagePatched = patchWebPackage(
-    options.appDir,
-    options.templateDir,
-    dryRun,
-    mode,
-    templateLayerSelection,
-    baseThemeSelection,
-    appTemplateSelection,
-    log,
-  )
-  counters.patched += webPackagePatched ? 1 : 0
-  const nuxtConfigPatched = patchWebNuxtConfig(
-    options.appDir,
-    dryRun,
-    mode,
-    templateLayerSelection,
-    baseThemeSelection,
-    appTemplateSelection,
-    log,
-  )
-  counters.patched += nuxtConfigPatched ? 1 : 0
-  const internalImportsPatched = patchBundledLayerInternalImports(
-    options.appDir,
-    dryRun,
-    templateLayerSelection,
-    log,
-  )
-  counters.patched += internalImportsPatched ? 1 : 0
-  const provisionPatched = patchProvisionSelections(
-    options.appDir,
-    dryRun,
-    templateLayerSelection,
-    baseThemeSelection,
-    appTemplateSelection,
-    log,
-  )
-  counters.patched += provisionPatched ? 1 : 0
-  if (mode === 'full') {
-    const authBridgePatches = applyAuthBridgeCompanionPatches(options.appDir, { dryRun, log })
-    if (authBridgePatches.databaseHelperCreated) {
-      counters.copied += 1
+  try {
+    log('')
+    log(
+      `${mode === 'full' ? 'Template Sync' : 'Layer Sync'}: ${options.appDir}${dryRun ? ' [DRY RUN]' : ''}`,
+    )
+    log('═══════════════════════════════════════════════════════════════')
+    log(`  App:      ${options.appDir}`)
+    log(`  Template: ${options.templateDir}`)
+    log(`  Layers:   ${JSON.stringify(templateLayerSelection)}`)
+    log(`  Theme:    ${JSON.stringify(baseThemeSelection)}`)
+    log(`  App tpl:  ${JSON.stringify(appTemplateSelection)}`)
+    if (templateSha) {
+      log(`  SHA:      ${templateSha.slice(0, 12)}`)
     }
-    counters.patched += authBridgePatches.schemaPatched ? 1 : 0
-  }
-  const dopplerPatched = patchDopplerTemplate(options.appDir, dryRun, mode, log)
-  counters.patched += dopplerPatched ? 1 : 0
-  const wranglerPatched = mergeWebWranglerKvBinding(
-    options.appDir,
-    options.templateDir,
-    dryRun,
-    mode,
-    log,
-  )
-  counters.patched += wranglerPatched ? 1 : 0
-  if (mode === 'full') {
-    const gitignorePatched = patchGitignore(options.appDir, dryRun, log)
-    counters.patched += gitignorePatched ? 1 : 0
-    const npmrcPatched = patchNpmrc(options.appDir, dryRun, log)
-    counters.patched += npmrcPatched ? 1 : 0
-    warnIfBootstrapArtifactsMissing(options.appDir, log)
-    const gitHooksPatched = ensureGitHooksPath(options.appDir, dryRun, log)
-    counters.patched += gitHooksPatched ? 1 : 0
-  }
-
-  // Record template HEAD for drift checks and fleet audit — must run for layer-only
-  // sync too, otherwise check-drift-ci keeps comparing against a stale SHA.
-  if (templateSha) {
-    const templateVersionWritten = writeTemplateVersion(options.appDir, templateSha, dryRun, log)
-    counters.patched += templateVersionWritten ? 1 : 0
-  }
-
-  removeVendoredCompatLayer(options.appDir, counters, dryRun, log)
-
-  if (!packageTouched && mode === 'layer') {
-    log('  Root pnpm config already current.')
-  }
-
-  runInstallAndQuality(options.appDir, dryRun, skipInstall, skipQuality, log)
-
-  if (!dryRun && strict && mode === 'full') {
     log('')
-    log('Phase 7: Verifying drift state...')
-    run('pnpm', ['exec', 'tsx', 'tools/check-drift-ci.ts', '--strict'], options.appDir)
-  }
 
-  log('')
-  log('═══════════════════════════════════════════════════════════════')
-  log(
-    ` Summary: ${counters.copied} copied, ${counters.removed} removed, ${counters.patched} patched, ${counters.skipped} unchanged.`,
-  )
-  if (dryRun) {
-    log(' DRY RUN — no files were modified.')
-    log(' Re-run without --dry-run to apply changes.')
-  } else {
-    log(' Sync complete.')
+    removeLegacyAuthApiComposableCasing(options.appDir, dryRun, counters, log)
+
+    syncManagedFiles(
+      options.templateDir,
+      options.appDir,
+      counters,
+      dryRun,
+      mode,
+      templateLayerSelection,
+      log,
+    )
+    syncGeneratedFiles(options.appDir, counters, dryRun, mode, log)
+    removeStalePaths(options.appDir, counters, dryRun, mode, log)
+
     log('')
-    log(' Next steps:')
-    log(`   cd ${options.appDir}`)
-    log('   git status')
-    log('   git diff')
-    log('   git add -A && git commit -m "chore: sync with template"')
-  }
+    log(
+      `Phase 4: Applying ${mode === 'full' ? 'package and repo' : 'layer compatibility'} patches...`,
+    )
 
-  return {
-    changed: counters.copied + counters.removed + counters.patched > 0,
-    copied: counters.copied,
-    patched: counters.patched,
-    removed: counters.removed,
-    skipped: counters.skipped,
+    const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
+    counters.patched += packageTouched ? 1 : 0
+    const webPackagePatched = patchWebPackage(
+      options.appDir,
+      options.templateDir,
+      dryRun,
+      mode,
+      templateLayerSelection,
+      baseThemeSelection,
+      appTemplateSelection,
+      log,
+    )
+    counters.patched += webPackagePatched ? 1 : 0
+    const nuxtConfigPatched = patchWebNuxtConfig(
+      options.appDir,
+      dryRun,
+      mode,
+      templateLayerSelection,
+      baseThemeSelection,
+      appTemplateSelection,
+      log,
+    )
+    counters.patched += nuxtConfigPatched ? 1 : 0
+    const internalImportsPatched = patchBundledLayerInternalImports(
+      options.appDir,
+      dryRun,
+      templateLayerSelection,
+      log,
+    )
+    counters.patched += internalImportsPatched ? 1 : 0
+    const provisionPatched = patchProvisionSelections(
+      options.appDir,
+      dryRun,
+      templateLayerSelection,
+      baseThemeSelection,
+      appTemplateSelection,
+      log,
+    )
+    counters.patched += provisionPatched ? 1 : 0
+    if (mode === 'full') {
+      const authBridgePatches = applyAuthBridgeCompanionPatches(options.appDir, { dryRun, log })
+      if (authBridgePatches.databaseHelperCreated) {
+        counters.copied += 1
+      }
+      counters.patched += authBridgePatches.schemaPatched ? 1 : 0
+    }
+
+    const wranglerPatched = mergeWebWranglerKvBinding(
+      options.appDir,
+      options.templateDir,
+      dryRun,
+      mode,
+      log,
+    )
+    counters.patched += wranglerPatched ? 1 : 0
+    if (mode === 'full') {
+      const gitignorePatched = patchGitignore(options.appDir, dryRun, log)
+      counters.patched += gitignorePatched ? 1 : 0
+      const npmrcPatched = patchNpmrc(options.appDir, dryRun, log)
+      counters.patched += npmrcPatched ? 1 : 0
+      warnIfBootstrapArtifactsMissing(options.appDir, log)
+      const gitHooksPatched = ensureGitHooksPath(options.appDir, dryRun, log)
+      counters.patched += gitHooksPatched ? 1 : 0
+    }
+
+    // Record template HEAD for drift checks and fleet audit — must run for layer-only
+    // sync too, otherwise check-drift-ci keeps comparing against a stale SHA.
+    if (templateSha) {
+      const templateVersionWritten = writeTemplateVersion(options.appDir, templateSha, dryRun, log)
+      counters.patched += templateVersionWritten ? 1 : 0
+    }
+
+    removeVendoredCompatLayer(options.appDir, counters, dryRun, log)
+
+    if (!packageTouched && mode === 'layer') {
+      log('  Root pnpm config already current.')
+    }
+
+    runInstallAndQuality(options.appDir, dryRun, skipInstall, skipQuality, log)
+
+    if (!dryRun && strict && mode === 'full') {
+      log('')
+      log('Phase 7: Verifying drift state...')
+      run('pnpm', ['exec', 'tsx', 'tools/check-drift-ci.ts', '--strict'], options.appDir)
+    }
+
+    log('')
+    log('═══════════════════════════════════════════════════════════════')
+    log(
+      ` Summary: ${counters.copied} copied, ${counters.removed} removed, ${counters.patched} patched, ${counters.skipped} unchanged.`,
+    )
+    if (dryRun) {
+      log(' DRY RUN — no files were modified.')
+      log(' Re-run without --dry-run to apply changes.')
+    } else {
+      log(' Sync complete.')
+      log('')
+      log(' Next steps:')
+      log(`   cd ${options.appDir}`)
+      log('   git status')
+      log('   git diff')
+      log('   git add -A && git commit -m "chore: sync with template"')
+    }
+
+    return {
+      changed: counters.copied + counters.removed + counters.patched > 0,
+      copied: counters.copied,
+      patched: counters.patched,
+      removed: counters.removed,
+      skipped: counters.skipped,
+    }
+  } finally {
+    childCommandStdio = previousChildCommandStdio
   }
 }

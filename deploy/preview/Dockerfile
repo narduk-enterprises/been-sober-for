@@ -27,10 +27,14 @@ RUN --mount=type=secret,id=registry_token,required=false \
   cp .npmrc "${temp_npmrc}"; \
   registry_url="$(awk -F= '/^@narduk-enterprises:registry=/{print $2; exit}' "${temp_npmrc}")"; \
   if [ -z "${registry_url}" ]; then \
-    registry_url='https://code.platform.nard.uk/api/packages/narduk-enterprises/npm/'; \
+    registry_url='https://npm.pkg.github.com'; \
   fi; \
   auth_host_path="${registry_url#https://}"; \
   auth_host_path="${auth_host_path#http://}"; \
+  case "${auth_host_path}" in \
+    */) ;; \
+    *) auth_host_path="${auth_host_path}/" ;; \
+  esac; \
   if [ -s /run/secrets/registry_token ]; then \
     printf '\n//%s:_authToken=%s\n' "$auth_host_path" "$(tr -d '\r\n' < /run/secrets/registry_token)" >> "${temp_npmrc}"; \
   fi; \

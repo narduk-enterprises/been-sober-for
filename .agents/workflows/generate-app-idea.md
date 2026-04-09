@@ -202,7 +202,7 @@ Instruct the agent to create `audit_report.md` capturing friction across:
 - **Monorepo Layers:** Module resolution, layer inheritance issues.
 - **Type Safety:** TypeScript errors, auto-import type failures.
 - **Agent Experience:** Adequacy of `AGENTS.md` and documentation.
-- **Other Friction:** Port collisions, Tailwind issues, Doppler token errors.
+- **Other Friction:** Port collisions, Tailwind issues, Vault token errors.
 
 ## Step 4: Tell the User
 
@@ -247,7 +247,7 @@ https://github.com/narduk-enterprises/<app-name>.git
 
 ```
 
-Run the setup script (the script is NOT interactive). This handles ALL initialization including D1 provisioning, Doppler setup, example app cleanup, and favicon generation:
+Run the setup script (the script is NOT interactive). This handles ALL initialization including D1 provisioning, Vault setup, example app cleanup, and favicon generation:
 ```
 
 pnpm run setup -- --name="<app-name>" --display="<Display Name>"
@@ -255,7 +255,7 @@ pnpm run setup -- --name="<app-name>" --display="<Display Name>"
 
 ````
 
-> **What to expect:** Setup takes ~2 minutes and prints 10 steps. Steps involving Doppler and analytics may show ⏭ (skipped) or ⚠️ (deferred) — this is normal if Doppler isn't fully configured. The critical steps are **1** (string replacement), **2** (D1 provisioning), and **3** (wrangler.json). At the end, a **SETUP SUMMARY** shows ✅ completed / ⏭ deferred — if the critical steps show ✅, setup succeeded.
+> **What to expect:** Setup takes ~2 minutes and prints 10 steps. Steps involving Vault and analytics may show ⏭ (skipped) or ⚠️ (deferred) — this is normal if Vault isn't fully configured. The critical steps are **1** (string replacement), **2** (D1 provisioning), and **3** (wrangler.json). At the end, a **SETUP SUMMARY** shows ✅ completed / ⏭ deferred — if the critical steps show ✅, setup succeeded.
 
 After setup completes, verify everything is healthy:
 
@@ -411,7 +411,7 @@ Create `audit_report.md` answering:
 4. Any pre-existing TypeScript errors from
    `pnpm --filter <app-name> run quality`?
 5. Did documentation accurately guide you?
-6. Any HMR port collisions, Tailwind issues, or Doppler errors?
+6. Any HMR port collisions, Tailwind issues, or Vault errors?
 
 ### Final Deliverable:
 

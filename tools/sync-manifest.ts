@@ -25,7 +25,6 @@ export const VERBATIM_SYNC_FILES = [
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
   'tools/configure-package-registry-auth.mjs',
-  'tools/run-with-platform-secrets.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
@@ -43,6 +42,7 @@ export const VERBATIM_SYNC_FILES = [
 ] as const
 
 export const AUTH_BRIDGE_SYNC_FILES = [
+  'apps/web/auth-environment.ts',
   'apps/web/app/components/AuthExchangePanel.vue',
   'apps/web/app/components/AuthLoginCard.vue',
   'apps/web/app/components/AuthRegisterCard.vue',
@@ -81,6 +81,7 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/server/utils/auth-callback.ts',
   'apps/web/server/utils/app-auth.ts',
   'apps/web/server/utils/accountDeletionBridge.ts',
+  'apps/web/server/utils/auth-session-stability.ts',
   'apps/web/server/utils/session-user.ts',
   'apps/web/server/utils/supabase.ts',
   'apps/web/drizzle/0001_auth_bridge.sql',
@@ -137,7 +138,6 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/sync-fleet.yml',
   'config/fleet-sync-repos.json',
   'config/fleet-app-dir-overrides.json',
-  '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
   'tools/agentic-workflow-manifest.ts',
@@ -145,10 +145,8 @@ export const STALE_SYNC_PATHS = [
   'tools/fleet-projects.ts',
   'tools/fleet-runner.ts',
   'tools/gsc-verify.ts',
-  'tools/mirror-fleet-to-forgejo.ts',
   'tools/reconcile-template-sync-prs.ts',
   'tools/run-remote-d1-migrate.mjs',
-  'tools/repair-forgejo-lockfile.mjs',
   'tools/report-app-operation.mjs',
   'tools/web-deploy.cjs',
   'tools/tail.ts',
@@ -158,7 +156,6 @@ export const STALE_SYNC_PATHS = [
   'tools/template-sync-bot.ts',
   'tools/validate.ts',
   'tools/validate-production-env.mjs',
-  'tools/verify-forgejo-package-source.mjs',
   'packages/eslint-config',
   'scripts/fleet-quality.sh',
   'scripts/fleet-status.sh',
@@ -173,10 +170,7 @@ export const STALE_SYNC_PATHS = [
   'layers/narduk-nuxt-layer',
 ] as const
 
-export const GENERATED_SYNC_FILES = [
-  '.github/workflows/ci.yml',
-  '.forgejo/workflows/deploy-main.yml',
-] as const
+export const GENERATED_SYNC_FILES = ['.github/workflows/ci.yml'] as const
 
 const STARTER_APP_NAME_PLACEHOLDER = '__APP_NAME__'
 const STARTER_DISPLAY_NAME_PLACEHOLDER = '__DISPLAY_NAME__'
@@ -209,7 +203,7 @@ const UNIQUE_DEPLOY_REPO_SECRET_KEYS = [...new Set(DEPLOY_REPO_SECRET_KEYS)]
 const REQUIRED_DEPLOY_SECRET_KEYS = [
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_ACCOUNT_ID',
-  'FORGEJO_TOKEN',
+  'NARDUK_PLATFORM_GH_PACKAGES_RW',
 ] as const
 
 export interface GeneratedSyncContext {
@@ -257,7 +251,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   build: 'pnpm -r build',
   'package-registry:auth': 'node tools/configure-package-registry-auth.mjs',
   preship:
-    'node tools/check-setup.cjs && pnpm run package-registry:auth && pnpm install && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit',
+    'node tools/check-setup.cjs && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_RW:-}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit',
   'sync-template': 'pnpm exec tsx tools/sync-template.ts .',
   lint: 'turbo run lint',
   typecheck: 'turbo run typecheck',
@@ -271,7 +265,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   clean:
     "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
   'clean:install':
-    'pnpm run clean && pnpm run package-registry:auth && pnpm install && pnpm --filter web run db:ready',
+    'pnpm run clean && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_RW:-}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready',
   'db:migrate': 'pnpm --filter web run db:migrate',
   'dev:kill': 'sh scripts/dev-kill.sh',
   'cleanup:node-leaks': 'sh scripts/cleanup-node-leaks.sh',
@@ -316,13 +310,11 @@ jobs:
   quality:
     uses: narduk-enterprises/narduk-template/.github/workflows/reusable-quality.yml@main
     secrets:
-      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
+      NARDUK_PLATFORM_GH_PACKAGES_RW: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_RW }}
 `
 }
 
-export function getCanonicalDeployMainContent(
-  context: Partial<GeneratedSyncContext> = {},
-): string {
+export function getCanonicalDeployMainContent(context: Partial<GeneratedSyncContext> = {}): string {
   const resolvedContext = {
     ...getDefaultGeneratedSyncContext(),
     ...context,
@@ -365,11 +357,7 @@ jobs:
     env:
       APP_NAME: ${quoteYamlString(resolvedContext.appDisplayName)}
       CI: "true"
-      FLEET_FORGEJO_BASE_URL: "https://code.platform.nard.uk"
-      FLEET_FORGEJO_OWNER: "narduk-enterprises"
-      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
-      NODE_AUTH_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
-      PACKAGE_REGISTRY_PROVIDER: "forgejo"
+      NARDUK_PLATFORM_GH_PACKAGES_RW: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_RW }}
       NUXT_TELEMETRY_DISABLED: "1"
       SITE_URL: ${quoteYamlString(resolvedContext.siteUrl)}
 ${deployRepoSecretEnvLines}
@@ -407,6 +395,9 @@ ${deployRepoSecretEnvLines}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: \${{ github.workspace }}/.npmrc.auth
+          NPM_CONFIG_GLOBALCONFIG: /dev/null
 
       - name: Build
         working-directory: apps/web
@@ -438,10 +429,6 @@ export function getGeneratedSyncFileContent(
 ): string | null {
   if (relativePath === '.github/workflows/ci.yml') {
     return getCanonicalCiContent()
-  }
-
-  if (relativePath === '.forgejo/workflows/deploy-main.yml') {
-    return getCanonicalDeployMainContent(context)
   }
 
   return null

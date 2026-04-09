@@ -1,53 +1,29 @@
-export type PackageRegistryProvider = 'github' | 'forgejo'
-
 export interface PackageRegistryConfig {
-  provider: PackageRegistryProvider
   scope: string
   registryUrl: string
   authHostPath: string
+  authTokenEnvVar: string
 }
 
-export const DEFAULT_PACKAGE_REGISTRY_PROVIDER: PackageRegistryProvider = 'forgejo'
 export const DEFAULT_PACKAGE_REGISTRY_SCOPE = '@narduk-enterprises'
 export const GITHUB_PACKAGE_REGISTRY_URL = 'https://npm.pkg.github.com'
-export const DEFAULT_PACKAGE_REGISTRY_FORGEJO_BASE_URL = 'https://code.platform.nard.uk'
-export const DEFAULT_PACKAGE_REGISTRY_FORGEJO_OWNER = 'narduk-enterprises'
-
-function stripTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, '')
-}
+export const GITHUB_PACKAGE_REGISTRY_AUTH_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_RW'
+export const GENERATED_PACKAGE_REGISTRY_AUTH_CONFIG_PATH = '.npmrc.auth'
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : `${value}/`
 }
 
-export function normalizePackageRegistryProvider(
-  value: string | undefined,
-): PackageRegistryProvider {
-  return value === 'github' ? 'github' : 'forgejo'
-}
-
 export function getPackageRegistryConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  _env: NodeJS.ProcessEnv = process.env,
 ): PackageRegistryConfig {
-  const provider = normalizePackageRegistryProvider(env.PACKAGE_REGISTRY_PROVIDER)
-  const forgejoBaseUrl = stripTrailingSlash(
-    env.FLEET_FORGEJO_BASE_URL?.trim() || DEFAULT_PACKAGE_REGISTRY_FORGEJO_BASE_URL,
-  )
-  const forgejoOwner = env.FLEET_FORGEJO_OWNER?.trim() || DEFAULT_PACKAGE_REGISTRY_FORGEJO_OWNER
-
-  const registryUrl =
-    provider === 'forgejo'
-      ? ensureTrailingSlash(`${forgejoBaseUrl}/api/packages/${forgejoOwner}/npm`)
-      : GITHUB_PACKAGE_REGISTRY_URL
-
-  const url = new URL(registryUrl)
+  const url = new URL(GITHUB_PACKAGE_REGISTRY_URL)
 
   return {
-    provider,
     scope: DEFAULT_PACKAGE_REGISTRY_SCOPE,
-    registryUrl,
+    registryUrl: GITHUB_PACKAGE_REGISTRY_URL,
     authHostPath: `${url.host}${ensureTrailingSlash(url.pathname)}`,
+    authTokenEnvVar: GITHUB_PACKAGE_REGISTRY_AUTH_ENV_VAR,
   }
 }
 
@@ -55,10 +31,14 @@ export function buildPackageRegistryLine(config: PackageRegistryConfig): string 
   return `${config.scope}:registry=${config.registryUrl}`
 }
 
+export function buildPackageRegistryAuthLine(config: PackageRegistryConfig): string {
+  return `//${config.authHostPath}:_authToken=\${${config.authTokenEnvVar}}`
+}
+
 function isManagedRegistryAuthLine(line: string): boolean {
   return (
     line.includes('//npm.pkg.github.com/:_authToken=') ||
-    /\/\/code(?:\.platform)?\.nard\.uk\/api\/packages\/.+\/npm\/:_authToken=/.test(line)
+    /\/\/[^/]+\/api\/packages\/.+\/npm\/:_authToken=/.test(line)
   )
 }
 
@@ -96,5 +76,10 @@ export function patchPackageRegistryNpmrcContent(
     retainedLines.unshift(registryLine)
   }
 
-  return `${normalizeBlankLines(retainedLines).join('\n').trimEnd()}\n`
+  const finalLines = normalizeBlankLines(retainedLines)
+  if (!finalLines.includes(registryLine)) {
+    finalLines.unshift(registryLine)
+  }
+
+  return `${finalLines.join('\n').trimEnd()}\n`
 }

@@ -6,8 +6,8 @@ This file is the derived-app baseline for `CONTRIBUTING.md`.
 
 ```bash
 pnpm install
-doppler setup --project <app-name> --config dev
-doppler run -- pnpm run dev
+# Secrets are managed by Vault via the platform
+pnpm run dev
 ```
 
 ## Where To Work

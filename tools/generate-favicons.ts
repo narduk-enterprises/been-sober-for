@@ -36,6 +36,11 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  getProvisionDisplayName,
+  getProvisionShortName,
+  readProvisionMetadata,
+} from './provision-metadata'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = resolve(__dirname, '..')
@@ -57,8 +62,13 @@ const targetDir = resolve(
   ROOT_DIR,
   typeof args.target === 'string' ? args.target : defaultTargetDir,
 )
-const appName = typeof args.name === 'string' ? args.name : 'Nuxt 4 App'
-const shortName = typeof args['short-name'] === 'string' ? args['short-name'] : appName.slice(0, 12)
+const provision = readProvisionMetadata(ROOT_DIR)
+const fallbackName = getProvisionDisplayName(provision, 'Nuxt 4 App')
+const appName = typeof args.name === 'string' ? args.name : fallbackName
+const shortName =
+  typeof args['short-name'] === 'string'
+    ? args['short-name']
+    : getProvisionShortName(provision, appName).slice(0, 12)
 const themeColor = typeof args.color === 'string' ? args.color : '#10b981'
 const bgColor = typeof args.bg === 'string' ? args.bg : '#0B1120'
 

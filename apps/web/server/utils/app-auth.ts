@@ -14,6 +14,7 @@ import { authSessions, authUserLinks } from '#server/app-orm-tables'
 import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
 import { useAppDatabase } from '#server/utils/database'
+import { stampAuthSessionValidated } from './auth-session-stability'
 
 const PKCE_COOKIE_NAME = 'app_auth_pkce'
 
@@ -627,15 +628,17 @@ export async function getCurrentSupabaseContext(event: H3Event) {
     recoveryMode: authSession.recoveryMode,
   })
 
-  const refreshedUser = toSessionUser(localUser, {
-    authBackend: 'supabase',
-    authSessionId: persisted.authSessionId,
-    authProvider: persisted.authProvider,
-    authProviders: persisted.providers,
-    emailConfirmedAt: persisted.emailConfirmedAt,
-    aal: persisted.aal,
-    needsPasswordSetup: persisted.needsPasswordSetup,
-  })
+  const refreshedUser = stampAuthSessionValidated(
+    toSessionUser(localUser, {
+      authBackend: 'supabase',
+      authSessionId: persisted.authSessionId,
+      authProvider: persisted.authProvider,
+      authProviders: persisted.providers,
+      emailConfirmedAt: persisted.emailConfirmedAt,
+      aal: persisted.aal,
+      needsPasswordSetup: persisted.needsPasswordSetup,
+    }),
+  )
   await replaceUserSession(event, { user: refreshedUser })
 
   return {
@@ -763,15 +766,17 @@ async function loginWithSupabase(event: H3Event, body: LoginInput): Promise<Auth
     localUser,
     session: data.session,
   })
-  const sessionUser = toSessionUser(localUser, {
-    authBackend: 'supabase',
-    authSessionId: persisted.authSessionId,
-    authProvider: persisted.authProvider,
-    authProviders: persisted.providers,
-    emailConfirmedAt: persisted.emailConfirmedAt,
-    aal: persisted.aal,
-    needsPasswordSetup: persisted.needsPasswordSetup,
-  })
+  const sessionUser = stampAuthSessionValidated(
+    toSessionUser(localUser, {
+      authBackend: 'supabase',
+      authSessionId: persisted.authSessionId,
+      authProvider: persisted.authProvider,
+      authProviders: persisted.providers,
+      emailConfirmedAt: persisted.emailConfirmedAt,
+      aal: persisted.aal,
+      needsPasswordSetup: persisted.needsPasswordSetup,
+    }),
+  )
   await setCurrentSessionUser(event, sessionUser)
 
   return {
@@ -882,15 +887,17 @@ async function registerWithSupabase(
       localUser,
       session: data.session,
     })
-    const sessionUser = toSessionUser(localUser, {
-      authBackend: 'supabase',
-      authSessionId: persisted.authSessionId,
-      authProvider: persisted.authProvider,
-      authProviders: persisted.providers,
-      emailConfirmedAt: persisted.emailConfirmedAt,
-      aal: persisted.aal,
-      needsPasswordSetup: persisted.needsPasswordSetup,
-    })
+    const sessionUser = stampAuthSessionValidated(
+      toSessionUser(localUser, {
+        authBackend: 'supabase',
+        authSessionId: persisted.authSessionId,
+        authProvider: persisted.authProvider,
+        authProviders: persisted.providers,
+        emailConfirmedAt: persisted.emailConfirmedAt,
+        aal: persisted.aal,
+        needsPasswordSetup: persisted.needsPasswordSetup,
+      }),
+    )
     await setCurrentSessionUser(event, sessionUser)
 
     return {
@@ -995,15 +1002,17 @@ export async function exchangeSupabaseCode(
     session: data.session,
     recoveryMode: redirectType === 'recovery',
   })
-  const sessionUser = toSessionUser(localUser, {
-    authBackend: 'supabase',
-    authSessionId: persisted.authSessionId,
-    authProvider: persisted.authProvider,
-    authProviders: persisted.providers,
-    emailConfirmedAt: persisted.emailConfirmedAt,
-    aal: persisted.aal,
-    needsPasswordSetup: persisted.needsPasswordSetup,
-  })
+  const sessionUser = stampAuthSessionValidated(
+    toSessionUser(localUser, {
+      authBackend: 'supabase',
+      authSessionId: persisted.authSessionId,
+      authProvider: persisted.authProvider,
+      authProviders: persisted.providers,
+      emailConfirmedAt: persisted.emailConfirmedAt,
+      aal: persisted.aal,
+      needsPasswordSetup: persisted.needsPasswordSetup,
+    }),
+  )
   await setCurrentSessionUser(event, sessionUser)
 
   return {

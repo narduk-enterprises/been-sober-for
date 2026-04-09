@@ -17,7 +17,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
 const GIT_MAX_BUFFER = 64 * 1024 * 1024
-const TEMPLATE_REMOTE_URL = 'https://code.platform.nard.uk/narduk-enterprises/narduk-template.git'
+const TEMPLATE_REMOTE_URL = 'https://github.com/narduk-enterprises/narduk-template.git'
 const STARTER_REF_PREFIX = 'starters/default'
 const AUTHORING_REPO_SLUGS = [
   'narduk-enterprises/narduk-template',
