@@ -99,17 +99,18 @@ test.describe('milestone and print pages', () => {
 
     // Visit print page as anonymous user
     const anonContext = await browser.newContext()
-    const anonPage = await anonContext.newPage()
-    await anonPage.goto(`/print/${slug}`)
-    await waitForHydration(anonPage)
+    try {
+      const anonPage = await anonContext.newPage()
+      await anonPage.goto(`/print/${slug}`)
+      await waitForHydration(anonPage)
 
-    // Should show error or not available message
-    // Since the API returns 404 for private profiles, the page should handle that
-    await expect(
-      anonPage.getByText(/not available|not found|private/i).first(),
-    ).toBeVisible({ timeout: 10_000 })
-
-    await anonPage.close()
-    await anonContext.close()
+      // Should show error or not available message
+      // Since the API returns 404 for private profiles, the page should handle that
+      await expect(
+        anonPage.getByText(/not available|not found|private/i).first(),
+      ).toBeVisible({ timeout: 10_000 })
+    } finally {
+      await anonContext.close()
+    }
   })
 })

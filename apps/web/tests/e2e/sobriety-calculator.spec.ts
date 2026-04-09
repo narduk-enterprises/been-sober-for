@@ -73,6 +73,8 @@ test.describe('sobriety calculator', () => {
 
     // Should show the sober count (0 days)
     await expect(page.getByText(/you have been sober for/i)).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('0')).toBeVisible()
+    await expect(page.getByText(/days/).first()).toBeVisible()
   })
 
   test('entering a future date does not show count', async ({ page }) => {
