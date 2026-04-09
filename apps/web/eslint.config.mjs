@@ -3,6 +3,32 @@
 import withNuxt from './.nuxt/eslint.config.mjs'
 import { sharedConfigs } from '@narduk-enterprises/eslint-config/config'
 
+const NUXT_MANAGED_PLUGIN_KEYS = new Set(['@typescript-eslint'])
+
+function stripNuxtManagedPlugins(config) {
+  if (!config?.plugins) {
+    return config
+  }
+
+  const filteredPlugins = Object.fromEntries(
+    Object.entries(config.plugins).filter(([name]) => !NUXT_MANAGED_PLUGIN_KEYS.has(name)),
+  )
+
+  if (Object.keys(filteredPlugins).length === Object.keys(config.plugins).length) {
+    return config
+  }
+
+  if (Object.keys(filteredPlugins).length === 0) {
+    const { plugins: _plugins, ...rest } = config
+    return rest
+  }
+
+  return {
+    ...config,
+    plugins: filteredPlugins,
+  }
+}
+
 let layerFragments
 try {
   layerFragments =
@@ -23,8 +49,10 @@ try {
   // No overrides file — using sharedConfigs only
 }
 
+const sanitizedSharedConfigs = sharedConfigs.map(stripNuxtManagedPlugins)
+
 export default withNuxt(
-  ...sharedConfigs,
+  ...sanitizedSharedConfigs,
   redundantNuxtAutoImportFlatConfig,
   importXVueCoreModuleFragment,
   ...appOverrides,

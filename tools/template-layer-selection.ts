@@ -76,7 +76,12 @@ function getRepoCompatLayerDir(repoRoot: string) {
 
 function getInstalledPackageDir(repoRoot: string, packageName: string) {
   const parts = packageName.split('/')
-  return join(repoRoot, 'node_modules', ...parts)
+  const candidateDirs = [
+    join(repoRoot, 'apps', 'web', 'node_modules', ...parts),
+    join(repoRoot, 'node_modules', ...parts),
+  ]
+
+  return candidateDirs.find((dir) => existsSync(dir)) || candidateDirs[0]
 }
 
 function listDeclaredPackages(pkg: PackageJson | null): string[] {
@@ -116,7 +121,9 @@ function directoryContainsLegacyPublicSeo(dir: string): boolean {
 }
 
 function repoDisablesSsr(repoRoot: string): boolean {
-  return /\bssr\s*:\s*false\b/.test(readTextIfExists(join(repoRoot, 'apps', 'web', 'nuxt.config.ts')))
+  return /\bssr\s*:\s*false\b/.test(
+    readTextIfExists(join(repoRoot, 'apps', 'web', 'nuxt.config.ts')),
+  )
 }
 
 function repoUsesLegacyPublicSeo(repoRoot: string): boolean {

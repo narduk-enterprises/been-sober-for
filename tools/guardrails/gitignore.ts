@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { GuardrailFinding } from './types'
 
-const REQUIRED_GITIGNORE_ENTRIES = ['.env', '.env.*', '.dev.vars', 'doppler.yaml', 'doppler.json']
+const REQUIRED_GITIGNORE_ENTRIES = ['.env', '.env.*', '.dev.vars']
 
 export function checkGitignore(root: string): GuardrailFinding[] {
   const gitignorePath = join(root, '.gitignore')

@@ -23,23 +23,26 @@
     "lint": "eslint . --max-warnings 0",
     "test:unit": "vitest run",
     "test:e2e": "playwright test --project=web --config=../../playwright.config.ts",
-    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore --ignore-path ../../.prettierignore"
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
+    "cf:build": "if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_RW:-}\" ]; then pnpm -C ../.. run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$(cd ../.. && pwd)/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm -C ../.. install --frozen-lockfile; else pnpm -C ../.. install --frozen-lockfile; fi && pnpm run build",
+    "cf:deploy": "pnpm run deploy",
+    "cf:deploy:preview": "pnpm exec wrangler versions upload --env=\"\""
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.94",
-    "@narduk-enterprises/eslint-config": "^1.0.19",
+    "@narduk-enterprises/eslint-config": "^1.0.20",
+    "@supabase/auth-js": "^2.100.1",
+    "@supabase/supabase-js": "^2.100.1",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
     "qrcode": "^1.5.4",
     "zod": "^4.3.6",
-    "@supabase/auth-js": "^2.100.1",
-    "@supabase/supabase-js": "^2.100.1",
-    "@narduk-enterprises/narduk-nuxt-template-layer-theme-balanced": "^1.2.6",
-    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.2.6",
-    "@narduk-enterprises/narduk-nuxt-template-layer-seo": "^1.1.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.2.6",
-    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.2.6",
-    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.2.6"
+    "@narduk-enterprises/narduk-nuxt-template-layer-theme-balanced": "^1.2.17",
+    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.2.17",
+    "@narduk-enterprises/narduk-nuxt-template-layer-seo": "^1.2.17",
+    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.2.17",
+    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.2.17",
+    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.2.17"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",

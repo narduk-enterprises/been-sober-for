@@ -1,6 +1,10 @@
 import type { H3Event } from 'h3'
 import type { AppSessionUser } from '#server/utils/app-auth'
 import { getCurrentSessionUser, getCurrentSupabaseContext } from '#server/utils/app-auth'
+import {
+  isRecoverableSupabaseSessionFailure,
+  wasAuthSessionRecentlyValidated,
+} from './auth-session-stability'
 
 function isUnauthorizedError(error: unknown) {
   return (
@@ -14,12 +18,19 @@ export async function useRefreshedSessionUser(event: H3Event): Promise<AppSessio
     return sessionUser
   }
 
+  if (wasAuthSessionRecentlyValidated(sessionUser)) {
+    return sessionUser
+  }
+
   try {
     const context = await getCurrentSupabaseContext(event)
     return context.sessionUser
   } catch (error) {
     if (isUnauthorizedError(error)) {
       return null
+    }
+    if (isRecoverableSupabaseSessionFailure(error)) {
+      return sessionUser
     }
     throw error
   }

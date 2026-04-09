@@ -1,8 +1,9 @@
 #!/usr/bin/env -S pnpm exec tsx
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runCommand } from './command'
 import {
   getProvisionDisplayName,
   getProvisionShortName,
@@ -22,6 +23,18 @@ interface CheckResult {
   detail?: string
 }
 
+export interface SyncHealthCheckRecord extends CheckResult {
+  name: string
+}
+
+export interface SyncHealthReport {
+  rootDir: string
+  clean: boolean
+  failed: number
+  warned: number
+  checks: SyncHealthCheckRecord[]
+}
+
 interface PackageJson {
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
@@ -34,10 +47,12 @@ interface PackageJson {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const SCRIPT_PATH = fileURLToPath(import.meta.url)
 const rootArg = process.argv
   .slice(2)
   .find((arg) => arg.startsWith('--root='))
   ?.slice('--root='.length)
+const jsonOutput = process.argv.includes('--json')
 const ROOT_DIR = rootArg ? rootArg : join(__dirname, '..')
 const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
 const APP_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'app', 'app.config.ts')
@@ -704,18 +719,60 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
-async function main() {
+export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
+  const resolvedRootDir = resolve(rootDir)
+  if (resolvedRootDir !== ROOT_DIR) {
+    try {
+      const output = runCommand(
+        'pnpm',
+        ['exec', 'tsx', SCRIPT_PATH, `--root=${resolvedRootDir}`, '--json'],
+        {
+          cwd: resolvedRootDir,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      )
+      return JSON.parse(output) as SyncHealthReport
+    } catch (error) {
+      return {
+        rootDir: resolvedRootDir,
+        clean: false,
+        failed: 1,
+        warned: 0,
+        checks: [
+          {
+            name: 'root package',
+            status: 'fail',
+            summary: 'Unable to build sync health report',
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        ],
+      }
+    }
+  }
+
   const rootPkg = readJson<PackageJson>(ROOT_PACKAGE_PATH)
   if (!rootPkg) {
-    console.error('Missing package.json')
-    process.exit(1)
+    return {
+      rootDir: ROOT_DIR,
+      clean: false,
+      failed: 1,
+      warned: 0,
+      checks: [
+        {
+          name: 'root package',
+          status: 'fail',
+          summary: 'Missing package.json',
+        },
+      ],
+    }
   }
 
   const primaryLayerPackageDir = resolveRepoLayerPackageDirs(ROOT_DIR)[0] || null
   const layerPkg = primaryLayerPackageDir
     ? readJson<PackageJson>(join(primaryLayerPackageDir, 'package.json'))
     : null
-  const checks: Array<[string, CheckResult]> = [
+  const checks: SyncHealthCheckRecord[] = [
     ['starter-managed root package', checkTemplateManagedRootPackage()],
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],
@@ -730,30 +787,48 @@ async function main() {
     ['provision manifest parity', checkProvisionManifestMetadata()],
     ['google verification files', checkAuthoringWorkspaceGoogleVerificationFiles()],
     ['reference baselines', checkReferenceBaselines()],
-  ]
+  ].map(([name, result]) => ({ name, ...result }))
+
+  const failed = checks.filter((check) => check.status === 'fail').length
+  const warned = checks.filter((check) => check.status === 'warn').length
+
+  return {
+    rootDir: ROOT_DIR,
+    clean: failed === 0,
+    failed,
+    warned,
+    checks,
+  }
+}
+
+async function main() {
+  const report = buildSyncHealthReport()
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(report, null, 2))
+    process.exit(report.clean ? 0 : 1)
+  }
 
   console.log('\nSync Health Check')
   console.log('════════════════════════════════════════════════════')
 
-  let failed = 0
-  for (const [name, result] of checks) {
-    const icon = result.status === 'pass' ? '✅' : result.status === 'warn' ? '⚠️ ' : '❌'
-    console.log(` ${icon} ${name}: ${result.summary}`)
-    if (result.detail) {
-      for (const line of result.detail.split('\n')) {
+  for (const check of report.checks) {
+    const icon = check.status === 'pass' ? '✅' : check.status === 'warn' ? '⚠️ ' : '❌'
+    console.log(` ${icon} ${check.name}: ${check.summary}`)
+    if (check.detail) {
+      for (const line of check.detail.split('\n')) {
         console.log(`    ${line}`)
       }
     }
-    if (result.status === 'fail') failed += 1
   }
 
   console.log('════════════════════════════════════════════════════')
-  if (failed === 0) {
+  if (report.clean) {
     console.log(' ✅ Sync health is clean.')
     process.exit(0)
   }
 
-  console.log(` ❌ ${failed} sync health check(s) failed`)
+  console.log(` ❌ ${report.failed} sync health check(s) failed`)
   process.exit(1)
 }
 

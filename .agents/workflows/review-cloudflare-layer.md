@@ -290,7 +290,7 @@ Validate the deployment pipeline. Deployment is done **locally** via
      `pnpm build` in the app dir before `pnpm deploy`, so `deploy` must not
      re-run `nuxt build`.
    - For a one-off local deploy without ship, run `pnpm build` then
-     `pnpm deploy` (with Doppler as usual).
+     `pnpm deploy` (with Vault as usual).
 
 2. **Check `/deploy` agent workflow has dirty-repo guard:** // turbo
    `grep -c 'porcelain' .agents/workflows/deploy.md`

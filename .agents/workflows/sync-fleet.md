@@ -109,7 +109,7 @@ that `git pull --ff-only` may refuse or conflict on overlapping files.
 
 ---
 
-## 3. (Optional) Sync Doppler canonical secrets
+## 3. (Optional) Sync Vault canonical secrets
 
 If secrets in `0_global-canonical-tokens` changed:
 

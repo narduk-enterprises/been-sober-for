@@ -3,40 +3,21 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+const PACKAGE_SCOPE = '@narduk-enterprises'
+const PACKAGE_REGISTRY_URL = 'https://npm.pkg.github.com'
+const PACKAGE_REGISTRY_TOKEN_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_RW'
+const PACKAGE_REGISTRY_NPMRC_PATH = '.npmrc.auth'
+const PACKAGE_REGISTRY_WRITE_LITERAL_TOKEN_ENV_VAR = 'PACKAGE_REGISTRY_WRITE_LITERAL_TOKEN'
+
 function ensureTrailingSlash(value) {
   return value.endsWith('/') ? value : `${value}/`
 }
 
-function stripTrailingSlash(value) {
-  return value.replace(/\/+$/, '')
-}
-
-function normalizeProvider(value) {
-  return value === 'github' ? 'github' : 'forgejo'
-}
-
 function resolveRegistryConfig(env) {
-  const provider = normalizeProvider(env.PACKAGE_REGISTRY_PROVIDER)
-
-  if (provider === 'github') {
-    return {
-      provider,
-      registryUrl: 'https://npm.pkg.github.com',
-      token:
-        env.GITHUB_TOKEN_PACKAGES_READ?.trim() ||
-        env.GH_PACKAGES_TOKEN?.trim() ||
-        env.NODE_AUTH_TOKEN?.trim() ||
-        '',
-    }
-  }
-
-  const baseUrl = stripTrailingSlash(env.FLEET_FORGEJO_BASE_URL || 'https://code.platform.nard.uk')
-  const owner = (env.FLEET_FORGEJO_OWNER || 'narduk-enterprises').trim() || 'narduk-enterprises'
-
   return {
-    provider,
-    registryUrl: ensureTrailingSlash(`${baseUrl}/api/packages/${owner}/npm`),
-    token: env.FORGEJO_TOKEN?.trim() || env.NODE_AUTH_TOKEN?.trim() || '',
+    registryUrl: PACKAGE_REGISTRY_URL,
+    token: env[PACKAGE_REGISTRY_TOKEN_ENV_VAR]?.trim() || '',
+    writeLiteralToken: env[PACKAGE_REGISTRY_WRITE_LITERAL_TOKEN_ENV_VAR] === 'true',
   }
 }
 
@@ -53,38 +34,41 @@ function stripManagedAuthLines(content) {
 }
 
 function main() {
-  const targetPath = resolve(process.cwd(), process.env.PACKAGE_REGISTRY_NPMRC_PATH || '.npmrc')
+  const targetPath = resolve(
+    process.cwd(),
+    process.env.PACKAGE_REGISTRY_NPMRC_PATH || PACKAGE_REGISTRY_NPMRC_PATH,
+  )
   const config = resolveRegistryConfig(process.env)
 
   if (!config.token) {
-    console.error(
-      `[package-registry-auth] missing token for ${config.provider}; resolve platform secrets before running this step.`,
-    )
+    console.error(`[package-registry-auth] missing ${PACKAGE_REGISTRY_TOKEN_ENV_VAR}`)
     process.exit(1)
   }
 
   const url = new URL(config.registryUrl)
   const authHostPath = `${url.host}${ensureTrailingSlash(url.pathname)}`
-  const registryLine = `@narduk-enterprises:registry=${config.registryUrl}`
-  const authLine = `//${authHostPath}:_authToken=${config.token}`
+  const registryLine = `${PACKAGE_SCOPE}:registry=${config.registryUrl}`
+  const authLine = config.writeLiteralToken
+    ? `//${authHostPath}:_authToken=${config.token}`
+    : `//${authHostPath}:_authToken=\${${PACKAGE_REGISTRY_TOKEN_ENV_VAR}}`
   const existingContent = existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : ''
   const strippedContent = stripManagedAuthLines(existingContent)
   const retainedLines = strippedContent
     .split('\n')
     .filter((line) => line.length > 0)
     .map((line) =>
-      line.startsWith('@narduk-enterprises:registry=') || line.startsWith('@loganrenz:registry=')
+      line.startsWith(`${PACKAGE_SCOPE}:registry=`) || line.startsWith('@loganrenz:registry=')
         ? registryLine
         : line,
     )
 
-  if (!retainedLines.some((line) => line.startsWith('@narduk-enterprises:registry='))) {
+  if (!retainedLines.some((line) => line.startsWith(`${PACKAGE_SCOPE}:registry=`))) {
     retainedLines.unshift(registryLine)
   }
 
   retainedLines.push(authLine)
   writeFileSync(targetPath, `${retainedLines.join('\n').trimEnd()}\n`, 'utf8')
-  console.log(`[package-registry-auth] configured ${config.provider} auth in ${targetPath}`)
+  console.log(`[package-registry-auth] configured GitHub Packages auth in ${targetPath}`)
 }
 
 main()

@@ -1,10 +1,9 @@
 import type { GuardrailFinding } from './types'
 
 const FORBIDDEN_REPO_FILE_PATTERNS = [
-  { label: 'environment file', pattern: /(^|\/)\\.env(?:\.[^/]+)?$/ },
-  { label: 'Workers env file', pattern: /(^|\/)\\.dev\\.vars$/ },
-  { label: 'Doppler local config', pattern: /(^|\/)doppler\\.yaml$/ },
-  { label: 'Doppler export', pattern: /(^|\/)doppler\\.json$/ },
+  { label: 'environment file', pattern: /(^|\/)\.env(?:\.[^/]+)?$/ },
+  { label: 'Workers env file', pattern: /(^|\/)\.dev\.vars$/ },
+  { label: 'package registry auth file', pattern: /(^|\/)\.npmrc\.auth$/ },
 ] as const
 
 const JUNK_REPO_FILE_PATTERNS = [
@@ -24,9 +23,7 @@ export function checkForbiddenRepoFiles(repoFiles: string[]): GuardrailFinding[]
     .filter((file) => {
       const basename = file.split('/').pop() || file
       const isExampleConfig =
-        /^\.env\.(?:example|sample|template)$/i.test(basename) ||
-        /^doppler\.(?:example|sample|template)\.ya?ml$/i.test(basename) ||
-        /^doppler\.(?:example|sample|template)\.json$/i.test(basename)
+        /^\.env\.(?:example|sample|template)$/i.test(basename)
 
       if (isExampleConfig) return false
       return FORBIDDEN_REPO_FILE_PATTERNS.some(({ pattern }) => pattern.test(file))

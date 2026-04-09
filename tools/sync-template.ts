@@ -41,6 +41,28 @@ let fromValue: string | undefined
 let templateLayerSelection: TemplateLayerSelection | undefined
 let baseThemeSelection: BaseThemeSelection | undefined
 let appTemplateSelection: AppTemplateSelection | null | undefined
+const jsonOutput = rawArgs.includes('--json')
+
+export interface SyncTemplateReport {
+  appDir: string
+  templateDir: string
+  templateSha: string
+  templateLayerSelection: TemplateLayerSelection
+  baseThemeSelection: BaseThemeSelection
+  appTemplateSelection: AppTemplateSelection | null
+  dryRun: boolean
+  strict: boolean
+  skipInstall: boolean
+  skipQuality: boolean
+  success: boolean
+  changed: boolean
+  copied: number
+  patched: number
+  removed: number
+  skipped: number
+  error: string | null
+  logs: string[]
+}
 
 for (let index = 0; index < rawArgs.length; index += 1) {
   const argument = rawArgs[index]
@@ -178,6 +200,7 @@ function materializeStarterTemplate(
   selection: TemplateLayerSelection | undefined,
   themeSelection: BaseThemeSelection | undefined,
   selectedAppTemplate: AppTemplateSelection | null | undefined,
+  quiet = false,
 ): string {
   const tempTemplateDir = mkdtempSync(join(tmpdir(), 'narduk-template-sync-'))
   const args = ['exec', 'tsx', 'tools/export-starter.ts', tempTemplateDir, '--force']
@@ -193,79 +216,215 @@ function materializeStarterTemplate(
 
   runCommand('pnpm', args, {
     cwd: templateDir,
-    stdio: 'inherit',
+    stdio: quiet ? ['ignore', 'ignore', 'ignore'] : 'inherit',
   })
 
   return tempTemplateDir
 }
 
-const authoringWorkspace = isAuthoringWorkspace(ROOT_DIR)
-const appDirArg = authoringWorkspace ? positionalArgs[0] : positionalArgs[0] || '.'
-
-if (!appDirArg) {
-  console.error(
-    'Usage: pnpm exec tsx tools/sync-template.ts <app-directory> [--from /path/to/narduk-template] [--template-layer-selection-json=<json> | --bundles=auth,analytics,ai] [--theme=balanced|console|editorial|marketing] [--app-template=dashboard|marketing|docs|search] [--dry-run] [--strict] [--skip-install] [--skip-quality] [--allow-dirty-app] [--allow-dirty-template]',
-  )
-  process.exit(1)
+function emitJsonReport(report: SyncTemplateReport) {
+  console.log(JSON.stringify(report, null, 2))
 }
 
-const resolvedAppDir = resolve(expandHome(appDirArg))
-const templateDir = resolve(resolveTemplateDir(ROOT_DIR))
-const resolvedTemplateLayerSelection =
-  templateLayerSelection ?? resolveRepoTemplateLayerSelection(resolvedAppDir)
-const resolvedBaseThemeSelection =
-  baseThemeSelection ?? resolveRepoBaseThemeSelection(resolvedAppDir)
-const resolvedAppTemplateSelection =
-  appTemplateSelection === undefined
-    ? resolveRepoAppTemplateSelection(resolvedAppDir)
-    : appTemplateSelection
+async function main() {
+  const authoringWorkspace = isAuthoringWorkspace(ROOT_DIR)
+  const appDirArg = authoringWorkspace ? positionalArgs[0] : positionalArgs[0] || '.'
 
-if (!existsSync(resolvedAppDir)) {
-  console.error(`App directory not found: ${resolvedAppDir}`)
-  process.exit(1)
-}
+  if (!appDirArg) {
+    const message =
+      'Usage: pnpm exec tsx tools/sync-template.ts <app-directory> [--from /path/to/narduk-template] [--template-layer-selection-json=<json> | --bundles=auth,analytics,ai] [--theme=balanced|console|editorial|marketing] [--app-template=dashboard|marketing|docs|search] [--dry-run] [--strict] [--skip-install] [--skip-quality] [--allow-dirty-app] [--allow-dirty-template] [--json]'
+    if (jsonOutput) {
+      emitJsonReport({
+        appDir: '',
+        templateDir: '',
+        templateSha: '',
+        templateLayerSelection: { mode: 'bundled', bundles: [] },
+        baseThemeSelection: { id: 'balanced' },
+        appTemplateSelection: null,
+        dryRun: flags.has('--dry-run'),
+        strict: flags.has('--strict'),
+        skipInstall: flags.has('--skip-install'),
+        skipQuality: flags.has('--skip-quality'),
+        success: false,
+        changed: false,
+        copied: 0,
+        patched: 0,
+        removed: 0,
+        skipped: 0,
+        error: message,
+        logs: [],
+      })
+    } else {
+      console.error(message)
+    }
+    process.exit(1)
+  }
 
-if (!existsSync(join(templateDir, 'starters', 'default'))) {
-  console.error(`Template directory not found or incomplete: ${templateDir}`)
-  console.error('Pass --from /path/to/narduk-template or clone the authoring workspace locally.')
-  process.exit(1)
-}
+  const resolvedAppDir = resolve(expandHome(appDirArg))
+  const templateDir = resolve(resolveTemplateDir(ROOT_DIR))
+  const reportLogs: string[] = []
+  const log = (message: string) => {
+    if (jsonOutput) {
+      reportLogs.push(message)
+      return
+    }
+    console.log(message)
+  }
 
-if (!authoringWorkspace && resolvedAppDir === templateDir) {
-  console.error('Template source resolves to the current app checkout.')
-  console.error('Pass --from /path/to/narduk-template to sync from the authoring workspace.')
-  process.exit(1)
-}
+  const resolvedTemplateLayerSelection =
+    templateLayerSelection ?? resolveRepoTemplateLayerSelection(resolvedAppDir)
+  const resolvedBaseThemeSelection =
+    baseThemeSelection ?? resolveRepoBaseThemeSelection(resolvedAppDir)
+  const resolvedAppTemplateSelection =
+    appTemplateSelection === undefined
+      ? resolveRepoAppTemplateSelection(resolvedAppDir)
+      : appTemplateSelection
 
-const templateSha = resolveTemplateSha(templateDir)
-const tempStarterDir = materializeStarterTemplate(
-  templateDir,
-  resolvedTemplateLayerSelection,
-  resolvedBaseThemeSelection,
-  resolvedAppTemplateSelection,
-)
+  const reportBase = {
+    appDir: resolvedAppDir,
+    templateDir,
+    templateSha: '',
+    templateLayerSelection: resolvedTemplateLayerSelection,
+    baseThemeSelection: resolvedBaseThemeSelection,
+    appTemplateSelection: resolvedAppTemplateSelection,
+    dryRun: flags.has('--dry-run'),
+    strict: flags.has('--strict'),
+    skipInstall: flags.has('--skip-install'),
+    skipQuality: flags.has('--skip-quality'),
+    logs: reportLogs,
+  } satisfies Omit<
+    SyncTemplateReport,
+    'success' | 'changed' | 'copied' | 'patched' | 'removed' | 'skipped' | 'error'
+  >
 
-runAppSync({
-  appDir: resolvedAppDir,
-  templateDir: tempStarterDir,
-  mode: 'full',
-  dryRun: flags.has('--dry-run'),
-  strict: flags.has('--strict'),
-  skipInstall: flags.has('--skip-install'),
-  skipQuality: flags.has('--skip-quality'),
-  allowDirtyApp: flags.has('--allow-dirty-app'),
-  allowDirtyTemplate: true,
-  skipRewriteRepo: true,
-  templateLayerSelection: resolvedTemplateLayerSelection,
-  baseThemeSelection: resolvedBaseThemeSelection,
-  appTemplateSelection: resolvedAppTemplateSelection,
-  templateSha,
-})
-  .catch((error: unknown) => {
+  if (!existsSync(resolvedAppDir)) {
+    const error = `App directory not found: ${resolvedAppDir}`
+    if (jsonOutput) {
+      emitJsonReport({
+        ...reportBase,
+        success: false,
+        changed: false,
+        copied: 0,
+        patched: 0,
+        removed: 0,
+        skipped: 0,
+        error,
+      })
+    } else {
+      console.error(error)
+    }
+    process.exit(1)
+  }
+
+  if (!existsSync(join(templateDir, 'starters', 'default'))) {
+    const error = `Template directory not found or incomplete: ${templateDir}`
+    if (jsonOutput) {
+      emitJsonReport({
+        ...reportBase,
+        success: false,
+        changed: false,
+        copied: 0,
+        patched: 0,
+        removed: 0,
+        skipped: 0,
+        error,
+      })
+    } else {
+      console.error(error)
+      console.error(
+        'Pass --from /path/to/narduk-template or clone the authoring workspace locally.',
+      )
+    }
+    process.exit(1)
+  }
+
+  if (!authoringWorkspace && resolvedAppDir === templateDir) {
+    const error = 'Template source resolves to the current app checkout.'
+    if (jsonOutput) {
+      emitJsonReport({
+        ...reportBase,
+        success: false,
+        changed: false,
+        copied: 0,
+        patched: 0,
+        removed: 0,
+        skipped: 0,
+        error,
+      })
+    } else {
+      console.error(error)
+      console.error('Pass --from /path/to/narduk-template to sync from the authoring workspace.')
+    }
+    process.exit(1)
+  }
+
+  const templateSha = resolveTemplateSha(templateDir)
+  let tempStarterDir = ''
+
+  try {
+    tempStarterDir = materializeStarterTemplate(
+      templateDir,
+      resolvedTemplateLayerSelection,
+      resolvedBaseThemeSelection,
+      resolvedAppTemplateSelection,
+      jsonOutput,
+    )
+
+    const result = await runAppSync({
+      appDir: resolvedAppDir,
+      templateDir: tempStarterDir,
+      mode: 'full',
+      dryRun: flags.has('--dry-run'),
+      strict: flags.has('--strict'),
+      skipInstall: flags.has('--skip-install'),
+      skipQuality: flags.has('--skip-quality'),
+      allowDirtyApp: flags.has('--allow-dirty-app'),
+      allowDirtyTemplate: true,
+      skipRewriteRepo: true,
+      templateLayerSelection: resolvedTemplateLayerSelection,
+      baseThemeSelection: resolvedBaseThemeSelection,
+      appTemplateSelection: resolvedAppTemplateSelection,
+      templateSha,
+      quietChildCommands: jsonOutput,
+      log,
+    })
+
+    if (jsonOutput) {
+      emitJsonReport({
+        ...reportBase,
+        templateSha,
+        success: true,
+        changed: result.changed,
+        copied: result.copied,
+        patched: result.patched,
+        removed: result.removed,
+        skipped: result.skipped,
+        error: null,
+      })
+    }
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error(message)
+    if (jsonOutput) {
+      emitJsonReport({
+        ...reportBase,
+        templateSha,
+        success: false,
+        changed: false,
+        copied: 0,
+        patched: 0,
+        removed: 0,
+        skipped: 0,
+        error: message,
+      })
+    } else {
+      console.error(message)
+    }
     process.exitCode = 1
-  })
-  .finally(() => {
-    rmSync(tempStarterDir, { recursive: true, force: true })
-  })
+  } finally {
+    if (tempStarterDir) {
+      rmSync(tempStarterDir, { recursive: true, force: true })
+    }
+  }
+}
+
+void main()
