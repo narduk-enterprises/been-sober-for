@@ -152,11 +152,12 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Start Again User', email, password: 'password123' })
 
     // Set initial sobriety date
-    await patchSoberProfile(page, {
+    const setupResult = await patchSoberProfile(page, {
       displayName: 'Start Again User',
       publicSlug: `start-again-${Date.now()}`,
       sobrietyStartedAt: '2024-01-01',
     })
+    expect(setupResult.ok).toBe(true)
 
     // Reset via start-again
     const result = await page.evaluate(async () => {
