@@ -91,16 +91,6 @@
       }
     }
   ],
-  "env": {
-    "postgres": {
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": ""
-        }
-      ]
-    }
-  },
   "routes": [
     {
       "pattern": "beensoberfor.com",
