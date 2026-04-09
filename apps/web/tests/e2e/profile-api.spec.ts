@@ -122,7 +122,9 @@ test.describe('profile API', () => {
     const email1 = createUniqueEmail('slug-dup-1')
     await registerAndLogin(page, { name: 'User1', email: email1, password: 'password123' })
     const slug = `dup-slug-${Date.now()}`
-    await patchSoberProfile(page, { displayName: 'User1', publicSlug: slug })
+    const setupResult = await patchSoberProfile(page, { displayName: 'User1', publicSlug: slug })
+    expect(setupResult.ok).toBe(true)
+    expect(setupResult.status).toBe(200)
 
     // Register second user in new context
     const context2 = await browser.newContext()
