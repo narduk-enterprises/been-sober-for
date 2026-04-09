@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.94",
-    "@narduk-enterprises/eslint-config": "^1.0.19",
+    "@narduk-enterprises/eslint-config": "^1.0.20",
     "@supabase/auth-js": "^2.100.1",
     "@supabase/supabase-js": "^2.100.1",
     "drizzle-orm": "^0.45.1",
