@@ -46,7 +46,7 @@ export function isoDateDaysAhead(daysAhead: number): string {
 type ApiResponse<T = unknown> = {
   ok: boolean
   status: number
-  data: T
+  data: T | null
 }
 
 /**

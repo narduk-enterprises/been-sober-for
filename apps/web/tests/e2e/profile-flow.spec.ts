@@ -106,11 +106,12 @@ test.describe('profile flow (full user journey)', () => {
 
     // Set profile to private
     const slug = `private-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Visibility Tester',
       publicSlug: slug,
       pageVisibility: 'private',
     })
+    expect(patchResult.ok).toBe(true)
 
     await page.goto('/dashboard/')
     await waitForHydration(page)

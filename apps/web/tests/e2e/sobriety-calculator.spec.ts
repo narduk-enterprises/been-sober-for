@@ -71,10 +71,14 @@ test.describe('sobriety calculator', () => {
 
     await setCalculatorDate(page, isoDateDaysAgo(0))
 
-    // Should show the sober count (0 days)
-    await expect(page.getByText(/you have been sober for/i)).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('0')).toBeVisible()
-    await expect(page.getByText(/days/).first()).toBeVisible()
+    // Should show the sober count (0 days) — scope to the result panel
+    // to avoid matching incidental "0" text (e.g. "0 years" breakdown)
+    const soberCountHeading = page.getByText(/you have been sober for/i)
+    await expect(soberCountHeading).toBeVisible({ timeout: 5_000 })
+
+    const soberCountPanel = soberCountHeading.locator('..')
+    await expect(soberCountPanel.getByText(/^0$/)).toBeVisible()
+    await expect(soberCountPanel.getByText(/^days$/i)).toBeVisible()
   })
 
   test('entering a future date does not show count', async ({ page }) => {

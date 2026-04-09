@@ -128,13 +128,14 @@ test.describe('dashboard pages', () => {
     await registerAndLogin(page, { name: 'Preview User', email, password: 'password123' })
 
     const slug = `preview-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Preview User',
       publicSlug: slug,
       sobrietyStartedAt: '2024-06-01',
       shortMessage: 'Preview test message',
       pageVisibility: 'private',
     })
+    expect(patchResult.ok).toBe(true)
 
     await page.goto('/dashboard/preview')
     await waitForHydration(page)

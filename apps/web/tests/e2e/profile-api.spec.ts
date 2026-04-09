@@ -258,11 +258,12 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Private User', email, password: 'password123' })
 
     const slug = `private-api-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Private User',
       publicSlug: slug,
       pageVisibility: 'private',
     })
+    expect(patchResult.ok).toBe(true)
 
     // Access from a separate anonymous context (no auth cookies)
     const anonContext = await browser.newContext()

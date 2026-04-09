@@ -91,11 +91,12 @@ test.describe('milestone and print pages', () => {
     await registerAndLogin(page, { name: 'Private Print User', email, password: 'password123' })
 
     const slug = `print-private-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Private Print User',
       publicSlug: slug,
       pageVisibility: 'private',
     })
+    expect(patchResult.ok).toBe(true)
 
     // Visit print page as anonymous user
     const anonContext = await browser.newContext()

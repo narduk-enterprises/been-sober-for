@@ -84,11 +84,12 @@ test.describe('public profile page', () => {
     await registerAndLogin(page, { name: 'Private User', email, password: 'password123' })
 
     const slug = `private-page-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Private User',
       publicSlug: slug,
       pageVisibility: 'private',
     })
+    expect(patchResult.ok).toBe(true)
 
     // Visit in anonymous context
     const anonContext = await browser.newContext()
