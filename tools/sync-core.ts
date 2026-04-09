@@ -111,7 +111,7 @@ const RECURSIVE_SOURCE_SKIP_DIRECTORIES = new Set([
   '.wrangler',
   'node_modules',
 ])
-const SILENT_CHILD_COMMAND_STDIO: CommandOptions['stdio'] = ['ignore', 'pipe', 'pipe']
+const SILENT_CHILD_COMMAND_STDIO: CommandOptions['stdio'] = 'ignore'
 let childCommandStdio: CommandOptions['stdio'] = 'inherit'
 
 function resolveSyncTemplateLayerSelection(

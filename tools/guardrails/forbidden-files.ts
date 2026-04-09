@@ -1,8 +1,9 @@
 import type { GuardrailFinding } from './types'
 
 const FORBIDDEN_REPO_FILE_PATTERNS = [
-  { label: 'environment file', pattern: /(^|\/)\\.env(?:\.[^/]+)?$/ },
-  { label: 'Workers env file', pattern: /(^|\/)\\.dev\\.vars$/ },
+  { label: 'environment file', pattern: /(^|\/)\.env(?:\.[^/]+)?$/ },
+  { label: 'Workers env file', pattern: /(^|\/)\.dev\.vars$/ },
+  { label: 'package registry auth file', pattern: /(^|\/)\.npmrc\.auth$/ },
 ] as const
 
 const JUNK_REPO_FILE_PATTERNS = [

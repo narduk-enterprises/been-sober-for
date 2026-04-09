@@ -17,7 +17,7 @@ function resolveRegistryConfig(env) {
   return {
     registryUrl: PACKAGE_REGISTRY_URL,
     token: env[PACKAGE_REGISTRY_TOKEN_ENV_VAR]?.trim() || '',
-    writeLiteralToken: env[PACKAGE_REGISTRY_WRITE_LITERAL_TOKEN_ENV_VAR] !== 'false',
+    writeLiteralToken: env[PACKAGE_REGISTRY_WRITE_LITERAL_TOKEN_ENV_VAR] === 'true',
   }
 }
 
