@@ -126,8 +126,8 @@ test.describe('profile API', () => {
 
     // Register second user in new context
     const context2 = await browser.newContext()
-    const page2 = await context2.newPage()
     try {
+      const page2 = await context2.newPage()
       await page2.goto('/')
       await waitForHydration(page2)
       const email2 = createUniqueEmail('slug-dup-2')
@@ -250,7 +250,7 @@ test.describe('profile API', () => {
     expect(result.status).toBe(404)
   })
 
-  test('GET /api/public/profile/[slug] returns 404 for private profiles', async ({ page }) => {
+  test('GET /api/public/profile/[slug] returns 404 for private profiles', async ({ page, browser }) => {
     await page.goto('/')
     await waitForHydration(page)
 
@@ -264,9 +264,18 @@ test.describe('profile API', () => {
       pageVisibility: 'private',
     })
 
-    // Access from unauthenticated context
-    const result = await fetchJson(page, `/api/public/profile/${slug}`)
-    expect(result.ok).toBe(false)
-    expect(result.status).toBe(404)
+    // Access from a separate anonymous context (no auth cookies)
+    const anonContext = await browser.newContext()
+    try {
+      const anonPage = await anonContext.newPage()
+      await anonPage.goto('/')
+      await waitForHydration(anonPage)
+
+      const result = await fetchJson(anonPage, `/api/public/profile/${slug}`)
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(404)
+    } finally {
+      await anonContext.close()
+    }
   })
 })

@@ -43,10 +43,10 @@ export function isoDateDaysAhead(daysAhead: number): string {
 
 // ─── App-specific test helpers ─────────────────────────────
 
-type ApiResponse = {
+type ApiResponse<T = unknown> = {
   ok: boolean
   status: number
-  data: Record<string, unknown> | null
+  data: T
 }
 
 /**
