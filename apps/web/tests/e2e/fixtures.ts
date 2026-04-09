@@ -18,6 +18,29 @@ export {
 
 import type { Page } from '@playwright/test'
 
+// ─── Date helpers ──────────────────────────────────────────
+
+/**
+ * Return a YYYY-MM-DD string for `daysAgo` days before today using
+ * **local** date parts so the value matches the app's calendar-day semantics
+ * regardless of runner timezone / UTC offset.
+ */
+export function isoDateDaysAgo(daysAgo: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Return a YYYY-MM-DD string for `daysAhead` days **after** today using
+ * local date parts.
+ */
+export function isoDateDaysAhead(daysAhead: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + daysAhead)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // ─── App-specific test helpers ─────────────────────────────
 
 type ApiResponse = {

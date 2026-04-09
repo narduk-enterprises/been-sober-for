@@ -1,6 +1,7 @@
 import {
   createUniqueEmail,
   expect,
+  isoDateDaysAgo,
   patchSoberProfile,
   startAgainViaApi,
   getSoberProfile,
@@ -9,7 +10,6 @@ import {
   waitForHydration,
   warmUpApp,
   registerAndLogin,
-  logoutViaApi,
 } from './fixtures'
 
 test.describe('profile flow (full user journey)', () => {
@@ -40,9 +40,7 @@ test.describe('profile flow (full user journey)', () => {
 
     // 5. Set up profile via API
     const slug = `qa-test-${Date.now()}`
-    const sobrietyDate = new Date()
-    sobrietyDate.setDate(sobrietyDate.getDate() - 42)
-    const sobrietyIso = sobrietyDate.toISOString().split('T')[0]!
+    const sobrietyIso = isoDateDaysAgo(42)
 
     const patchResult = await patchSoberProfile(page, {
       displayName: 'QA Tester',
@@ -78,9 +76,7 @@ test.describe('profile flow (full user journey)', () => {
     await page.goto('/')
     await waitForHydration(page)
 
-    const newDate = new Date()
-    newDate.setDate(newDate.getDate() - 7)
-    const newDateIso = newDate.toISOString().split('T')[0]!
+    const newDateIso = isoDateDaysAgo(7)
 
     const startAgainResult = await startAgainViaApi(page, {
       startedAt: newDateIso,

@@ -2,6 +2,7 @@ import {
   createUniqueEmail,
   expect,
   fetchJson,
+  isoDateDaysAhead,
   patchSoberProfile,
   test,
   waitForBaseUrlReady,
@@ -124,18 +125,21 @@ test.describe('profile API', () => {
     await patchSoberProfile(page, { displayName: 'User1', publicSlug: slug })
 
     // Register second user in new context
-    const page2 = await browser.newPage()
-    await page2.goto('/')
-    await waitForHydration(page2)
-    const email2 = createUniqueEmail('slug-dup-2')
-    await registerAndLogin(page2, { name: 'User2', email: email2, password: 'password123' })
+    const context2 = await browser.newContext()
+    const page2 = await context2.newPage()
+    try {
+      await page2.goto('/')
+      await waitForHydration(page2)
+      const email2 = createUniqueEmail('slug-dup-2')
+      await registerAndLogin(page2, { name: 'User2', email: email2, password: 'password123' })
 
-    // Try to use the same slug
-    const result = await patchSoberProfile(page2, { displayName: 'User2', publicSlug: slug })
-    expect(result.ok).toBe(false)
-    expect(result.status).toBeGreaterThanOrEqual(400)
-
-    await page2.close()
+      // Try to use the same slug
+      const result = await patchSoberProfile(page2, { displayName: 'User2', publicSlug: slug })
+      expect(result.ok).toBe(false)
+      expect(result.status).toBeGreaterThanOrEqual(400)
+    } finally {
+      await context2.close()
+    }
   })
 
   // ─── Start again API ──────────────────────────────────────
@@ -184,9 +188,7 @@ test.describe('profile API', () => {
     const email = createUniqueEmail('api-future-date')
     await registerAndLogin(page, { name: 'Future Date User', email, password: 'password123' })
 
-    const futureDate = new Date()
-    futureDate.setFullYear(futureDate.getFullYear() + 1)
-    const futureDateIso = futureDate.toISOString().split('T')[0] ?? ''
+    const futureDateIso = isoDateDaysAhead(365)
 
     const result = await page.evaluate(
       async (body) => {

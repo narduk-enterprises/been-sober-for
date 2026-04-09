@@ -1,4 +1,12 @@
-import { expect, test, waitForBaseUrlReady, waitForHydration, warmUpApp } from './fixtures'
+import {
+  expect,
+  isoDateDaysAgo,
+  isoDateDaysAhead,
+  test,
+  waitForBaseUrlReady,
+  waitForHydration,
+  warmUpApp,
+} from './fixtures'
 
 /**
  * Helper to set the sobriety calculator date via the date input (type="date").
@@ -19,18 +27,6 @@ async function setCalculatorDate(
     isoDate,
     { timeout: 3_000 },
   )
-}
-
-function isoDateDaysAgo(daysAgo: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function isoDateDaysFromNow(daysAhead: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysAhead)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 test.describe('sobriety calculator', () => {
@@ -83,7 +79,7 @@ test.describe('sobriety calculator', () => {
     await page.goto('/sobriety-calculator')
     await waitForHydration(page)
 
-    await setCalculatorDate(page, isoDateDaysFromNow(30))
+    await setCalculatorDate(page, isoDateDaysAhead(30))
 
     // Should NOT show the "You have been sober for" text
     await expect(page.getByText(/you have been sober for/i)).not.toBeVisible({ timeout: 3_000 })
