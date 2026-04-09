@@ -222,13 +222,14 @@ test.describe('profile API', () => {
     await registerAndLogin(page, { name: 'Public API User', email, password: 'password123' })
 
     const slug = `public-api-${Date.now()}`
-    await patchSoberProfile(page, {
+    const patchResult = await patchSoberProfile(page, {
       displayName: 'Public API User',
       publicSlug: slug,
       sobrietyStartedAt: '2024-03-15',
       shortMessage: 'Public API test',
       pageVisibility: 'unlisted',
     })
+    expect(patchResult.ok).toBe(true)
 
     const result = await fetchJson(page, `/api/public/profile/${slug}`)
     expect(result.ok).toBe(true)
