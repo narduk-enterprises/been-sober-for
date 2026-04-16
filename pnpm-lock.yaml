@@ -50,8 +50,8 @@ importers:
   .:
     devDependencies:
       '@narduk-enterprises/narduk-cli':
-        specifier: 1.17.2-preview.1
-        version: 1.17.2-preview.1
+        specifier: ^1.17.2
+        version: 1.17.2
       '@narduk-enterprises/narduk-skills':
         specifier: 0.3.0
         version: 0.3.0
@@ -926,8 +926,8 @@ packages:
       eslint: '>=9.0.0'
       vue-eslint-parser: '>=10.0.0'
 
-  '@narduk-enterprises/narduk-cli@1.17.2-preview.1':
-    resolution: {integrity: sha512-xeomzfWO12e56iV35IrbpaUV5DpKINKRyRk/JlAvU0uUhidYEeiRl+Fvwz2U1v2fcteTX7CXKCrn60NAgEme3g==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-cli/1.17.2-preview.1/537bcd46a295718ef9952b238efd07398634bcca}
+  '@narduk-enterprises/narduk-cli@1.17.2':
+    resolution: {integrity: sha512-O9+F+h0ZglLGXFaJHcPw8aK6aHK4C2L+etQjBIuA5Wo1iKyuDy8R2HhvX1726bfLLG1hmafDxWLZImRd2rFcRQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-cli/1.17.2/d754ad5e2ba3d5f7cfce4b5f2af97155510d1058}
     hasBin: true
 
   '@narduk-enterprises/narduk-nuxt-template-layer-analytics@1.8.2':
@@ -980,8 +980,8 @@ packages:
       wrangler:
         optional: true
 
-  '@narduk-enterprises/narduk-platform@1.17.2-preview.1':
-    resolution: {integrity: sha512-nWgRZZA5nscRMtZ95WmpkpfN8Ap7AebQZfm0ByiVM/DDcMmX1fq/atS91LH1orfLNYOm78VhlkB92+dXkzbr2Q==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-platform/1.17.2-preview.1/1409fb240ad1eba3119a688b724928e2ba23c210}
+  '@narduk-enterprises/narduk-platform@1.17.2':
+    resolution: {integrity: sha512-nJ+MnQ91PyYfvrbSK3+dgZh7TPOaAFlT2GPu55lhLXqcGs8xOXwxUvGpDPL+O0Vwfd9cJIoheEzC6CG1420MQQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-platform/1.17.2/6f5b09026c5397a9582588d315708d9436a60216}
 
   '@narduk-enterprises/narduk-skills@0.3.0':
     resolution: {integrity: sha512-LDTPyDNMgMKu4DS3PO3blX7OZ25NfN+gaqV0u9K+SYQCCYutNbTTbLMYJPHR/YUSfIkLdiZLbMESnCnJoR7JMQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-skills/0.3.0/bca8e698b5ec79cff5ef9d0bf114c2590f960784}
@@ -7833,9 +7833,9 @@ snapshots:
       - typescript
       - vitest
 
-  '@narduk-enterprises/narduk-cli@1.17.2-preview.1':
+  '@narduk-enterprises/narduk-cli@1.17.2':
     dependencies:
-      '@narduk-enterprises/narduk-platform': 1.17.2-preview.1
+      '@narduk-enterprises/narduk-platform': 1.17.2
       sharp: 0.34.5
       tsx: 4.21.0
 
@@ -8478,7 +8478,7 @@ snapshots:
       - yjs
       - yup
 
-  '@narduk-enterprises/narduk-platform@1.17.2-preview.1': {}
+  '@narduk-enterprises/narduk-platform@1.17.2': {}
 
   '@narduk-enterprises/narduk-skills@0.3.0': {}
 

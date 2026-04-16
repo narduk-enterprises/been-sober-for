@@ -108,6 +108,6 @@
     "turbo": "^2.8.12",
     "wait-on": "^9.0.4",
     "@narduk-enterprises/narduk-skills": "0.3.0",
-    "@narduk-enterprises/narduk-cli": "1.17.2-preview.1"
+    "@narduk-enterprises/narduk-cli": "^1.17.2"
   }
 }
