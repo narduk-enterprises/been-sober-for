@@ -103,6 +103,9 @@ importers:
       '@narduk-enterprises/narduk-nuxt-template-layer-uploads':
         specifier: ^1.8.2
         version: 1.8.2(688636b5d285d1d8e8b2e59bdd0c0734)
+      '@narduk-enterprises/narduk-platform':
+        specifier: ^1.17.2
+        version: 1.17.2
       '@supabase/auth-js':
         specifier: ^2.100.1
         version: 2.100.1

@@ -36,18 +36,19 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.94",
     "@narduk-enterprises/eslint-config": "^1.0.22",
+    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.8.2",
+    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.8.2",
+    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.8.2",
+    "@narduk-enterprises/narduk-nuxt-template-layer-seo": "^1.8.2",
+    "@narduk-enterprises/narduk-nuxt-template-layer-theme-balanced": "^1.8.2",
+    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.8.2",
+    "@narduk-enterprises/narduk-platform": "^1.17.2",
     "@supabase/auth-js": "^2.100.1",
     "@supabase/supabase-js": "^2.100.1",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
     "qrcode": "^1.5.4",
-    "zod": "^4.3.6",
-    "@narduk-enterprises/narduk-nuxt-template-layer-theme-balanced": "^1.8.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-core": "^1.8.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-seo": "^1.8.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-auth": "^1.8.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-analytics": "^1.8.2",
-    "@narduk-enterprises/narduk-nuxt-template-layer-uploads": "^1.8.2"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260307.1",

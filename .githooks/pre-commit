@@ -7,7 +7,9 @@
 # Install: git config core.hooksPath .githooks
 # This hook is automatically synced to all fleet apps by sync-template.ts.
 
-node tools/format-staged-files.cjs || exit 1
+if [ -d node_modules ]; then
+  pnpm exec narduk-fleet format-staged-files || exit 1
+fi
 
 STAGED=$(git diff --cached --name-only)
 
