@@ -1,5 +1,4 @@
-import type { H3Event } from 'h3'
-import { deleteCookie, getCookie, getRequestHeader, setCookie } from 'h3'
+import { deleteCookie, getCookie, getRequestHeader, setCookie, type H3Event } from 'h3'
 import {
   type AuthError,
   type AuthenticatorAssuranceLevels,

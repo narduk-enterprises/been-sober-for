@@ -1,5 +1,4 @@
-import type { H3Event } from 'h3'
-import { getCookie, getRequestHeader } from 'h3'
+import { getCookie, getRequestHeader, type H3Event } from 'h3'
 
 const PKCE_COOKIE_NAME = 'app_auth_pkce'
 const DEFAULT_AUTH_CALLBACK_ERROR_MESSAGE =

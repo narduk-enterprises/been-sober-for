@@ -1,6 +1,9 @@
 import type { H3Event } from 'h3'
-import type { AppSessionUser } from '#server/utils/app-auth'
-import { getCurrentSessionUser, getCurrentSupabaseContext } from '#server/utils/app-auth'
+import {
+  getCurrentSessionUser,
+  getCurrentSupabaseContext,
+  type AppSessionUser,
+} from '#server/utils/app-auth'
 import {
   isRecoverableSupabaseSessionFailure,
   wasAuthSessionRecentlyValidated,
