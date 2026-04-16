@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
 
-[ -f tools/ensure-worktree-install.cjs ] || exit 0
+[ -d node_modules ] || exit 0
 
-node tools/ensure-worktree-install.cjs post-checkout "$@" || true
+pnpm exec narduk-fleet ensure-worktree-install post-checkout "$@" || true
