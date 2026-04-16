@@ -5,7 +5,7 @@ const PKCE_COOKIE_NAME = 'app_auth_pkce'
 const DEFAULT_AUTH_CALLBACK_ERROR_MESSAGE =
   'The auth callback could not be exchanged for a session.'
 
-export function getAuthCallbackErrorMessage(error: unknown) {
+function getAuthCallbackErrorMessage(error: unknown) {
   if (!error || typeof error !== 'object') {
     return DEFAULT_AUTH_CALLBACK_ERROR_MESSAGE
   }
@@ -25,7 +25,7 @@ export function getAuthCallbackErrorMessage(error: unknown) {
   )
 }
 
-export function logAuthCallbackFailure(
+function logAuthCallbackFailure(
   event: H3Event,
   error: unknown,
   context: {
@@ -50,4 +50,9 @@ export function logAuthCallbackFailure(
     statusCode,
     statusMessage: getAuthCallbackErrorMessage(error),
   })
+}
+
+export {
+  getAuthCallbackErrorMessage as getStarterAuthCallbackErrorMessage,
+  logAuthCallbackFailure as logStarterAuthCallbackFailure,
 }

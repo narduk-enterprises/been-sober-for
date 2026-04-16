@@ -15,13 +15,13 @@ const { loggedIn } = useAuth()
     class="border-default bg-default/80 supports-[backdrop-filter]:bg-default/65 sticky top-0 z-30 border-b backdrop-blur-md"
   >
     <UContainer class="flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
-      <NuxtLink
+      <ULink
         to="/"
         class="focus-visible:ring-primary flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         <BsfLogoMark size-class="h-11 w-11 sm:h-12 sm:w-12" />
         <BsfWordmark show-tagline />
-      </NuxtLink>
+      </ULink>
 
       <div role="navigation" class="hidden items-center gap-1 lg:flex" aria-label="Site">
         <UNavigationMenu :items="navItems" />

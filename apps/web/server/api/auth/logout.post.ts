@@ -1,6 +1,6 @@
 import { definePublicMutation } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { logoutUser } from '#server/utils/app-auth'
+import { starterLogoutUser as logoutUser } from '#server/utils/starter-app-auth'
 
 export default definePublicMutation(
   {

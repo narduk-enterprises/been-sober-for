@@ -41,7 +41,7 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
     optional: true,
     hasDrizzlePayload: false,
     requiredAppDependencies: [],
-    requiredEnvKeys: [],
+    requiredEnvKeys: ['NUXT_OG_IMAGE_SECRET'],
   },
   auth: {
     id: 'auth',
@@ -75,6 +75,7 @@ export const LAYER_BUNDLE_MANIFEST: Record<LayerBundleId, LayerBundleDefinition>
       'GA_PROPERTY_ID',
       'GSC_SERVICE_ACCOUNT_JSON',
       'GSC_SITE_URL',
+      'INDEXNOW_KEY',
       'POSTHOG_PROJECT_ID',
       'POSTHOG_PERSONAL_API_KEY',
       'POSTHOG_DOMAIN',

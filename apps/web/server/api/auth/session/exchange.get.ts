@@ -1,7 +1,10 @@
 import { getRequestURL, sendRedirect } from 'h3'
 import { z } from 'zod'
-import { getAuthCallbackErrorMessage, logAuthCallbackFailure } from '#server/utils/auth-callback'
-import { exchangeSupabaseCode } from '#server/utils/app-auth'
+import {
+  getStarterAuthCallbackErrorMessage as getAuthCallbackErrorMessage,
+  logStarterAuthCallbackFailure as logAuthCallbackFailure,
+} from '#server/utils/starter-auth-callback'
+import { starterExchangeSupabaseCode as exchangeSupabaseCode } from '#server/utils/starter-app-auth'
 
 const emailVerificationTypeSchema = z.enum([
   'signup',

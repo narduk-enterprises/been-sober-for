@@ -32,6 +32,41 @@ export interface MfaEnrollmentResult {
   uri: string
 }
 
+export interface AuthApiKeyScopeOption {
+  id: string
+  label: string
+  description: string
+}
+
+export interface AuthApiKeyTokenProfile {
+  id: string
+  label: string
+  description: string
+  name?: string
+  scopes?: string[]
+  expiresInDays?: number | null
+}
+
+export interface AuthApiKeySummary {
+  id: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: number | null
+  createdAt: string
+}
+
+export interface AuthApiKeyCreateResponse extends AuthApiKeySummary {
+  rawKey: string
+}
+
+export interface AuthApiKeyCreateInput {
+  name: string
+  scopes?: string[]
+  expiresInDays?: number | null
+}
+
 type EmailVerificationType =
   | 'signup'
   | 'invite'
@@ -125,6 +160,25 @@ export function useAuthApi() {
     })
   }
 
+  function listApiKeys() {
+    return csrfFetch<AuthApiKeySummary[]>('/api/auth/api-keys')
+  }
+
+  function createApiKey(payload: AuthApiKeyCreateInput) {
+    return csrfFetch<AuthApiKeyCreateResponse>('/api/auth/api-keys', {
+      method: 'POST',
+      body: payload,
+      headers: csrfHeaders,
+    })
+  }
+
+  function revokeApiKey(id: string) {
+    return csrfFetch<{ success: boolean }>(`/api/auth/api-keys/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: csrfHeaders,
+    })
+  }
+
   function requestPasswordReset(payload: { email: string; captchaToken?: string }) {
     return csrfFetch<AuthMutationResult>('/api/auth/password/reset', {
       method: 'POST',
@@ -159,6 +213,9 @@ export function useAuthApi() {
     updateProfile,
     changePassword,
     deleteAccount,
+    listApiKeys,
+    createApiKey,
+    revokeApiKey,
     requestPasswordReset,
     enrollMfa,
     verifyMfa,

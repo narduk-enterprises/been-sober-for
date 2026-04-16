@@ -1,7 +1,11 @@
 import { z } from 'zod'
-import { defineUserMutation, requireMutationBody, withValidatedBody } from '#layer/server/utils/mutation'
+import {
+  defineUserMutation,
+  requireMutationBody,
+  withValidatedBody,
+} from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { updateProfile } from '#server/utils/app-auth'
+import { starterUpdateProfile as updateProfile } from '#server/utils/starter-app-auth'
 
 const bodySchema = z.object({
   name: z.string().optional(),

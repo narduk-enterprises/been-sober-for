@@ -28,9 +28,9 @@ test.describe('dashboard pages', () => {
     await page.goto('/dashboard/edit-profile')
     await waitForHydration(page)
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: /edit profile/i }),
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { level: 1, name: /edit profile/i })).toBeVisible({
+      timeout: 15_000,
+    })
 
     // Check all form fields exist
     await expect(page.getByLabel(/display name/i)).toBeVisible()
@@ -75,9 +75,7 @@ test.describe('dashboard pages', () => {
 
   // ─── Start again page ─────────────────────────────────────
 
-  test('start again page renders with date input and confirmation checkbox', async ({
-    page,
-  }) => {
+  test('start again page renders with date input and confirmation checkbox', async ({ page }) => {
     await page.goto('/')
     await waitForHydration(page)
 
@@ -87,9 +85,9 @@ test.describe('dashboard pages', () => {
     await page.goto('/dashboard/start-again')
     await waitForHydration(page)
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: /start again/i }),
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { level: 1, name: /start again/i })).toBeVisible({
+      timeout: 15_000,
+    })
 
     // Check form elements
     await expect(page.locator('input[type="date"]')).toBeVisible()

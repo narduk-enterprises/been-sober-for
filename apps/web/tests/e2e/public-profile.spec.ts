@@ -21,9 +21,9 @@ test.describe('public profile page', () => {
     await waitForHydration(page)
 
     // Should show "This page is not available"
-    await expect(
-      page.getByRole('heading', { name: /this page is not available/i }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /this page is not available/i })).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Should have CTA to register and link home
     await expect(page.getByRole('link', { name: /start my counter/i })).toBeVisible()
@@ -60,23 +60,20 @@ test.describe('public profile page', () => {
       await waitForHydration(anonPage)
 
       // Should display the profile
-      await expect(anonPage.getByText('Sober Hero', { exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(anonPage.getByText('Sober Hero', { exact: true })).toBeVisible({
+        timeout: 10_000,
+      })
       await expect(anonPage.getByText('days', { exact: true })).toBeVisible()
       await expect(anonPage.getByText(/staying strong every day/i)).toBeVisible()
 
       // Should have the disclaimer footer
-      await expect(
-        anonPage.getByText(/not treatment or medical care/i),
-      ).toBeVisible()
+      await expect(anonPage.getByText(/not treatment or medical care/i)).toBeVisible()
     } finally {
       await anonContext.close()
     }
   })
 
-  test('private profile returns error page for anonymous visitors', async ({
-    page,
-    browser,
-  }) => {
+  test('private profile returns error page for anonymous visitors', async ({ page, browser }) => {
     await page.goto('/')
     await waitForHydration(page)
 

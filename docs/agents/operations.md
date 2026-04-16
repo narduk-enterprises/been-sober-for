@@ -1,86 +1,259 @@
 # Operations Guide
 
-## First Setup
+## Starting A New Project
 
-Use this flow in a generated starter:
+Preferred flow:
 
 ```bash
-pnpm install
-pnpm run validate
-pnpm run db:migrate
-doppler setup --project my-app --config dev
-doppler run -- pnpm run dev
+curl -X POST https://platform.nard.uk/api/fleet/provision \
+  -H "Authorization: Bearer $PROVISION_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-app","displayName":"My App","description":"Short product blurb for agents.","url":"https://my-app.nard.uk"}'
 ```
+
+The platform should persist **`description`** into the new repo (for example
+**`provision.json`** and the draft **`SPEC.md`**) so GitHub Agentic Workflows
+can read it without pasting secrets in chat.
+
+Template-owned fresh-app materialization is now:
+
+```bash
+pnpm exec tsx tools/materialize-starter.ts \
+  --name=my-app \
+  --display-name="My App" \
+  --description="Short product blurb for agents." \
+  --site-url=https://my-app.workers.dev \
+  --force
+```
+
+That path is intentionally separate from `sync-template`. It exports a clean
+starter, replaces placeholders, writes `.setup-complete`, and generates repo
+workflow callers pinned to the exported template ref.
+
+Alternative when you explicitly want a **GitHub repo** plus **Cloudflare Workers
+Builds** to own the build and deploy step:
+
+```bash
+pnpm exec tsx tools/bootstrap-github-worker-app.ts \
+  --name=my-app \
+  --display-name="My App" \
+  --description="Short product blurb for agents." \
+  --site-url=https://my-app.workers.dev \
+  --create-github-repo \
+  --force
+```
+
+This bootstrap path:
+
+1. materializes the starter with `seo,auth,analytics,uploads` by default
+2. hydrates `provision.json`, README placeholders, and the app identity
+3. writes `.setup-complete` so local dev/build/deploy commands are unblocked
+4. generates repo workflow callers pinned to the exported template ref
+5. initializes a local git repository on `main` with an initial commit
+6. defaults package installs to GitHub Packages for GitHub-hosted repos
+7. creates and pushes the GitHub repo when `--create-github-repo` is passed
+8. leaves Cloudflare runtime bindings in automatic-provisioning form so Workers
+   Builds can create KV, D1, and R2 on first deploy
+
+Generated repo workflow callers:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/bootstrap-starter.yml`
+- `.github/workflows/deploy-production.yml`
+- `.github/workflows/deploy-staging.yml`
+
+These callers target reusable workflows published from
+`narduk-enterprises/narduk-template/.github/workflows/` and are pinned to the
+same template SHA recorded in `.template-version` unless the materializer gets
+`--workflow-ref=<sha|tag|branch>`.
+
+For the connected Worker, use these Cloudflare Workers Builds settings:
+
+- `root_directory`: `/apps/web`
+- `production build_command`:
+  `cloudflare.workersBuilds.targets.production.buildCommand`
+- `production deploy_command`:
+  `cloudflare.workersBuilds.targets.production.deployCommand`
+- `staging build_command`:
+  `cloudflare.workersBuilds.targets.staging.buildCommand`
+- `staging deploy_command`:
+  `cloudflare.workersBuilds.targets.staging.deployCommand`
+- optional preview build/deploy commands: `cloudflare.workersBuilds.preview.*`
+- Build variable: `SKIP_DEPENDENCY_INSTALL=true`
+- Build secrets: `NARDUK_PLATFORM_GH_PACKAGES_READ`, `NUXT_SESSION_PASSWORD`,
+  `NUXT_OG_IMAGE_SECRET`
+- Runtime variables: `SITE_URL`, `STAGING_SITE_URL`, `NUXT_SESSION_PASSWORD`,
+  `NUXT_OG_IMAGE_SECRET`
+
+The starter records the same contract in `provision.json` under
+`cloudflare.workersBuilds.targets.production|staging` plus
+`cloudflare.workersBuilds.preview`. `apps/web/package.json` expects Cloudflare
+to skip its default dependency install step so the target-aware `cf:build:*`
+commands can configure GitHub Packages auth before running
+`pnpm install --frozen-lockfile`.
+
+Workers Builds also requires the Cloudflare account to have an active GitHub
+integration. Creating and pushing the GitHub repo is necessary, but it is not
+sufficient on its own if Cloudflare has not been authorized against that GitHub
+account/org yet.
+
+Required build/runtime variables for a minimal local-auth app:
+
+- `SITE_URL`
+- `NUXT_SESSION_PASSWORD`
+
+Optional auth and analytics variables stay the same as the repo-owned deploy
+flow. If you leave analytics keys blank, the app still builds; the analytics
+features simply stay inactive.
+
+Cloudflare automatic resource provisioning now covers the starter's default
+Cloudflare bindings:
+
+- `KV` for the shared key-value binding
+- `DB` for the shared D1 binding
+- `BUCKET` when the uploads bundle is selected
+
+When these bindings are deployed from Wrangler or Workers Builds without pinned
+resource IDs, Cloudflare creates the resources automatically and binds them to
+the Worker.
+
+Once provisioned:
+
+```bash
+git clone https://github.com/narduk-enterprises/my-app.git ~/new-code/my-app
+cd ~/new-code/my-app
+pnpm install
+pnpm run dev
+```
+
+There is no legacy `tools/init.ts` or `.github/workflows/provision-app.yml`
+flow. Use either the platform provision API or `tools/materialize-starter.ts` /
+`tools/bootstrap-github-worker-app.ts`; do not resurrect the old authoring-era
+init path.
 
 Bootstrap guard:
 
-- `pnpm dev`, `pnpm build`, and `pnpm ship` are blocked until `.setup-complete`
-  exists.
-- In provisioned repos, the control plane writes `.setup-complete`. Generated
-  local starters should be treated as incomplete until you finish the platform
-  setup they depend on.
-- Provisioned apps: the control plane must hydrate **`apps/web/wrangler.json`**
-  **`kv_namespaces`** for binding **`KV`** (real **`id`** and **`preview_id`**).
-  See the root handbook **`docs/agents/operations.md`** (control plane KV).
-
-## Template Updates
-
-Use a local checkout of `narduk-nuxt-template` as the source of truth.
-
-Full managed sync:
-
-```bash
-pnpm run sync-template -- --from ~/new-code/narduk-nuxt-template
-```
-
-Layer-only sync:
-
-```bash
-pnpm run update-layer -- --from ~/new-code/narduk-nuxt-template
-```
+- `pnpm dev`, `pnpm build`, and `pnpm deploy` are blocked until
+  `.setup-complete` exists (written when the platform finishes provisioning the
+  repo, or present in authoring clones).
+- Local quality and local deploy are the source of truth after that.
 
 ## Deployment And D1 Migrations
 
-Deployment is local-only. CI may run quality checks, but it does not deploy.
+Deployment is local-only unless you intentionally adopt Cloudflare Workers
+Builds or the generated repo workflow callers. The authoring workspace on
+`narduk-template` does **not** auto-deploy downstream apps on push to `main`; it
+only publishes reusable workflows and layer packages. Downstream repos own when
+they dispatch `Bootstrap Starter`, `Production Deploy`, or `Staging Deploy`.
 
 Standard flow:
 
 1. Keep the working tree clean.
 2. Run remote D1 migrations if the app uses D1:
    ```bash
-   cd apps/web && pnpm run db:migrate -- --remote
+   doppler run --project <app> --config prd -- pnpm --filter web run db:migrate -- --remote
    ```
-3. Deploy from the repo root:
+3. Deploy the app:
    ```bash
-   pnpm run ship
+   # Deploy happens automatically on push to main
    ```
 4. Push afterward as normal git hygiene.
 
-If `apps/web/wrangler.json` still has the template all-zero Workers KV IDs, you
-can repair it locally before deploy:
-
-```bash
-pnpm ship -- --repair-only
-```
-
-That repair path reuses or creates `<app>-kv` and `<app>-kv-preview`, writes the
-real IDs into `apps/web/wrangler.json`, and exits before git push or Wrangler
-deploy.
+Fleet-wide deploy, repo repair, and remote orchestration belong to
+`platform.nard.uk` or `narduk-cli`, not this template checkout.
 
 Local development migrations still go through the app entrypoint so shared layer
 SQL runs before app-owned SQL.
 
-## Secrets And Environment
+## Managed Supabase Preset
 
-Doppler is the single source of truth. Do not create `.env` or `.env.example`
-files. Do not commit `doppler.yaml`.
-
-Typical local setup:
+Downstream apps can opt into hosted Supabase without changing the template auth
+contract by setting:
 
 ```bash
-doppler setup --project <app-name> --config dev
-doppler run -- pnpm run dev
+APP_BACKEND_PRESET=managed-supabase
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable-or-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
+
+Compatible legacy names still work:
+
+```bash
+AUTH_AUTHORITY_URL
+SUPABASE_AUTH_ANON_KEY
+SUPABASE_AUTH_SERVICE_ROLE_KEY
+```
+
+Guidelines:
+
+- Keep `/api/auth/*`, `useAuth()`, and `useUserSession()` as the public app
+  contract.
+- Use `#server/utils/supabase` for worker-safe public, user-scoped, and
+  service-role clients.
+- Use `app/composables/useManagedSupabase.ts` for opt-in browser
+  data/RPC/storage access.
+- For Postgres-backed apps, set `NUXT_DATABASE_BACKEND=postgres` and keep
+  `apps/web/server/database/app-schema.ts` and `pg-app-schema.ts` aligned.
+- Apple Sign In still redirects through Supabase first. Your Apple return URL
+  remains `https://<project>.supabase.co/auth/v1/callback`, while Supabase URL
+  configuration should allow the app callback route such as `/auth/callback`.
+
+## PR Previews On `narduk`
+
+Provisioned repos can opt into the host preview reconciler with the repo-managed
+assets that ship from this template:
+
+- root `.dockerignore`
+- `deploy/preview/Dockerfile`
+- `deploy/preview/docker-compose.yml`
+
+Contract assumptions for the app repo:
+
+- The host manifest points at `deploy/preview/docker-compose.yml`.
+- The preview service binds to `127.0.0.1:${PREVIEW_HOST_PORT}` via the compose
+  port mapping.
+- `SITE_URL` defaults to that same loopback URL when the host does not inject a
+  different origin.
+- Health checks target `/api/health`, which already ships from the shared layer.
+
+Package registry auth for preview builds uses a BuildKit secret. The token is
+not passed as a Docker build arg and is not written into image layers or
+committed files.
+
+- Default mode: resolve `NARDUK_PLATFORM_GH_PACKAGES_READ` before local preview
+  builds.
+
+GitHub SCM defaults are platform-owned; no self-hosted host or owner override is
+needed in app repos.
+
+Existing apps can adopt the same repo assets with:
+
+```bash
+pnpm run sync-template -- ~/code/your-app
+pnpm run sync-template -- ~/code/your-app --template-ref=<sha>
+```
+
+That sync updates the repo-owned preview files. The remaining platform step is
+to add or update the repo manifest in `narduk-infrastructure`.
+
+## Generated Starter Notes
+
+The generated starter already excludes authoring workspace files and other
+authoring-only scripts. After setup, the main remaining template tasks are:
+
+- update site metadata and branding in `apps/web/`
+- replace the placeholder landing page in `apps/web/app/pages/`
+- add app-specific routes, tables, and tests
+
+## Secrets And Environment
+
+Vault is the single source of truth for secrets. Do not create `.env` or
+`.env.example` files.
+
+Secrets are resolved by Vault and synced to GitHub repository secrets by the
+platform. For local development, secrets are injected via the Vault CLI or set
+in `.dev.vars` for Wrangler-based workflows.
 
 Declare secrets explicitly in `runtimeConfig`:
 
@@ -99,84 +272,63 @@ stack are `NUXT_SESSION_PASSWORD` and `NUXT_PORT`.
 Keep `NUXT_SESSION_PASSWORD` stable across deploys. Rotating it invalidates the
 sealed auth cookie and forces every user to log in again.
 
-## Hub-And-Spoke Doppler Model
+## Central Secret Organization
 
-Shared infrastructure and analytics keys live in hub projects. Each app gets a
-spoke project with cross-project references plus its own per-app secrets.
+Deployed app config lands in Cloudflare as runtime vars/secrets and, when
+needed, Workers Builds vars/secrets.
 
-Reference syntax:
+Doppler-managed secrets centralize in exactly two Doppler projects:
 
-```text
-${<hub-project>.<config>.<KEY>}
-```
+- **`narduk/prd`** — shared platform secrets (auth, analytics, Turnstile, AI,
+  workflow tokens). These are synced downstream to Cloudflare and GitHub
+  targets.
+- **`command/prd`** — command operator bootstrap secrets (`COMMAND_*` keys,
+  `SITE_URL`, `NUXT_SESSION_PASSWORD`).
+
+No other Doppler projects should be created. Per-app Doppler projects are
+eliminated; app-specific runtime values live in Cloudflare directly, while
+app-issued `AGENT_ADMIN_API_KEY` values stay in each app database. Generated
+secrets such as `NUXT_OG_IMAGE_SECRET` also remain outside Doppler.
+
+Public app-specific analytics/config values such as GA measurement ids, GA
+property ids, PostHog browser values, and similar non-secret identifiers should
+end up as Cloudflare vars. When migrating an older app and those values are not
+yet represented anywhere canonical, recover them from the latest historical
+export under `~/iCloud/narduk-platform`, then write them into Cloudflare.
 
 Important keys:
 
-| Key                        | Owner                |
-| -------------------------- | -------------------- |
-| `CLOUDFLARE_API_TOKEN`     | Infrastructure hub   |
-| `CLOUDFLARE_ACCOUNT_ID`    | Infrastructure hub   |
-| `POSTHOG_PUBLIC_KEY`       | Analytics hub        |
-| `POSTHOG_PROJECT_ID`       | Analytics hub        |
-| `POSTHOG_HOST`             | Analytics hub        |
-| `POSTHOG_PERSONAL_API_KEY` | Analytics hub        |
-| `SITE_URL`                 | Per-app spoke        |
-| `APP_NAME`                 | Per-app spoke        |
-| `GA_MEASUREMENT_ID`        | Per-app spoke        |
-| `INDEXNOW_KEY`             | Per-app spoke        |
-| `AGENT_ADMIN_API_KEY`      | Per-app spoke        |
-| `NUXT_PORT`                | Per-app `dev` config |
+| Key                        | Owner                                                  |
+| -------------------------- | ------------------------------------------------------ |
+| `CLOUDFLARE_API_TOKEN`     | Infrastructure hub                                     |
+| `CLOUDFLARE_ACCOUNT_ID`    | Infrastructure hub                                     |
+| `POSTHOG_PERSONAL_API_KEY` | Doppler `narduk/prd`                                   |
+| `GSC_SERVICE_ACCOUNT_JSON` | Command bootstrap (`COMMAND_GSC_SERVICE_ACCOUNT_JSON`) |
+| `TURNSTILE_SECRET_KEY`     | Doppler `narduk/prd`                                   |
+| `SITE_URL`                 | Cloudflare app vars                                    |
+| `NUXT_OG_IMAGE_SECRET`     | Cloudflare app runtime secret; Workers Builds secret   |
+| `POSTHOG_PUBLIC_KEY`       | Cloudflare app vars                                    |
+| `POSTHOG_PROJECT_ID`       | Cloudflare app vars                                    |
+| `POSTHOG_HOST`             | Cloudflare app vars                                    |
+| `GA_MEASUREMENT_ID`        | Cloudflare app vars                                    |
+| `GA_PROPERTY_ID`           | Cloudflare app vars                                    |
+| `INDEXNOW_KEY`             | Cloudflare app vars                                    |
+| `AGENT_ADMIN_API_KEY`      | App D1 `api_keys` table                                |
 
 Important config notes:
 
-- `dev` is the normal local development config.
-- `prd` is used for local deploys.
-- Deploys fail if `prd` is missing Cloudflare credentials.
-
-## GitHub Copilot agent environment
-
-Coding agents (for example **provisioned-app-build** and **cli-visual-qa**) use
-the GitHub Actions **environment `copilot`**. Agentic workflows declare
-`environment: copilot` so `${{ secrets.COPILOT_GITHUB_TOKEN }}` and related keys
-resolve from that environment.
-
-Populate it from a **narrow Doppler config** on this project: prefer
-**`prd_copilot`** (default for `sync:copilot-secrets`), else **`copilot`**.
-Never use **`dev_copilot`** for this sync. Keep **`COPILOT_GITHUB_TOKEN`** and
-**`GITHUB_TOKEN_PACKAGES_READ`** (narduk-nuxt-template name for the GitHub
-Packages read PAT) in Doppler under that config. **`sync:copilot-secrets`**
-pushes **`GH_TOKEN_PACKAGES_READ`** (renamed for GitHub) and duplicates the same
-value to **`NODE_AUTH_TOKEN`** on GitHub so `.npmrc` and pnpm work in agents—no
-separate Doppler key for `NODE_AUTH_TOKEN` is required.
-
-GitHub Agentic Workflows run an **activation** job that validates
-`COPILOT_GITHUB_TOKEN` before jobs that use `environment: copilot`. That
-activation job does not attach the environment, so it only reads **repository**
-secrets for that variable. `sync:copilot-secrets` therefore sets
-`COPILOT_GITHUB_TOKEN` on the **`copilot` environment** and **mirrors the same
-value** to the **repository** secret of the same name (other keys stay
-environment-only).
-
-```bash
-# From a template or tooling checkout with the script (see tools/AGENTS.md)
-pnpm run sync:copilot-secrets -- <doppler-project-slug>
-# Force a single Doppler config when needed:
-pnpm run sync:copilot-secrets -- <doppler-project-slug> --doppler-config=copilot
-```
-
-Doppler `GITHUB_*` keys become **`GH_*`** on GitHub. Document required **names**
-in your platform runbook; never commit values.
-
-**`COPILOT_GITHUB_TOKEN` must work with the GitHub Copilot CLI** (not a random
-`GITHUB_TOKEN` from another system). Prefer a **fine-grained PAT** whose
-resource owner has an active **Copilot** seat, with the **Copilot Requests**
-permission enabled (see [copilot-cli](https://github.com/github/copilot-cli)
-discussions and GitHub’s PAT docs). Classic PATs need the scopes GitHub
-documents for Copilot CLI. If the workflow logs show **Authentication failed**
-after AWF starts, rotate the PAT, update Doppler, re-run
-**`sync:copilot-secrets`**, and confirm the org allows Copilot for that user.
-AWF log lines that say the token is a **placeholder** are expected redaction and
-do not prove the secret was wrong in GitHub Actions.
+- `command` is the operator hub for shared env syncing into Cloudflare.
+- `narduk/prd` is the single central Doppler bucket for shared API keys and
+  other secret credentials that are synced to Cloudflare and GitHub.
+- Missing public app vars should be fixed at the Cloudflare target, not by
+  creating a per-app Doppler project.
+- Bootstrap/materialize now writes `provision.json.analytics.env` for
+  `GA_MEASUREMENT_ID`, `GA_PROPERTY_ID`, and `GSC_SITE_URL`. It always derives
+  the default `GSC_SITE_URL` from `SITE_URL`, and when
+  `GOOGLE_SERVICE_ACCOUNT_JSON` or the more specific Google service account env
+  vars are available it will attach or create the matching GSC and GA4
+  resources. Set `GOOGLE_ANALYTICS_ACCOUNT_ID` when the provisioning account can
+  see multiple GA accounts and a new property may need to be created.
 
 ## Agent Admin API Access
 
@@ -184,10 +336,54 @@ For deployed apps, prefer `SITE_URL` plus `AGENT_ADMIN_API_KEY` over browser
 automation for admin APIs.
 
 The token must be the raw `nk_...` key minted by the app, not a random value.
+The canonical record lives in the app's D1 `api_keys` table, not in Doppler.
 
-One-time mint and store flow:
+Preferred mint and store flow:
 
-1. Login as an existing admin:
+1. Use the supported CLI mint command from the app repo root:
+   ```bash
+   pnpm run agent-admin-key:mint -- \
+     --remote \
+     --admin-email <admin-email> \
+     --name agents-admin \
+     --scope users:read \
+     --site-url "$SITE_URL" \
+     --verify-path /api/users
+   ```
+   `command` is special. Its control-plane token uses:
+   ```bash
+   pnpm run agent-admin-key:mint -- \
+     --remote \
+     --admin-email <admin-email> \
+     --name command-registry-operator \
+     --scopes registry:read,registry:write,operations:read,operations:write \
+     --site-url "$SITE_URL" \
+     --verify-path /api/admin/registry/apps
+   ```
+2. The command writes a new `api_keys` row directly into the app database,
+   verifies the live bearer path, and returns the raw `nk_...` token once.
+3. Export the raw token temporarily while you verify it, then copy that same
+   value into the automation secret store you are bootstrapping. Because only
+   the hash is stored in D1, mint a replacement instead of trying to recover an
+   old key later:
+   ```bash
+   export AGENT_ADMIN_API_KEY='<raw nk_... token>'
+   ```
+4. Verify it before handing it to automation:
+   ```bash
+   curl -sS "$SITE_URL/api/users" \
+     -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
+   ```
+5. Use it for the scoped admin routes the automation actually needs:
+   ```bash
+   curl -sS "$SITE_URL/api/admin/users" \
+     -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
+   ```
+
+UI fallback flow:
+
+1. Login as an existing admin, or use the signed-in UI at `/settings/api-keys`
+   and choose the operator profile that matches the app. CLI mint path:
    ```bash
    curl -sS "$SITE_URL/api/auth/login" \
      -H "Content-Type: application/json" \
@@ -202,14 +398,56 @@ One-time mint and store flow:
      -H "Content-Type: application/json" \
      -H "X-Requested-With: XMLHttpRequest" \
      -b /tmp/<app>.cookies \
-     --data '{"name":"agents-admin"}'
+     --data '{
+       "name":"agents-admin",
+       "scopes":["users:read"],
+       "expiresInDays":30
+     }'
    ```
-3. Store the returned raw key in Doppler:
+3. Export the returned raw key temporarily while you verify it, then copy that
+   same value into the automation secret store you are bootstrapping:
    ```bash
-   doppler secrets set AGENT_ADMIN_API_KEY='<raw nk_... token>' --project <app-name> --config prd
+   export AGENT_ADMIN_API_KEY='<raw nk_... token>'
    ```
-4. Use it for admin routes:
-   ```bash
-   curl -sS "$SITE_URL/api/admin/users" \
-     -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
-   ```
+   The raw token is not recoverable from D1 later. Recommended default:
+
+- Prefer `pnpm run agent-admin-key:mint -- --remote ...` for operator recovery
+  and automation bootstrap. It does not depend on a browser session or a
+  remembered password.
+- Use the UI token profile that matches the automation surface instead of
+  minting an unscoped long-lived key.
+- `command` is special: its registry control plane uses `registry:read`,
+  `registry:write`, `operations:read`, and `operations:write`, and it verifies
+  tokens against `/api/admin/registry/apps`.
+- Keep the token scoped only to the routes the agent needs.
+- Prefer a 30-day expiry unless the automation truly needs a longer-lived
+  credential.
+- Rotate by minting a replacement first, updating the automation secret store,
+  then revoking the old key from `/settings/api-keys`.
+
+## Template Reusable Workflow Access
+
+Generated starter repos call reusable workflows from the private
+`narduk-enterprises/narduk-template` repository.
+
+That template repo must allow reusable workflow access from repositories in the
+organization:
+
+1. Open `narduk-enterprises/narduk-template`
+2. Go to `Settings -> Actions -> General`
+3. Set reusable workflow access to organization repositories
+
+If this is left at `none`, app deploy workflows fail with
+`workflow was not found` even when the reusable workflow file exists on `main`.
+
+Older fleet apps can be backfilled by running the same mint command inside the
+app repo and targeting the correct verification path:
+
+```bash
+pnpm run agent-admin-key:mint -- \
+  --remote \
+  --admin-email <admin-email> \
+  --scope users:read \
+  --site-url "$SITE_URL" \
+  --verify-path /api/users
+```

@@ -5,7 +5,7 @@ import { users } from '#layer/orm-tables'
 import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { verifyUserPassword } from '#layer/server/utils/password'
 
-export interface DeleteAccountBridgeInput {
+interface DeleteAccountBridgeInput {
   currentPassword?: string
 }
 
@@ -16,7 +16,7 @@ export interface DeleteAccountBridgeInput {
  * `beforeDelete` to clean up the upstream identity before the local DB row is
  * removed.
  */
-export interface AccountDeletionBridgeHooks {
+interface AccountDeletionBridgeHooks {
   beforeDelete?: (event: H3Event, userId: string) => Promise<void>
 }
 
@@ -30,7 +30,7 @@ function isForeignKeyConstraintError(error: unknown): boolean {
   )
 }
 
-export async function deleteCurrentUserAccountBridge(
+async function deleteCurrentUserAccountBridge(
   event: H3Event,
   user: AuthUser,
   input: DeleteAccountBridgeInput = {},
@@ -88,3 +88,5 @@ export async function deleteCurrentUserAccountBridge(
   await clearUserSession(event)
   log.info('User deleted account', { userId: user.id })
 }
+
+export { deleteCurrentUserAccountBridge as starterDeleteCurrentUserAccountBridge }

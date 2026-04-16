@@ -14,15 +14,15 @@ import { authSessions, authUserLinks } from '#server/app-orm-tables'
 import { executeDatabaseQuery, getDatabaseRow, useDatabase } from '#layer/server/utils/database'
 import { hashUserPassword, verifyUserPassword } from '#layer/server/utils/password'
 import { useAppDatabase } from '#server/utils/database'
-import { stampAuthSessionValidated } from './auth-session-stability'
+import { starterStampAuthSessionValidated as stampAuthSessionValidated } from './starter-auth-session-stability'
 
 const PKCE_COOKIE_NAME = 'app_auth_pkce'
 
-export type AppAuthBackend = 'local' | 'supabase'
-export type AppAuthProvider = 'apple' | 'email'
+type AppAuthBackend = 'local' | 'supabase'
+type AppAuthProvider = 'apple' | 'email'
 type OAuthProvider = 'apple'
 
-export interface AppSessionUser {
+interface AppSessionUser {
   id: string
   email: string
   name: string | null
@@ -37,14 +37,14 @@ export interface AppSessionUser {
   needsPasswordSetup?: boolean
 }
 
-export interface AuthMutationResult {
+interface AuthMutationResult {
   user: AppSessionUser | null
   nextStep?: 'signed_in' | 'email_confirmation' | 'password_recovery_sent'
   message?: string
   redirectTo?: string
 }
 
-export interface MfaEnrollmentResult {
+interface MfaEnrollmentResult {
   factorId: string
   qrCodeSvg: string
   qrCodeDataUrl: string
@@ -366,10 +366,7 @@ function toSupabaseHttpError(error: AuthError, fallbackStatusCode = 400): never 
   })
 }
 
-export async function ensureLinkedLocalUser(
-  event: H3Event,
-  authUser: SupabaseUser,
-): Promise<LocalUser> {
+async function ensureLinkedLocalUser(event: H3Event, authUser: SupabaseUser): Promise<LocalUser> {
   const log = useLogger(event).child('AppAuth')
   const db = useDatabase(event)
   const appDb = useAppDatabase(event)
@@ -559,7 +556,7 @@ async function persistSupabaseSession(
   }
 }
 
-export async function getCurrentSessionUser(event: H3Event): Promise<AppSessionUser | null> {
+async function getCurrentSessionUser(event: H3Event): Promise<AppSessionUser | null> {
   const session = await getUserSession(event)
   return session?.user ? (session.user as AppSessionUser) : null
 }
@@ -580,7 +577,7 @@ async function clearCurrentSession(event: H3Event) {
   await clearUserSession(event)
 }
 
-export async function getCurrentSupabaseContext(event: H3Event) {
+async function getCurrentSupabaseContext(event: H3Event) {
   const sessionUser = await getCurrentSessionUser(event)
   if (!sessionUser?.authSessionId) {
     throw createError({
@@ -675,7 +672,7 @@ async function commitSupabaseSessionFromClient(
   })
 }
 
-export async function getSessionUserResponse(event: H3Event) {
+async function getSessionUserResponse(event: H3Event) {
   const user = await getCurrentSessionUser(event)
   if (!user?.authSessionId) {
     return { user }
@@ -697,7 +694,7 @@ export async function getSessionUserResponse(event: H3Event) {
   }
 }
 
-export async function loginUser(event: H3Event, body: LoginInput): Promise<AuthMutationResult> {
+async function loginUser(event: H3Event, body: LoginInput): Promise<AuthMutationResult> {
   const config = getAuthConfig(event)
   if (config.backend === 'supabase' && isSupabaseConfigured(config)) {
     return loginWithSupabase(event, body)
@@ -785,10 +782,7 @@ async function loginWithSupabase(event: H3Event, body: LoginInput): Promise<Auth
   }
 }
 
-export async function registerUser(
-  event: H3Event,
-  body: RegisterInput,
-): Promise<AuthMutationResult> {
+async function registerUser(event: H3Event, body: RegisterInput): Promise<AuthMutationResult> {
   const config = getAuthConfig(event)
   if (config.backend === 'supabase' && isSupabaseConfigured(config)) {
     return registerWithSupabase(event, body)
@@ -914,7 +908,7 @@ async function registerWithSupabase(
   }
 }
 
-export async function startOAuthFlow(event: H3Event, body: OAuthStartInput) {
+async function startOAuthFlow(event: H3Event, body: OAuthStartInput) {
   const config = getAuthConfig(event)
   if (config.backend !== 'supabase' || !isSupabaseConfigured(config)) {
     throw createError({
@@ -955,7 +949,7 @@ export async function startOAuthFlow(event: H3Event, body: OAuthStartInput) {
   }
 }
 
-export async function exchangeSupabaseCode(
+async function exchangeSupabaseCode(
   event: H3Event,
   body: ExchangeCodeOptions,
 ): Promise<AuthMutationResult> {
@@ -1022,7 +1016,7 @@ export async function exchangeSupabaseCode(
   }
 }
 
-export async function requestPasswordReset(
+async function requestPasswordReset(
   event: H3Event,
   body: PasswordResetRequest,
 ): Promise<AuthMutationResult> {
@@ -1054,7 +1048,7 @@ export async function requestPasswordReset(
   }
 }
 
-export async function updateProfile(event: H3Event, body: UpdateProfileInput) {
+async function updateProfile(event: H3Event, body: UpdateProfileInput) {
   const config = getAuthConfig(event)
   const name = typeof body.name === 'string' ? body.name.trim() : undefined
   const sessionUser = await getCurrentSessionUser(event)
@@ -1127,7 +1121,7 @@ export async function updateProfile(event: H3Event, body: UpdateProfileInput) {
   return { ok: true, user: refreshedUser }
 }
 
-export async function changePassword(event: H3Event, body: ChangePasswordInput) {
+async function changePassword(event: H3Event, body: ChangePasswordInput) {
   const config = getAuthConfig(event)
   const sessionUser = await getCurrentSessionUser(event)
   if (!sessionUser) {
@@ -1219,10 +1213,7 @@ export async function changePassword(event: H3Event, body: ChangePasswordInput) 
   return { success: true }
 }
 
-export async function enrollMfa(
-  event: H3Event,
-  friendlyName?: string,
-): Promise<MfaEnrollmentResult> {
+async function enrollMfa(event: H3Event, friendlyName?: string): Promise<MfaEnrollmentResult> {
   const context = await getCurrentSupabaseContext(event)
   const { data, error } = await context.client.mfa.enroll({
     factorType: 'totp',
@@ -1247,7 +1238,7 @@ export async function enrollMfa(
   }
 }
 
-export async function verifyMfa(event: H3Event, body: VerifyMfaInput) {
+async function verifyMfa(event: H3Event, body: VerifyMfaInput) {
   const context = await getCurrentSupabaseContext(event)
   const { data, error } = await context.client.mfa.challengeAndVerify({
     factorId: body.factorId,
@@ -1282,7 +1273,7 @@ export async function verifyMfa(event: H3Event, body: VerifyMfaInput) {
   }
 }
 
-export async function logoutUser(event: H3Event) {
+async function logoutUser(event: H3Event) {
   const config = getAuthConfig(event)
   const sessionUser = await getCurrentSessionUser(event)
 
@@ -1311,7 +1302,7 @@ export async function logoutUser(event: H3Event) {
  * Call this inside a `beforeDelete` hook passed to `deleteCurrentUserAccount`
  * so that the upstream identity is removed before the local DB row is deleted.
  */
-export async function deleteSupabaseAuthUser(event: H3Event, localUserId: string): Promise<void> {
+async function deleteSupabaseAuthUser(event: H3Event, localUserId: string): Promise<void> {
   const config = getAuthConfig(event)
   const appDb = useAppDatabase(event)
 
@@ -1330,7 +1321,7 @@ export async function deleteSupabaseAuthUser(event: H3Event, localUserId: string
   }
 }
 
-export function getAuthUiState(event?: H3Event) {
+function getAuthUiState(event?: H3Event) {
   const config = event ? useRuntimeConfig(event) : useRuntimeConfig()
 
   return {
@@ -1348,4 +1339,31 @@ export function getAuthUiState(event?: H3Event) {
     redirectPath: config.public.authRedirectPath,
     turnstileSiteKey: config.public.authTurnstileSiteKey,
   }
+}
+
+export type {
+  AppAuthBackend as StarterAppAuthBackend,
+  AppAuthProvider as StarterAppAuthProvider,
+  AppSessionUser as StarterAppSessionUser,
+  AuthMutationResult as StarterAuthMutationResult,
+  MfaEnrollmentResult as StarterMfaEnrollmentResult,
+}
+
+export {
+  ensureLinkedLocalUser as starterEnsureLinkedLocalUser,
+  getCurrentSessionUser as starterGetCurrentSessionUser,
+  getCurrentSupabaseContext as starterGetCurrentSupabaseContext,
+  getSessionUserResponse as starterGetSessionUserResponse,
+  loginUser as starterLoginUser,
+  registerUser as starterRegisterUser,
+  startOAuthFlow as starterStartOAuthFlow,
+  exchangeSupabaseCode as starterExchangeSupabaseCode,
+  requestPasswordReset as starterRequestPasswordReset,
+  updateProfile as starterUpdateProfile,
+  changePassword as starterChangePassword,
+  enrollMfa as starterEnrollMfa,
+  verifyMfa as starterVerifyMfa,
+  logoutUser as starterLogoutUser,
+  deleteSupabaseAuthUser as starterDeleteSupabaseAuthUser,
+  getAuthUiState as starterGetAuthUiState,
 }

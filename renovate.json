@@ -7,6 +7,21 @@
   "ignorePaths": ["**/node_modules/**", ".agents/**"],
   "packageRules": [
     {
+      "description": "Open internal Narduk package updates immediately",
+      "matchPackagePatterns": ["^@narduk-enterprises/"],
+      "schedule": ["at any time"],
+      "automerge": false,
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Keep narduk-skills updates isolated",
+      "groupName": "narduk-skills",
+      "matchPackageNames": ["@narduk-enterprises/narduk-skills"],
+      "schedule": ["at any time"],
+      "automerge": false,
+      "rangeStrategy": "pin"
+    },
+    {
       "description": "Group all Nuxt ecosystem packages together to avoid partial upgrades",
       "groupName": "nuxt ecosystem",
       "matchPackagePatterns": ["^nuxt", "^@nuxt/", "^@nuxtjs/", "^vue", "^@vue/", "^vue-tsc"],
@@ -60,6 +75,7 @@
         "^nuxt",
         "^@nuxt/",
         "^@nuxtjs/",
+        "^@narduk-enterprises/",
         "^wrangler",
         "^@cloudflare/",
         "^drizzle-",

@@ -1,8 +1,8 @@
-import type { AppSessionUser } from '#server/utils/app-auth'
+import type { StarterAppSessionUser } from '#server/utils/starter-app-auth'
 
-export const DEFAULT_AUTH_SESSION_REVALIDATE_WINDOW_MS = 5 * 60 * 1000
+const DEFAULT_AUTH_SESSION_REVALIDATE_WINDOW_MS = 5 * 60 * 1000
 
-export function stampAuthSessionValidated<T extends AppSessionUser>(
+function stampAuthSessionValidated<T extends StarterAppSessionUser>(
   user: T,
   validatedAt = new Date().toISOString(),
 ): T {
@@ -12,8 +12,8 @@ export function stampAuthSessionValidated<T extends AppSessionUser>(
   }
 }
 
-export function wasAuthSessionRecentlyValidated(
-  user: Pick<AppSessionUser, 'authSessionId' | 'authSessionValidatedAt'> | null | undefined,
+function wasAuthSessionRecentlyValidated(
+  user: Pick<StarterAppSessionUser, 'authSessionId' | 'authSessionValidatedAt'> | null | undefined,
   nowMs = Date.now(),
   revalidateWindowMs = DEFAULT_AUTH_SESSION_REVALIDATE_WINDOW_MS,
 ): boolean {
@@ -74,7 +74,7 @@ function isLikelyAuthUpstreamFailure(message: string): boolean {
   )
 }
 
-export function isRecoverableSupabaseSessionFailure(error: unknown): boolean {
+function isRecoverableSupabaseSessionFailure(error: unknown): boolean {
   const message = extractErrorMessage(error)
   const status = getErrorStatus(error)
 
@@ -91,4 +91,11 @@ export function isRecoverableSupabaseSessionFailure(error: unknown): boolean {
       message,
     ) || /cloudflare\s+5\d{2}/i.test(message)
   )
+}
+
+export {
+  DEFAULT_AUTH_SESSION_REVALIDATE_WINDOW_MS as STARTER_DEFAULT_AUTH_SESSION_REVALIDATE_WINDOW_MS,
+  stampAuthSessionValidated as starterStampAuthSessionValidated,
+  wasAuthSessionRecentlyValidated as starterWasAuthSessionRecentlyValidated,
+  isRecoverableSupabaseSessionFailure as starterIsRecoverableSupabaseSessionFailure,
 }

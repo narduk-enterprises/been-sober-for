@@ -8,10 +8,15 @@ export const VERBATIM_SYNC_FILES = [
   '.githooks/pre-commit',
   '.githooks/post-checkout',
   '.githooks/post-merge',
+  'tools/ensure-worktree-install.cjs',
+  'tools/format-staged-files.cjs',
   'tools/install-git-hooks.cjs',
+  'tools/postinstall.cjs',
   'tools/command.ts',
+  'tools/env-input-catalog.ts',
   'tools/layer-bundle-manifest.ts',
   'tools/provision-metadata.ts',
+  'tools/wrangler-deploy.ts',
   'tools/template-layer-selection.ts',
   'tools/theme-manifest.ts',
   'tools/app-template-manifest.ts',
@@ -19,11 +24,18 @@ export const VERBATIM_SYNC_FILES = [
   'tools/check-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
+  'tools/sync-files.ts',
+  'tools/sync-root-package.ts',
+  'tools/sync-web-package.ts',
+  'tools/sync-nuxt-config.ts',
+  'tools/sync-wrangler.ts',
+  'tools/sync-database.ts',
   'tools/package-registry.ts',
   'tools/sync-manifest.ts',
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
+  'tools/mint-agent-admin-key.ts',
   'tools/configure-package-registry-auth.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
@@ -43,24 +55,18 @@ export const VERBATIM_SYNC_FILES = [
 
 export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/auth-environment.ts',
-  'apps/web/app/components/AuthExchangePanel.vue',
-  'apps/web/app/components/AuthLoginCard.vue',
-  'apps/web/app/components/AuthRegisterCard.vue',
   'apps/web/app/composables/useAuth.ts',
-  'apps/web/app/composables/useAuthApi.ts',
   'apps/web/app/composables/useManagedSupabase.ts',
-  'apps/web/app/middleware/auth.ts',
-  'apps/web/app/middleware/guest.ts',
+  'apps/web/app/composables/useManagedSupabaseClient.ts',
+  'apps/web/app/composables/useManagedSupabaseConfig.ts',
+  'apps/web/app/composables/useManagedSupabaseRpc.ts',
+  'apps/web/app/composables/useManagedSupabaseStorage.ts',
   'apps/web/app/layouts/auth.vue',
   'apps/web/app/layouts/blank.vue',
-  'apps/web/app/pages/auth/callback.vue',
-  'apps/web/app/pages/auth/confirm.vue',
-  'apps/web/app/pages/logout.vue',
-  'apps/web/app/pages/reset-password.vue',
-  'apps/web/app/types/auth.d.ts',
+  'apps/web/app/utils/managedSupabase.ts',
   'apps/web/app/types/runtime-config.d.ts',
-  'apps/web/server/api/auth/change-password.post.ts',
   'apps/web/server/api/auth/account/delete.post.ts',
+  'apps/web/server/api/auth/change-password.post.ts',
   'apps/web/server/api/auth/login.post.ts',
   'apps/web/server/api/auth/logout.post.ts',
   'apps/web/server/api/auth/me.get.ts',
@@ -76,15 +82,19 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/server/middleware/auth-session-refresh.ts',
   'apps/web/server/database/auth-bridge-pg-schema.ts',
   'apps/web/server/database/auth-bridge-schema.ts',
-  'apps/web/server/database/pg-app-schema.ts',
   'apps/web/server/database/pg-schema.ts',
-  'apps/web/server/utils/auth-callback.ts',
-  'apps/web/server/utils/app-auth.ts',
-  'apps/web/server/utils/accountDeletionBridge.ts',
-  'apps/web/server/utils/auth-session-stability.ts',
-  'apps/web/server/utils/session-user.ts',
+  'apps/web/server/utils/starter-account-deletion-bridge.ts',
+  'apps/web/server/utils/starter-app-auth.ts',
+  'apps/web/server/utils/starter-auth-callback.ts',
+  'apps/web/server/utils/starter-auth-session-stability.ts',
+  'apps/web/server/utils/starter-session-user.ts',
   'apps/web/server/utils/supabase.ts',
   'apps/web/drizzle/0001_auth_bridge.sql',
+] as const
+
+export const SEEDED_APP_OWNED_FILES = [
+  'apps/web/app/composables/useAuthApi.ts',
+  'apps/web/server/database/pg-app-schema.ts',
 ] as const
 
 export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
@@ -103,15 +113,17 @@ export const REFERENCE_BASELINE_FILES = [
 
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'deploy/preview',
-  'patches',
+  'docs/agents',
   'vendor',
   'tools/guardrails',
   '.agents/workflows',
 ] as const
 
 export const STALE_SYNC_PATHS = [
-  '.agents/skills',
+  'patches/@nuxt__image@2.0.0.patch',
+  'patches/@narduk-enterprises__narduk-nuxt-template-layer-core@1.2.18.patch',
   '.agents/.DS_Store',
+  '.forgejo',
   '.github/aw',
   '.github/skills',
   '.github/copilot-instructions.md',
@@ -138,8 +150,6 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/sync-fleet.yml',
   'config/fleet-sync-repos.json',
   'config/fleet-app-dir-overrides.json',
-  '.forgejo/workflows/deploy-main.yml',
-  '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
   'tools/agentic-workflow-manifest.ts',
@@ -147,10 +157,8 @@ export const STALE_SYNC_PATHS = [
   'tools/fleet-projects.ts',
   'tools/fleet-runner.ts',
   'tools/gsc-verify.ts',
-  'tools/mirror-fleet-to-forgejo.ts',
   'tools/reconcile-template-sync-prs.ts',
   'tools/run-remote-d1-migrate.mjs',
-  'tools/repair-forgejo-lockfile.mjs',
   'tools/report-app-operation.mjs',
   'tools/web-deploy.cjs',
   'tools/tail.ts',
@@ -160,7 +168,11 @@ export const STALE_SYNC_PATHS = [
   'tools/template-sync-bot.ts',
   'tools/validate.ts',
   'tools/validate-production-env.mjs',
-  'tools/verify-forgejo-package-source.mjs',
+  'apps/web/server/utils/accountDeletionBridge.ts',
+  'apps/web/server/utils/app-auth.ts',
+  'apps/web/server/utils/auth-callback.ts',
+  'apps/web/server/utils/auth-session-stability.ts',
+  'apps/web/server/utils/session-user.ts',
   'packages/eslint-config',
   'scripts/fleet-quality.sh',
   'scripts/fleet-status.sh',
@@ -175,7 +187,54 @@ export const STALE_SYNC_PATHS = [
   'layers/narduk-nuxt-layer',
 ] as const
 
-export const GENERATED_SYNC_FILES = ['.github/workflows/ci.yml'] as const
+export const GENERATED_SYNC_FILES = [
+  '.github/workflows/ci.yml',
+  '.github/workflows/copilot-setup-steps.yml',
+  'skills.config.json',
+] as const
+
+const SYNC_OWNERSHIP_PATH_GROUPS = {
+  'verbatim sync files': VERBATIM_SYNC_FILES,
+  'auth bridge sync files': AUTH_BRIDGE_SYNC_FILES,
+  'seeded app-owned files': SEEDED_APP_OWNED_FILES,
+  'bootstrap sync files': BOOTSTRAP_SYNC_FILES,
+  'reference baseline files': REFERENCE_BASELINE_FILES,
+  'recursive sync directories': RECURSIVE_SYNC_DIRECTORIES,
+  'generated sync files': GENERATED_SYNC_FILES,
+} as const
+
+export interface SyncManifestOwnershipConflict {
+  path: string
+  groups: string[]
+}
+
+export function getSyncManifestOwnershipConflicts(): SyncManifestOwnershipConflict[] {
+  const groupsByPath = new Map<string, string[]>()
+
+  for (const [group, paths] of Object.entries(SYNC_OWNERSHIP_PATH_GROUPS)) {
+    for (const path of paths) {
+      const existing = groupsByPath.get(path) ?? []
+      existing.push(group)
+      groupsByPath.set(path, existing)
+    }
+  }
+
+  return [...groupsByPath.entries()]
+    .filter(([, groups]) => groups.length > 1)
+    .map(([path, groups]) => ({ path, groups }))
+    .sort((left, right) => left.path.localeCompare(right.path))
+}
+
+export function assertValidSyncManifestOwnership(): void {
+  const conflicts = getSyncManifestOwnershipConflicts()
+  if (conflicts.length === 0) return
+
+  throw new Error(
+    `Sync manifest ownership categories overlap:\n${conflicts
+      .map(({ path, groups }) => `- ${path}: ${groups.join(', ')}`)
+      .join('\n')}`,
+  )
+}
 
 const STARTER_APP_NAME_PLACEHOLDER = '__APP_NAME__'
 const STARTER_DISPLAY_NAME_PLACEHOLDER = '__DISPLAY_NAME__'
@@ -205,11 +264,6 @@ const DEPLOY_REPO_SECRET_KEYS = [
 ] as const
 
 const UNIQUE_DEPLOY_REPO_SECRET_KEYS = [...new Set(DEPLOY_REPO_SECRET_KEYS)]
-const REQUIRED_DEPLOY_SECRET_KEYS = [
-  'CLOUDFLARE_API_TOKEN',
-  'CLOUDFLARE_ACCOUNT_ID',
-  'NARDUK_PLATFORM_GH_PACKAGES_RW',
-] as const
 
 export interface GeneratedSyncContext {
   appDisplayName: string
@@ -248,15 +302,15 @@ export function resolveGeneratedSyncContext(rootDir: string): GeneratedSyncConte
 
 // These are the root package.json keys that the starter owns downstream.
 export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
-  postinstall:
-    "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  This repo is incomplete until project setup finishes (writes .setup-complete). See AGENTS.md and local setup docs.\\n')\"",
+  postinstall: 'node tools/postinstall.cjs',
   predev: 'node tools/check-setup.cjs',
   dev: 'pnpm --filter web dev',
   prebuild: 'node tools/check-setup.cjs',
   build: 'pnpm -r build',
   'package-registry:auth': 'node tools/configure-package-registry-auth.mjs',
+  'sync:skills': 'narduk-skills sync --clean',
   preship:
-    'node tools/check-setup.cjs && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_RW:-}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit',
+    'node tools/check-setup.cjs && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit',
   'sync-template': 'pnpm exec tsx tools/sync-template.ts .',
   lint: 'turbo run lint',
   typecheck: 'turbo run typecheck',
@@ -270,8 +324,9 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   clean:
     "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
   'clean:install':
-    'pnpm run clean && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_RW:-}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready',
+    'pnpm run clean && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready',
   'db:migrate': 'pnpm --filter web run db:migrate',
+  'agent-admin-key:mint': 'pnpm exec tsx tools/mint-agent-admin-key.ts',
   'dev:kill': 'sh scripts/dev-kill.sh',
   'cleanup:node-leaks': 'sh scripts/cleanup-node-leaks.sh',
   'test:e2e': 'playwright test',
@@ -284,9 +339,22 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
 export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   predev: 'pnpm run db:ready',
   dev: 'nuxt dev',
-  build: 'nuxt build',
-  deploy: 'pnpm exec wrangler deploy --env=""',
-  lint: 'eslint . --max-warnings 0',
+  build:
+    'export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=${NARDUK_BUILD_MAX_OLD_SPACE_SIZE:-4096}"; nuxt build',
+  'cf:build':
+    'if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}" ]; then pnpm -C ../.. run package-registry:auth && NPM_CONFIG_USERCONFIG="$(cd ../.. && pwd)/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm -C ../.. install --frozen-lockfile; else pnpm -C ../.. install --frozen-lockfile; fi && pnpm run build',
+  'cf:build:production':
+    'NARDUK_DEPLOY_TARGET=production NARDUK_PREVIEW_SAFE_MODE=false pnpm run cf:build',
+  'cf:build:staging':
+    'NARDUK_DEPLOY_TARGET=staging NARDUK_PREVIEW_SAFE_MODE=false pnpm run cf:build',
+  'cf:build:preview':
+    'NARDUK_DEPLOY_TARGET=preview NARDUK_PREVIEW_SAFE_MODE=true pnpm run cf:build',
+  'cf:deploy': 'pnpm exec tsx ../../tools/wrangler-deploy.ts deploy production',
+  'cf:deploy:staging': 'pnpm exec tsx ../../tools/wrangler-deploy.ts deploy staging',
+  'cf:deploy:preview': 'pnpm exec tsx ../../tools/wrangler-deploy.ts versions-upload preview',
+  deploy: 'pnpm run cf:deploy',
+  lint: 'eslint .',
+  'pretest:unit': 'test -f .nuxt/tsconfig.server.json || nuxt prepare',
   quality: "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
 }
 
@@ -315,8 +383,52 @@ jobs:
   quality:
     uses: narduk-enterprises/narduk-template/.github/workflows/reusable-quality.yml@main
     secrets:
-      NARDUK_PLATFORM_GH_PACKAGES_RW: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_RW }}
+      NARDUK_PLATFORM_GH_PACKAGES_READ: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
 `
+}
+
+export function getCanonicalCopilotSetupStepsContent(): string {
+  return `name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment: copilot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configure GitHub Packages auth
+        env:
+          NARDUK_PLATFORM_GH_PACKAGES_READ: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
+        run: pnpm run package-registry:auth
+
+      - name: Install dependencies
+        env:
+          NARDUK_PLATFORM_GH_PACKAGES_READ: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
+        run: NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install --frozen-lockfile
+
+      - name: Sync skills
+        run: pnpm run sync:skills
+`
+}
+
+export function getCanonicalSkillsConfigContent(): string {
+  return `${JSON.stringify({ profiles: ['template-core'] }, null, 2)}\n`
 }
 
 export function getCanonicalDeployMainContent(context: Partial<GeneratedSyncContext> = {}): string {
@@ -324,8 +436,6 @@ export function getCanonicalDeployMainContent(context: Partial<GeneratedSyncCont
     ...getDefaultGeneratedSyncContext(),
     ...context,
   }
-  const deployRepoSecretEnvLines = buildDeployRepoSecretEnvLines()
-  const requiredDeployKeys = REQUIRED_DEPLOY_SECRET_KEYS.join(' ')
 
   return `name: Production Deploy
 
@@ -358,14 +468,15 @@ jobs:
 
     permissions:
       contents: read
+      packages: read
 
     env:
       APP_NAME: ${quoteYamlString(resolvedContext.appDisplayName)}
       CI: "true"
-      NARDUK_PLATFORM_GH_PACKAGES_RW: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_RW }}
+      NARDUK_PLATFORM_GH_PACKAGES_READ: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
       NUXT_TELEMETRY_DISABLED: "1"
       SITE_URL: ${quoteYamlString(resolvedContext.siteUrl)}
-${deployRepoSecretEnvLines}
+${buildDeployRepoSecretEnvLines()}
 
     steps:
       - name: Checkout
@@ -384,7 +495,7 @@ ${deployRepoSecretEnvLines}
         run: |
           set -euo pipefail
 
-          for key in ${requiredDeployKeys}; do
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
             if [[ -z "\${!key:-}" ]]; then
               echo "::error::Missing $key for deploy."
               exit 1
@@ -407,9 +518,6 @@ ${deployRepoSecretEnvLines}
       - name: Build
         working-directory: apps/web
         run: pnpm run build
-        env:
-          NODE_OPTIONS: --max-old-space-size=3072
-
       - name: Migrate (remote D1)
         if: \${{ inputs.run_migrate == 'true' }}
         working-directory: apps/web
@@ -434,6 +542,14 @@ export function getGeneratedSyncFileContent(
 ): string | null {
   if (relativePath === '.github/workflows/ci.yml') {
     return getCanonicalCiContent()
+  }
+
+  if (relativePath === '.github/workflows/copilot-setup-steps.yml') {
+    return getCanonicalCopilotSetupStepsContent()
+  }
+
+  if (relativePath === 'skills.config.json') {
+    return getCanonicalSkillsConfigContent()
   }
 
   return null
@@ -484,6 +600,18 @@ export function collectManagedTemplateFiles(templateRoot: string): string[] {
   }
 
   for (const file of AUTH_BRIDGE_SYNC_FILES) {
+    if (existsSync(join(templateRoot, file))) {
+      tracked.add(file)
+    }
+  }
+
+  for (const file of SEEDED_APP_OWNED_FILES) {
+    if (existsSync(join(templateRoot, file))) {
+      tracked.add(file)
+    }
+  }
+
+  for (const file of BOOTSTRAP_SYNC_FILES) {
     if (existsSync(join(templateRoot, file))) {
       tracked.add(file)
     }

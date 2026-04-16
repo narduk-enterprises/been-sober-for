@@ -254,7 +254,10 @@ test.describe('profile API', () => {
     expect(result.status).toBe(404)
   })
 
-  test('GET /api/public/profile/[slug] returns 404 for private profiles', async ({ page, browser }) => {
+  test('GET /api/public/profile/[slug] returns 404 for private profiles', async ({
+    page,
+    browser,
+  }) => {
     await page.goto('/')
     await waitForHydration(page)
 
