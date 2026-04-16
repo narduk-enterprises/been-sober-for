@@ -139,8 +139,9 @@ function patchWebAppOrmSchemaFiles(
 }
 
 /**
- * `app-auth.ts` imports `useAppDatabase` from `#server/utils/database`. Sync
- * must not leave downstream apps without this helper (see template issue #12).
+ * The starter auth bridge helper imports `useAppDatabase` from
+ * `#server/utils/database`. Sync must not leave downstream apps without this
+ * helper (see template issue #12).
  */
 function ensureWebDatabaseUtils(
   appDir: string,
@@ -151,8 +152,12 @@ function ensureWebDatabaseUtils(
   if (mode !== 'full') return false
 
   const utilPath = join(appDir, 'apps/web/server/utils/database.ts')
-  const authPath = join(appDir, 'apps/web/server/utils/app-auth.ts')
-  if (!existsSync(authPath)) return false
+  const authPaths = [
+    join(appDir, 'apps/web/server/utils/starter-app-auth.ts'),
+    join(appDir, 'apps/web/server/utils/app-auth.ts'),
+  ]
+  const authPath = authPaths.find((candidate) => existsSync(candidate))
+  if (!authPath) return false
 
   const authContent = readFileSync(authPath, 'utf-8')
   if (!authContent.includes("from '#server/utils/database'")) return false

@@ -5,8 +5,11 @@ import {
   withOptionalValidatedBody,
 } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { deleteCurrentUserAccountBridge } from '#server/utils/accountDeletionBridge'
-import { deleteSupabaseAuthUser, type AppSessionUser } from '#server/utils/app-auth'
+import { starterDeleteCurrentUserAccountBridge as deleteCurrentUserAccountBridge } from '#server/utils/starter-account-deletion-bridge'
+import {
+  starterDeleteSupabaseAuthUser as deleteSupabaseAuthUser,
+  type StarterAppSessionUser as AppSessionUser,
+} from '#server/utils/starter-app-auth'
 
 const deleteAccountSchema = z.object({
   currentPassword: z.string().min(1).optional(),

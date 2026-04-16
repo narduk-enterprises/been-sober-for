@@ -234,6 +234,22 @@ function getGeneratedFileContent(relativePath: string): string | null {
   return getGeneratedSyncFileContent(relativePath, resolveGeneratedSyncContext(ROOT_DIR))
 }
 
+function hasResolvableRef(ref: string): boolean {
+  return Boolean(run('git', ['rev-parse', '--verify', `${ref}^{commit}`]))
+}
+
+function ensureTemplateRefAvailable(ref: string): boolean {
+  if (hasResolvableRef(ref)) {
+    return true
+  }
+
+  if (ref !== 'template/main') {
+    run('git', ['fetch', 'template', ref, '--depth=1'])
+  }
+
+  return hasResolvableRef(ref)
+}
+
 async function main() {
   if (isTemplateRepo()) {
     console.log('This is the template repository itself — drift check not applicable.')
@@ -249,6 +265,18 @@ async function main() {
   run('git', ['fetch', 'template', 'main', '--depth=1'])
 
   const ref = getTemplateRef()
+  if (!ensureTemplateRefAvailable(ref)) {
+    console.log('\nTemplate Drift Check')
+    console.log('════════════════════════════════════════════════════')
+    console.log(`  Comparing against: ${ref}`)
+    console.log('')
+    console.log(` ❌ Unable to resolve template ref ${ref} from ${TEMPLATE_REMOTE_URL}`)
+    console.log('    Push the upstream template commit or resync from a reachable template ref.')
+    console.log('')
+    console.log('════════════════════════════════════════════════════')
+    process.exit(1)
+  }
+
   const trackedFiles = buildTrackedFiles(ref)
   const templateContents = getFileContentsAtRef(
     ref,

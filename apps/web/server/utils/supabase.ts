@@ -4,7 +4,7 @@ import {
   type SupabaseClient,
   type SupabaseClientOptions,
 } from '@supabase/supabase-js'
-import { getCurrentSupabaseContext } from '#server/utils/app-auth'
+import { starterGetCurrentSupabaseContext as getCurrentSupabaseContext } from '#server/utils/starter-app-auth'
 
 export type AppBackendPreset = 'default' | 'managed-supabase'
 

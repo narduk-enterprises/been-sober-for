@@ -5,7 +5,7 @@ import {
   withValidatedBody,
 } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { changePassword } from '#server/utils/app-auth'
+import { starterChangePassword as changePassword } from '#server/utils/starter-app-auth'
 
 const bodySchema = z.object({
   currentPassword: z.string().min(1).optional(),

@@ -5,7 +5,7 @@ import {
   withValidatedBody,
 } from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { startOAuthFlow } from '#server/utils/app-auth'
+import { starterStartOAuthFlow as startOAuthFlow } from '#server/utils/starter-app-auth'
 
 const bodySchema = z.object({
   provider: z.enum(['apple']),

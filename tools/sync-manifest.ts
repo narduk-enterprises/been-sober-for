@@ -4,7 +4,6 @@ import { listLayerBundleDefinitions } from './layer-bundle-manifest'
 import { getProvisionDisplayName, readProvisionMetadata } from './provision-metadata'
 
 export const VERBATIM_SYNC_FILES = [
-  'AGENTS.md',
   '.dockerignore',
   '.githooks/pre-commit',
   '.githooks/post-checkout',
@@ -36,6 +35,7 @@ export const VERBATIM_SYNC_FILES = [
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
+  'tools/mint-agent-admin-key.ts',
   'tools/configure-package-registry-auth.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
@@ -51,7 +51,6 @@ export const VERBATIM_SYNC_FILES = [
   'prettier.config.mjs',
   '.prettierignore',
   '.editorconfig',
-  'docs/e2e-testing.md',
 ] as const
 
 export const AUTH_BRIDGE_SYNC_FILES = [
@@ -66,11 +65,29 @@ export const AUTH_BRIDGE_SYNC_FILES = [
   'apps/web/app/layouts/blank.vue',
   'apps/web/app/utils/managedSupabase.ts',
   'apps/web/app/types/runtime-config.d.ts',
+  'apps/web/server/api/auth/account/delete.post.ts',
+  'apps/web/server/api/auth/change-password.post.ts',
+  'apps/web/server/api/auth/login.post.ts',
+  'apps/web/server/api/auth/logout.post.ts',
+  'apps/web/server/api/auth/me.get.ts',
+  'apps/web/server/api/auth/me.patch.ts',
+  'apps/web/server/api/auth/mfa/enroll.post.ts',
+  'apps/web/server/api/auth/mfa/verify.post.ts',
+  'apps/web/server/api/auth/oauth/start.post.ts',
+  'apps/web/server/api/auth/password/reset.post.ts',
+  'apps/web/server/api/auth/register.post.ts',
+  'apps/web/server/api/auth/session/exchange.get.ts',
+  'apps/web/server/api/auth/session/exchange.post.ts',
   'apps/web/server/middleware/00-canonical-host.ts',
   'apps/web/server/middleware/auth-session-refresh.ts',
   'apps/web/server/database/auth-bridge-pg-schema.ts',
   'apps/web/server/database/auth-bridge-schema.ts',
   'apps/web/server/database/pg-schema.ts',
+  'apps/web/server/utils/starter-account-deletion-bridge.ts',
+  'apps/web/server/utils/starter-app-auth.ts',
+  'apps/web/server/utils/starter-auth-callback.ts',
+  'apps/web/server/utils/starter-auth-session-stability.ts',
+  'apps/web/server/utils/starter-session-user.ts',
   'apps/web/server/utils/supabase.ts',
   'apps/web/drizzle/0001_auth_bridge.sql',
 ] as const
@@ -151,6 +168,11 @@ export const STALE_SYNC_PATHS = [
   'tools/template-sync-bot.ts',
   'tools/validate.ts',
   'tools/validate-production-env.mjs',
+  'apps/web/server/utils/accountDeletionBridge.ts',
+  'apps/web/server/utils/app-auth.ts',
+  'apps/web/server/utils/auth-callback.ts',
+  'apps/web/server/utils/auth-session-stability.ts',
+  'apps/web/server/utils/session-user.ts',
   'packages/eslint-config',
   'scripts/fleet-quality.sh',
   'scripts/fleet-status.sh',
@@ -304,6 +326,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   'clean:install':
     'pnpm run clean && if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready',
   'db:migrate': 'pnpm --filter web run db:migrate',
+  'agent-admin-key:mint': 'pnpm exec tsx tools/mint-agent-admin-key.ts',
   'dev:kill': 'sh scripts/dev-kill.sh',
   'cleanup:node-leaks': 'sh scripts/cleanup-node-leaks.sh',
   'test:e2e': 'playwright test',
@@ -413,7 +436,6 @@ export function getCanonicalDeployMainContent(context: Partial<GeneratedSyncCont
     ...getDefaultGeneratedSyncContext(),
     ...context,
   }
-  const deployRepoSecretEnvLines = buildDeployRepoSecretEnvLines()
 
   return `name: Production Deploy
 
@@ -454,7 +476,7 @@ jobs:
       NARDUK_PLATFORM_GH_PACKAGES_READ: \${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
       NUXT_TELEMETRY_DISABLED: "1"
       SITE_URL: ${quoteYamlString(resolvedContext.siteUrl)}
-${deployRepoSecretEnvLines}
+${buildDeployRepoSecretEnvLines()}
 
     steps:
       - name: Checkout

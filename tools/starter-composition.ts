@@ -1,4 +1,5 @@
 import {
+  LAYER_BUNDLE_MANIFEST,
   normalizeTemplateLayerSelection,
   resolveRequiredAppDependencies,
   resolveSelectedLayerPackageNames,
@@ -46,11 +47,19 @@ export function resolveSelectedStarterPackageNames(
   selection: StarterCompositionSelection,
 ): string[] {
   const normalized = normalizeStarterCompositionSelection(selection)
+  const layerPackageNames = resolveSelectedLayerPackageNames(normalized.templateLayerSelection)
+  const operatorLayerPackageName = LAYER_BUNDLE_MANIFEST.operator.packageName
+  const orderedLayerPackageNames = layerPackageNames.includes(operatorLayerPackageName)
+    ? [
+        operatorLayerPackageName,
+        ...layerPackageNames.filter((packageName) => packageName !== operatorLayerPackageName),
+      ]
+    : layerPackageNames
 
   return unique([
     resolveSelectedBaseThemePackageName(normalized.baseThemeSelection),
     ...resolveSelectedAppTemplatePackageNames(normalized.appTemplateSelection),
-    ...resolveSelectedLayerPackageNames(normalized.templateLayerSelection),
+    ...orderedLayerPackageNames,
   ])
 }
 

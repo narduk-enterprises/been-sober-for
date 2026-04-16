@@ -492,6 +492,112 @@ function checkStarterPackageSelectionDependencies(): CheckResult {
   }
 }
 
+function readWorkspaceLayerVersions(rootDir: string): Map<string, string> {
+  const layersDir = join(rootDir, 'layers')
+  const versions = new Map<string, string>()
+  if (!existsSync(layersDir)) return versions
+
+  for (const entry of readdirSync(layersDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const packageJson = readJson<{ name?: string; version?: string }>(
+      join(layersDir, entry.name, 'package.json'),
+    )
+    if (!packageJson?.name || !packageJson.version) continue
+    versions.set(packageJson.name, packageJson.version)
+  }
+
+  return versions
+}
+
+function extractStarterLockDependencyVersion(
+  lockfileContent: string,
+  packageName: string,
+): { specifier: string; version: string } | null {
+  const pattern = new RegExp(
+    String.raw`^\s{6}'${escapeRegExp(packageName)}':\n\s{8}specifier:\s([^\n]+)\n\s{8}version:\s([^\n]+)$`,
+    'm',
+  )
+  const match = lockfileContent.match(pattern)
+  if (!match) return null
+  return {
+    specifier: match[1]?.trim() || '',
+    version: match[2]?.trim() || '',
+  }
+}
+
+export function checkStarterLayerDependencyBaseline(rootDir = ROOT_DIR): CheckResult {
+  const starterPackage = readJson<PackageJson>(
+    join(rootDir, 'starters', 'default', 'apps', 'web', 'package.json'),
+  )
+  if (!starterPackage) {
+    return {
+      status: 'warn',
+      summary: 'starter default apps/web/package.json not found',
+    }
+  }
+
+  if (!existsSync(join(rootDir, 'starters', 'default', 'pnpm-lock.yaml'))) {
+    return {
+      status: 'warn',
+      summary: 'starter default pnpm-lock.yaml not found',
+    }
+  }
+
+  const layerVersions = readWorkspaceLayerVersions(rootDir)
+  const lockfileContent = readFileSync(
+    join(rootDir, 'starters', 'default', 'pnpm-lock.yaml'),
+    'utf8',
+  )
+  const mismatches: string[] = []
+
+  for (const [packageName, declaredSpecifier] of Object.entries(
+    starterPackage.dependencies || {},
+  )) {
+    if (!packageName.startsWith('@narduk-enterprises/narduk-nuxt-template-layer-')) continue
+
+    const workspaceVersion = layerVersions.get(packageName)
+    if (!workspaceVersion) continue
+
+    const expectedSpecifier = `^${workspaceVersion}`
+    if (declaredSpecifier !== expectedSpecifier) {
+      mismatches.push(
+        `starter apps/web/package.json ${packageName}: expected ${expectedSpecifier}; actual ${declaredSpecifier}`,
+      )
+    }
+
+    const lockEntry = extractStarterLockDependencyVersion(lockfileContent, packageName)
+    if (!lockEntry) {
+      mismatches.push(`starter pnpm-lock.yaml is missing importer entry for ${packageName}`)
+      continue
+    }
+
+    if (lockEntry.specifier !== expectedSpecifier) {
+      mismatches.push(
+        `starter pnpm-lock.yaml ${packageName} specifier: expected ${expectedSpecifier}; actual ${lockEntry.specifier}`,
+      )
+    }
+
+    if (!lockEntry.version.startsWith(workspaceVersion)) {
+      mismatches.push(
+        `starter pnpm-lock.yaml ${packageName} version: expected ${workspaceVersion}; actual ${lockEntry.version}`,
+      )
+    }
+  }
+
+  if (mismatches.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'starter layer dependency versions and lockfile are aligned',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'starter layer dependency baseline drift detected',
+    detail: mismatches.join('\n'),
+  }
+}
+
 function checkWorkersBuildScripts(): CheckResult {
   const webPackage = readAppWebPackage()
   if (!webPackage) {
@@ -834,7 +940,7 @@ export function checkLegacyPackageRegistryResidue(rootDir = ROOT_DIR): CheckResu
   if (residue.length === 0) {
     return {
       status: 'pass',
-      summary: 'no legacy package registry host references detected in package registry files',
+      summary: 'no legacy package registry references detected in package registry files',
     }
   }
 
@@ -924,6 +1030,7 @@ export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
     ['pnpm lockfile', checkLockfileState(rootPkg)],
     ['package registry residue', checkLegacyPackageRegistryResidue(ROOT_DIR)],
     ['starter package deps', checkStarterPackageSelectionDependencies()],
+    ['starter layer dependency baseline', checkStarterLayerDependencyBaseline(ROOT_DIR)],
     ['Workers Builds web scripts', checkWorkersBuildScripts()],
     ['nuxt extends order', checkNuxtExtendsSelection()],
     ['app config ui shape', checkAppConfigUiShape()],

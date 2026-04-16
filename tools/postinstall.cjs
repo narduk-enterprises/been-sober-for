@@ -38,7 +38,12 @@ if (!skillsSyncCommand) {
   process.exit(0)
 }
 
-execFileSync(skillsSyncCommand, ['sync', '--clean'], {
-  cwd: root,
-  stdio: 'inherit',
-})
+try {
+  execFileSync(skillsSyncCommand, ['sync', '--clean'], {
+    cwd: root,
+    stdio: 'inherit',
+  })
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.warn(`[postinstall] Skipping narduk-skills sync: ${message}`)
+}
