@@ -24,13 +24,13 @@ const nav = [
     >
       <UContainer class="flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
         <div class="flex min-w-0 flex-wrap items-center gap-4 lg:gap-8">
-          <NuxtLink
+          <ULink
             to="/"
             class="focus-visible:ring-primary flex min-w-0 items-center gap-2 rounded-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             <BsfLogoMark size-class="h-8 w-8 sm:h-9 sm:w-9" />
             <BsfWordmark compact />
-          </NuxtLink>
+          </ULink>
           <div role="navigation" class="hidden items-center gap-1 lg:flex" aria-label="Dashboard">
             <UButton
               v-for="item in nav"

@@ -293,13 +293,13 @@ const visibilityLabel = computed(() => {
           @confirm="submitStartAgainToday"
         >
           <p class="text-muted text-sm">
-            <NuxtLink
+            <ULink
               to="/dashboard/start-again"
               class="text-primary font-medium underline"
               @click="startAgainModalOpen = false"
             >
               Use a different date instead
-            </NuxtLink>
+            </ULink>
           </p>
         </AppConfirmModal>
       </template>

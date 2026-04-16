@@ -1,7 +1,11 @@
 import { z } from 'zod'
-import { definePublicMutation, requireMutationBody, withValidatedBody } from '#layer/server/utils/mutation'
+import {
+  definePublicMutation,
+  requireMutationBody,
+  withValidatedBody,
+} from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { loginUser } from '#server/utils/app-auth'
+import { starterLoginUser as loginUser } from '#server/utils/starter-app-auth'
 
 const loginSchema = z.object({
   email: z.string().email(),

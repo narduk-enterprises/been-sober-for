@@ -4,37 +4,35 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  This repo is incomplete until project setup finishes (writes .setup-complete). See AGENTS.md and local setup docs.\\n')\"",
+    "postinstall": "narduk-fleet postinstall",
     "predev": "node tools/check-setup.cjs",
     "dev": "pnpm --filter web dev",
     "prebuild": "node tools/check-setup.cjs",
     "build": "pnpm -r build",
-    "build:plugins": "pnpm --filter @narduk/eslint-config build",
-    "preship": "node tools/check-setup.cjs && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_RW:-}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
-    "prelint": "pnpm run build:plugins",
+    "preship": "node tools/check-setup.cjs && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "hooks:install": "node tools/install-git-hooks.cjs",
-    "guardrails:repo": "pnpm exec tsx tools/check-guardrails.ts",
+    "hooks:install": "narduk-fleet install-git-hooks",
+    "guardrails:repo": "narduk-fleet guardrails",
     "quality": "pnpm run quality:fix && pnpm run quality:check",
     "quality:check": "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
     "quality:fix": "turbo run lint --force -- --fix && pnpm run format",
     "check": "pnpm run quality:check",
-    "update-layer": "pnpm exec tsx tools/update-layer.ts",
-    "sync-template": "pnpm exec tsx tools/sync-template.ts .",
-    "sync:copilot-secrets": "pnpm exec tsx tools/sync-copilot-secrets.ts",
-    "check:sync-health": "pnpm exec tsx tools/check-sync-health.ts",
+    "sync-template": "narduk-fleet sync .",
+    "check:sync-health": "narduk-fleet check-health",
     "clean": "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
-    "clean:install": "pnpm run clean && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_RW:-}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready",
+    "clean:install": "pnpm run clean && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm --filter web run db:ready",
     "db:migrate": "pnpm --filter web run db:migrate",
+    "agent-admin-key:mint": "narduk-fleet mint-key",
     "dev:kill": "sh scripts/dev-kill.sh",
     "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
     "test:e2e": "playwright test",
     "test:e2e:web": "pnpm --filter web test:e2e",
-    "generate:favicons": "pnpm exec tsx tools/generate-favicons.ts",
+    "generate:favicons": "narduk-fleet favicons",
     "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\"",
-    "package-registry:auth": "node tools/configure-package-registry-auth.mjs"
+    "package-registry:auth": "node tools/configure-package-registry-auth.mjs",
+    "sync:skills": "narduk-skills sync --clean"
   },
   "pnpm": {
     "overrides": {
@@ -96,10 +94,7 @@
       "vue-demi",
       "workerd"
     ],
-    "patchedDependencies": {
-      "@nuxt/image@2.0.0": "patches/@nuxt__image@2.0.0.patch",
-      "@narduk-enterprises/narduk-nuxt-template-layer-core@1.2.18": "patches/@narduk-enterprises__narduk-nuxt-template-layer-core@1.2.18.patch"
-    }
+    "patchedDependencies": {}
   },
   "volta": {
     "node": "22.22.0"
@@ -111,6 +106,8 @@
     "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "turbo": "^2.8.12",
-    "wait-on": "^9.0.4"
+    "wait-on": "^9.0.4",
+    "@narduk-enterprises/narduk-skills": "0.3.0",
+    "@narduk-enterprises/narduk-cli": "^1.17.2"
   }
 }

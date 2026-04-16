@@ -7,15 +7,68 @@ export interface PackageRegistryConfig {
 
 export const DEFAULT_PACKAGE_REGISTRY_SCOPE = '@narduk-enterprises'
 export const GITHUB_PACKAGE_REGISTRY_URL = 'https://npm.pkg.github.com'
-export const GITHUB_PACKAGE_REGISTRY_AUTH_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_RW'
+export const GITHUB_PACKAGE_REGISTRY_READ_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_READ'
+export const GITHUB_PACKAGE_REGISTRY_WRITE_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_WRITE'
+export const GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR = 'NARDUK_PLATFORM_GH_PACKAGES_RW'
 export const GENERATED_PACKAGE_REGISTRY_AUTH_CONFIG_PATH = '.npmrc.auth'
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : `${value}/`
 }
 
+function normalizeToken(value: string | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+export function resolvePackageRegistryAuthEnvVar(
+  env: NodeJS.ProcessEnv = process.env,
+  options: {
+    preferWrite?: boolean
+  } = {},
+) {
+  if (options.preferWrite) {
+    return normalizeToken(env[GITHUB_PACKAGE_REGISTRY_WRITE_ENV_VAR])
+      ? GITHUB_PACKAGE_REGISTRY_WRITE_ENV_VAR
+      : normalizeToken(env[GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR])
+        ? GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR
+        : GITHUB_PACKAGE_REGISTRY_WRITE_ENV_VAR
+  }
+
+  return normalizeToken(env[GITHUB_PACKAGE_REGISTRY_READ_ENV_VAR])
+    ? GITHUB_PACKAGE_REGISTRY_READ_ENV_VAR
+    : normalizeToken(env[GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR])
+      ? GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR
+      : GITHUB_PACKAGE_REGISTRY_READ_ENV_VAR
+}
+
+export function resolvePackageRegistryToken(
+  env: NodeJS.ProcessEnv = process.env,
+  options: {
+    preferWrite?: boolean
+  } = {},
+) {
+  if (options.preferWrite) {
+    return (
+      normalizeToken(env[GITHUB_PACKAGE_REGISTRY_WRITE_ENV_VAR]) ??
+      normalizeToken(env[GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR]) ??
+      ''
+    )
+  }
+
+  return (
+    normalizeToken(env[GITHUB_PACKAGE_REGISTRY_READ_ENV_VAR]) ??
+    normalizeToken(env[GITHUB_PACKAGE_REGISTRY_LEGACY_RW_ENV_VAR]) ??
+    ''
+  )
+}
+
+export function hasPackageRegistryReadToken(env: NodeJS.ProcessEnv = process.env) {
+  return resolvePackageRegistryToken(env).length > 0
+}
+
 export function getPackageRegistryConfig(
-  _env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = process.env,
 ): PackageRegistryConfig {
   const url = new URL(GITHUB_PACKAGE_REGISTRY_URL)
 
@@ -23,7 +76,7 @@ export function getPackageRegistryConfig(
     scope: DEFAULT_PACKAGE_REGISTRY_SCOPE,
     registryUrl: GITHUB_PACKAGE_REGISTRY_URL,
     authHostPath: `${url.host}${ensureTrailingSlash(url.pathname)}`,
-    authTokenEnvVar: GITHUB_PACKAGE_REGISTRY_AUTH_ENV_VAR,
+    authTokenEnvVar: resolvePackageRegistryAuthEnvVar(env),
   }
 }
 

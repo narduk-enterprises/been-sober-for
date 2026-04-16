@@ -15,4 +15,4 @@ jobs:
   quality:
     uses: narduk-enterprises/narduk-template/.github/workflows/reusable-quality.yml@main
     secrets:
-      NARDUK_PLATFORM_GH_PACKAGES_RW: ${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_RW }}
+      NARDUK_PLATFORM_GH_PACKAGES_READ: ${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}

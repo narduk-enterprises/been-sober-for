@@ -1,8 +1,12 @@
 import { z } from 'zod'
-import { definePublicMutation, requireMutationBody, withValidatedBody } from '#layer/server/utils/mutation'
+import {
+  definePublicMutation,
+  requireMutationBody,
+  withValidatedBody,
+} from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
-import { logAuthCallbackFailure } from '#server/utils/auth-callback'
-import { exchangeSupabaseCode } from '#server/utils/app-auth'
+import { logStarterAuthCallbackFailure as logAuthCallbackFailure } from '#server/utils/starter-auth-callback'
+import { starterExchangeSupabaseCode as exchangeSupabaseCode } from '#server/utils/starter-app-auth'
 
 const bodySchema = z.object({
   code: z.string().min(1),

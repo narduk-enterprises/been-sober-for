@@ -12,10 +12,7 @@ import {
  * Helper to set the sobriety calculator date via the date input (type="date").
  * Playwright's fill on date inputs triggers Vue v-model properly.
  */
-async function setCalculatorDate(
-  page: import('@playwright/test').Page,
-  isoDate: string,
-) {
+async function setCalculatorDate(page: import('@playwright/test').Page, isoDate: string) {
   const dateInput = page.getByRole('textbox', { name: /sober start date$/i })
   await dateInput.fill(isoDate)
   // Wait for Vue computed to process and render the result
@@ -124,8 +121,6 @@ test.describe('sobriety calculator', () => {
     await page.goto('/sobriety-calculator')
     await waitForHydration(page)
 
-    await expect(
-      page.getByRole('heading', { name: /how this calculator works/i }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: /how this calculator works/i })).toBeVisible()
   })
 })

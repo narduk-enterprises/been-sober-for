@@ -107,9 +107,9 @@ test.describe('milestone and print pages', () => {
 
       // Should show error or not available message
       // Since the API returns 404 for private profiles, the page should handle that
-      await expect(
-        anonPage.getByText(/not available|not found|private/i).first(),
-      ).toBeVisible({ timeout: 10_000 })
+      await expect(anonPage.getByText(/not available|not found|private/i).first()).toBeVisible({
+        timeout: 10_000,
+      })
     } finally {
       await anonContext.close()
     }
