@@ -5,11 +5,11 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "postinstall": "narduk-fleet postinstall",
-    "predev": "node tools/check-setup.cjs",
+    "predev": "narduk-fleet check-setup",
     "dev": "pnpm --filter web dev",
-    "prebuild": "node tools/check-setup.cjs",
+    "prebuild": "narduk-fleet check-setup",
     "build": "pnpm -r build",
-    "preship": "node tools/check-setup.cjs && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check && pnpm -r --if-present test:unit",
+    "preship": "narduk-fleet check-setup && if [ -n \"${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}\" ]; then pnpm run package-registry:auth && NPM_CONFIG_USERCONFIG=\"$PWD/.npmrc.auth\" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install; else pnpm install; fi && pnpm audit --audit-level=critical && narduk-fleet check-drift && narduk-fleet check-health && pnpm run quality:check && pnpm -r --if-present test:unit",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "hooks:install": "narduk-fleet install-git-hooks",
@@ -31,7 +31,7 @@
     "generate:favicons": "narduk-fleet favicons",
     "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\"",
-    "package-registry:auth": "node tools/configure-package-registry-auth.mjs",
+    "package-registry:auth": "node scripts/package-registry-auth.mjs",
     "sync:skills": "narduk-skills sync --clean"
   },
   "pnpm": {
