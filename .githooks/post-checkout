@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
 
-# Repo-local skill syncing is intentionally unmanaged.
-exit 0
+[ -f tools/ensure-worktree-install.cjs ] || exit 0
+
+node tools/ensure-worktree-install.cjs post-checkout "$@" || true

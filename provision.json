@@ -7,12 +7,7 @@
   "shortDescription": "A simple site where users can register, upload a photo, and input the date of their last drink. Then share it with people. On their account profile page, they can click start again, if they have a drink.",
   "templateLayer": {
     "mode": "bundled",
-    "bundles": [
-      "seo",
-      "auth",
-      "analytics",
-      "uploads"
-    ]
+    "bundles": ["seo", "auth", "analytics", "uploads"]
   },
   "baseTheme": {
     "id": "balanced"
@@ -21,17 +16,40 @@
   "cloudflare": {
     "workersBuilds": {
       "rootDirectory": "/apps/web",
-      "buildCommand": "pnpm run cf:build",
-      "deployCommand": "pnpm run cf:deploy",
-      "previewDeployCommand": "pnpm run cf:deploy:preview",
       "skipDependencyInstall": true,
+      "previewUrls": true,
       "requiredBuildSecrets": [
-        "NARDUK_PLATFORM_GH_PACKAGES_RW"
+        "NARDUK_PLATFORM_GH_PACKAGES_READ",
+        "NUXT_SESSION_PASSWORD",
+        "NUXT_OG_IMAGE_SECRET"
       ],
       "requiredRuntimeVariables": [
         "SITE_URL",
-        "NUXT_SESSION_PASSWORD"
-      ]
+        "STAGING_SITE_URL",
+        "NUXT_SESSION_PASSWORD",
+        "NUXT_OG_IMAGE_SECRET"
+      ],
+      "targets": {
+        "production": {
+          "branch": "main",
+          "environmentName": "production",
+          "buildCommand": "pnpm run cf:build:production",
+          "deployCommand": "pnpm run cf:deploy"
+        },
+        "staging": {
+          "branch": "staging",
+          "environmentName": "staging",
+          "buildCommand": "pnpm run cf:build:staging",
+          "deployCommand": "pnpm run cf:deploy:staging"
+        }
+      },
+      "preview": {
+        "enabled": false,
+        "safeMode": true,
+        "buildCommand": "pnpm run cf:build:preview",
+        "deployCommand": "pnpm run cf:deploy:preview",
+        "branchExcludes": ["main", "staging"]
+      }
     }
   },
   "envContract": {
@@ -43,10 +61,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Supabase auth authority. Callback-form URLs normalize to the project base URL."
       },
       {
@@ -55,10 +70,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Managed auth apps use supabase."
       },
       {
@@ -67,10 +79,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Comma-separated provider list such as apple,email."
       },
       {
@@ -79,10 +88,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Public signup toggle for auth screens."
       },
       {
@@ -91,10 +97,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Server and client MFA requirement toggle."
       },
       {
@@ -103,10 +106,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Public GA client identifier."
       },
       {
@@ -115,9 +115,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "Server-only GA property id for admin analytics routes."
       },
       {
@@ -126,9 +124,7 @@
         "phase": "runtime",
         "sensitivity": "secret",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-secret"
-        ],
+        "cloudflarePlanes": ["runtime-secret"],
         "notes": "Server-side Google Search Console service account."
       },
       {
@@ -137,9 +133,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "Search Console property id or sc-domain key."
       },
       {
@@ -148,9 +142,7 @@
         "phase": "runtime",
         "sensitivity": "secret",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-secret"
-        ],
+        "cloudflarePlanes": ["runtime-secret"],
         "notes": "Keep stable across deploys to preserve sessions."
       },
       {
@@ -159,9 +151,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "Server-side PostHog API base URL."
       },
       {
@@ -170,9 +160,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "Server-side domain resolution for analytics sync."
       },
       {
@@ -181,10 +169,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Client analytics ingest host."
       },
       {
@@ -193,9 +178,7 @@
         "phase": "runtime",
         "sensitivity": "secret",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-secret"
-        ],
+        "cloudflarePlanes": ["runtime-secret"],
         "notes": "Server-side PostHog API token."
       },
       {
@@ -204,9 +187,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "Server-side analytics query context."
       },
       {
@@ -215,10 +196,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Client analytics key."
       },
       {
@@ -227,9 +205,7 @@
         "phase": "runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["runtime-var"],
         "notes": "R2 bucket binding name or bucket identifier for uploads."
       },
       {
@@ -238,10 +214,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "expectedValueFrom": "provision.url",
         "notes": "Canonical app origin for deployed routes and DNS zone resolution."
       },
@@ -251,10 +224,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Alias for the publishable key."
       },
       {
@@ -263,10 +233,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Public auth/browser key."
       },
       {
@@ -275,9 +242,7 @@
         "phase": "runtime",
         "sensitivity": "secret",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-secret"
-        ],
+        "cloudflarePlanes": ["runtime-secret"],
         "notes": "Server-only Supabase admin key."
       },
       {
@@ -286,10 +251,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Optional explicit Supabase base URL."
       },
       {
@@ -298,9 +260,7 @@
         "phase": "runtime",
         "sensitivity": "secret",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "runtime-secret"
-        ],
+        "cloudflarePlanes": ["runtime-secret"],
         "notes": "Server-side Turnstile verification secret."
       },
       {
@@ -309,10 +269,7 @@
         "phase": "build + runtime",
         "sensitivity": "plain",
         "canonicalProvider": "cloudflare",
-        "cloudflarePlanes": [
-          "build-var",
-          "runtime-var"
-        ],
+        "cloudflarePlanes": ["build-var", "runtime-var"],
         "notes": "Public captcha key."
       }
     ]

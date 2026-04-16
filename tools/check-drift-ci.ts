@@ -4,11 +4,15 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './command'
 import {
+  AUTH_BRIDGE_SYNC_FILES,
+  BOOTSTRAP_SYNC_FILES,
   GENERATED_SYNC_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
   REFERENCE_BASELINE_FILES,
+  SEEDED_APP_OWNED_FILES,
   STALE_SYNC_PATHS,
   VERBATIM_SYNC_FILES,
+  assertValidSyncManifestOwnership,
   getGeneratedSyncFileContent,
   normalizeManagedContent,
   resolveGeneratedSyncContext,
@@ -181,9 +185,17 @@ function getLocalFile(relativePath: string): string | null {
 }
 
 function buildTrackedFiles(ref: string): Map<string, string> {
+  assertValidSyncManifestOwnership()
   const tracked = new Map<string, string>()
 
   for (const file of VERBATIM_SYNC_FILES) {
+    const starterRefPath = getStarterRefPath(file)
+    if (hasBlobAtRef(ref, starterRefPath)) {
+      tracked.set(file, starterRefPath)
+    }
+  }
+
+  for (const file of AUTH_BRIDGE_SYNC_FILES) {
     const starterRefPath = getStarterRefPath(file)
     if (hasBlobAtRef(ref, starterRefPath)) {
       tracked.set(file, starterRefPath)
@@ -205,6 +217,14 @@ function buildTrackedFiles(ref: string): Map<string, string> {
 
   for (const generatedFile of GENERATED_SYNC_FILES) {
     tracked.set(generatedFile, generatedFile)
+  }
+
+  // Seed-only files deliberately drift after the starter creates them.
+  for (const file of SEEDED_APP_OWNED_FILES) {
+    tracked.delete(file)
+  }
+  for (const file of BOOTSTRAP_SYNC_FILES) {
+    tracked.delete(file)
   }
 
   return new Map([...tracked.entries()].sort(([left], [right]) => left.localeCompare(right)))

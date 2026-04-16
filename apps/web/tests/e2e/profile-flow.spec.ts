@@ -143,7 +143,9 @@ test.describe('profile flow (full user journey)', () => {
 
     // Check navigation links
     await expect(page.getByRole('link', { name: /edit profile/i }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /share settings|qr.*share/i }).first()).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: /share settings|qr.*share/i }).first(),
+    ).toBeVisible()
     await expect(page.getByRole('link', { name: /start again/i }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: /account settings/i })).toBeVisible()
   })

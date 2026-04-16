@@ -1,55 +1,24 @@
 # Skills Guide
 
-This repository no longer manages skill syncing.
+This repo uses `@narduk-enterprises/narduk-skills` plus `skills.config.json` to
+materialize local skill output.
 
 ## Repo Contract
 
-- Keep any GitHub-visible repo skills under `.github/skills/`.
-- Local agent skill setup is workstation-owned and outside the template.
-- `sync-template`, starter export, git hooks, and package scripts do not link,
-  publish, vendor, or mirror skills.
+- `skills.config.json` selects the skill profile set for this repo.
+- `pnpm run sync:skills` regenerates local skill output under `.agents/skills/`.
+- `.agents/skills/` and `.agents/.narduk-skills.generated.json` are generated
+  local artifacts and must stay untracked.
+- Starter sync and package install flows should not recreate retired GitHub
+  skill mirror paths.
 
-## Editing Repo Skills
+## Updating Skills
 
-If you want a skill to ship with the repository, edit `.github/skills/` directly
-and commit the result.
+1. Update the upstream skill package or repo-level `skills.config.json`.
+2. Run `pnpm run sync:skills`.
+3. Verify the generated `.agents/` output remains ignored.
 
-Recommended layout:
+## Local Additions
 
-```text
-.github/skills/
-└── my-skill/
-    ├── SKILL.md
-    ├── scripts/      # optional
-    ├── examples/     # optional
-    ├── references/   # optional
-    └── resources/    # optional
-```
-
-Minimal frontmatter:
-
-```yaml
----
-name: my-skill
-description: Brief trigger-oriented summary
----
-```
-
-## Local-Only Skills
-
-If you want additional skills for Codex, Cursor, Claude, or other local tools,
-manage them outside this template repo or in your own ignored directories. The
-template will not repair symlinks or copy local skills into committed paths.
-
-## Installing New Skills
-
-```bash
-# From a GitHub repo (open standard)
-npx skills add https://github.com/<owner>/<repo> --skill <name>
-
-# Interactive scaffolding via agent workflow
-/skill-create
-```
-
-Use those commands only when you intentionally want to update your local skill
-environment or manually curate `.github/skills/`.
+Any extra workstation-only skills should stay outside this repo or in ignored
+local directories. Do not commit generated skill payloads.

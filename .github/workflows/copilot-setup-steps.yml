@@ -1,0 +1,36 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment: copilot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configure GitHub Packages auth
+        env:
+          NARDUK_PLATFORM_GH_PACKAGES_READ: ${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
+        run: pnpm run package-registry:auth
+
+      - name: Install dependencies
+        env:
+          NARDUK_PLATFORM_GH_PACKAGES_READ: ${{ secrets.NARDUK_PLATFORM_GH_PACKAGES_READ || secrets.NARDUK_PLATFORM_GH_PACKAGES_RW || secrets.GH_PACKAGES_TOKEN }}
+        run: NPM_CONFIG_USERCONFIG="$PWD/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install --frozen-lockfile
+
+      - name: Sync skills
+        run: pnpm run sync:skills

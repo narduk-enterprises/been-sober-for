@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { defineUserMutation, requireMutationBody, withOptionalValidatedBody } from '#layer/server/utils/mutation'
+import {
+  defineUserMutation,
+  requireMutationBody,
+  withOptionalValidatedBody,
+} from '#layer/server/utils/mutation'
 import { RATE_LIMIT_POLICIES } from '#layer/server/utils/rateLimit'
 import { deleteCurrentUserAccountBridge } from '#server/utils/accountDeletionBridge'
 import { deleteSupabaseAuthUser, type AppSessionUser } from '#server/utils/app-auth'

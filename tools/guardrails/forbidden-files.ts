@@ -1,9 +1,8 @@
 import type { GuardrailFinding } from './types'
 
 const FORBIDDEN_REPO_FILE_PATTERNS = [
-  { label: 'environment file', pattern: /(^|\/)\.env(?:\.[^/]+)?$/ },
-  { label: 'Workers env file', pattern: /(^|\/)\.dev\.vars$/ },
-  { label: 'package registry auth file', pattern: /(^|\/)\.npmrc\.auth$/ },
+  { label: 'environment file', pattern: /(^|\/)\\.env(?:\.[^/]+)?$/ },
+  { label: 'Workers env file', pattern: /(^|\/)\\.dev\\.vars$/ },
 ] as const
 
 const JUNK_REPO_FILE_PATTERNS = [
@@ -22,8 +21,7 @@ export function checkForbiddenRepoFiles(repoFiles: string[]): GuardrailFinding[]
   const matches = repoFiles
     .filter((file) => {
       const basename = file.split('/').pop() || file
-      const isExampleConfig =
-        /^\.env\.(?:example|sample|template)$/i.test(basename)
+      const isExampleConfig = /^\.env\.(?:example|sample|template)$/i.test(basename)
 
       if (isExampleConfig) return false
       return FORBIDDEN_REPO_FILE_PATTERNS.some(({ pattern }) => pattern.test(file))

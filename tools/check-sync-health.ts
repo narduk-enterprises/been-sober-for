@@ -2,14 +2,19 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runCommand } from './command'
 import {
   getProvisionDisplayName,
   getProvisionShortName,
   readProvisionMetadata,
 } from './provision-metadata'
-import { FLEET_ROOT_SCRIPT_PATCHES, REFERENCE_BASELINE_FILES } from './sync-manifest'
+import {
+  FLEET_ROOT_SCRIPT_PATCHES,
+  FLEET_WEB_SCRIPT_PATCHES,
+  REFERENCE_BASELINE_FILES,
+  getSyncManifestOwnershipConflicts,
+} from './sync-manifest'
 import {
   repoUsesBundledLayers,
   resolveRepoLayerPackageDirs,
@@ -58,6 +63,12 @@ const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
 const APP_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'app', 'app.config.ts')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
+const REQUIRED_WORKERS_BUILD_WEB_SCRIPTS = {
+  deploy: FLEET_WEB_SCRIPT_PATCHES.deploy,
+  'cf:build': FLEET_WEB_SCRIPT_PATCHES['cf:build'],
+  'cf:deploy': FLEET_WEB_SCRIPT_PATCHES['cf:deploy'],
+  'cf:deploy:staging': FLEET_WEB_SCRIPT_PATCHES['cf:deploy:staging'],
+} as const
 
 /** Paths referenced by the core layer `nuxt.config.ts` `app.head.link`. */
 const LAYER_HEAD_ASSET_FILES = [
@@ -70,10 +81,29 @@ const LAYER_HEAD_ASSET_FILES = [
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
 const AUTHORING_WORKSPACE_NAMES = new Set(['narduk-template', 'narduk-nuxt-template'])
+const LEGACY_PACKAGE_REGISTRY_HOSTS = ['code.platform.nard.uk'] as const
 
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
   return JSON.parse(readFileSync(path, 'utf8')) as T
+}
+
+function parseSyncHealthReportJson(output: string | null): SyncHealthReport | null {
+  if (!output?.trim()) return null
+
+  try {
+    return JSON.parse(output) as SyncHealthReport
+  } catch {
+    return null
+  }
+}
+
+function extractCommandStdout(error: unknown): string | null {
+  if (!error || typeof error !== 'object' || !('stdout' in error)) return null
+
+  const stdout = (error as { stdout?: string | Buffer | null }).stdout
+  if (typeof stdout === 'string') return stdout
+  return Buffer.isBuffer(stdout) ? stdout.toString('utf-8') : null
 }
 
 function isAuthoringWorkspace(): boolean {
@@ -462,6 +492,41 @@ function checkStarterPackageSelectionDependencies(): CheckResult {
   }
 }
 
+function checkWorkersBuildScripts(): CheckResult {
+  const webPackage = readAppWebPackage()
+  if (!webPackage) {
+    return {
+      status: 'warn',
+      summary: 'apps/web/package.json not found',
+    }
+  }
+
+  const actualScripts = webPackage.scripts || {}
+  const drifted = Object.entries(REQUIRED_WORKERS_BUILD_WEB_SCRIPTS).filter(
+    ([scriptName, expectedCommand]) => actualScripts[scriptName] !== expectedCommand,
+  )
+
+  if (drifted.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'Workers Builds scripts are present in apps/web/package.json',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'Workers Builds scripts drift in apps/web/package.json',
+    detail: drifted
+      .map(([scriptName, expectedCommand]) => {
+        const actualCommand = actualScripts[scriptName]
+        return `${scriptName}: expected ${expectedCommand}${
+          actualCommand ? `; actual ${actualCommand}` : '; actual <missing>'
+        }`
+      })
+      .join('\n'),
+  }
+}
+
 function checkNuxtExtendsSelection(): CheckResult {
   if (!existsSync(APP_NUXT_CONFIG_PATH)) {
     return {
@@ -687,6 +752,22 @@ function checkReferenceBaselines(): CheckResult {
   }
 }
 
+function checkSyncOwnershipContract(): CheckResult {
+  const conflicts = getSyncManifestOwnershipConflicts()
+  if (conflicts.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'sync ownership categories are disjoint',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'sync ownership categories overlap',
+    detail: conflicts.map(({ path, groups }) => `${path}: ${groups.join(', ')}`).join('\n'),
+  }
+}
+
 function checkLockfileState(rootPkg: PackageJson): CheckResult {
   const expected = getExpectedNuxtOgImageVersion(rootPkg)
   const lockedVersions = listLockfileVersions('nuxt-og-image')
@@ -719,6 +800,51 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
+function findLegacyPackageRegistryResidue(rootDir = ROOT_DIR): string[] {
+  const details: string[] = []
+  const npmrcPath = join(rootDir, '.npmrc')
+  const lockfilePath = join(rootDir, 'pnpm-lock.yaml')
+
+  if (existsSync(npmrcPath)) {
+    const npmrcContent = readFileSync(npmrcPath, 'utf8')
+    for (const host of LEGACY_PACKAGE_REGISTRY_HOSTS) {
+      if (npmrcContent.includes(host)) {
+        details.push(`.npmrc still references legacy package registry host ${host}`)
+      }
+    }
+  }
+
+  if (existsSync(lockfilePath)) {
+    const lockfileContent = readFileSync(lockfilePath, 'utf8')
+    for (const host of LEGACY_PACKAGE_REGISTRY_HOSTS) {
+      if (lockfileContent.includes(host)) {
+        details.push(
+          `pnpm-lock.yaml still contains tarball URLs from legacy package registry host ${host}`,
+        )
+      }
+    }
+  }
+
+  return details
+}
+
+export function checkLegacyPackageRegistryResidue(rootDir = ROOT_DIR): CheckResult {
+  const residue = findLegacyPackageRegistryResidue(rootDir)
+
+  if (residue.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'no legacy package registry host references detected in package registry files',
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: 'legacy package registry residue detected',
+    detail: `${residue.join('\n')}\nRefresh the app sync and regenerate the lockfile against GitHub Packages before shipping.`,
+  }
+}
+
 export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
   const resolvedRootDir = resolve(rootDir)
   if (resolvedRootDir !== ROOT_DIR) {
@@ -732,8 +858,12 @@ export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
           stdio: ['ignore', 'pipe', 'pipe'],
         },
       )
-      return JSON.parse(output) as SyncHealthReport
+      const report = parseSyncHealthReportJson(output)
+      if (report) return report
     } catch (error) {
+      const report = parseSyncHealthReportJson(extractCommandStdout(error))
+      if (report) return report
+
       return {
         rootDir: resolvedRootDir,
         clean: false,
@@ -748,6 +878,20 @@ export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
           },
         ],
       }
+    }
+
+    return {
+      rootDir: resolvedRootDir,
+      clean: false,
+      failed: 1,
+      warned: 0,
+      checks: [
+        {
+          name: 'root package',
+          status: 'fail',
+          summary: 'Unable to parse sync health report JSON',
+        },
+      ],
     }
   }
 
@@ -774,10 +918,13 @@ export function buildSyncHealthReport(rootDir = ROOT_DIR): SyncHealthReport {
     : null
   const checks: SyncHealthCheckRecord[] = [
     ['starter-managed root package', checkTemplateManagedRootPackage()],
+    ['sync ownership contract', checkSyncOwnershipContract()],
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],
     ['pnpm lockfile', checkLockfileState(rootPkg)],
+    ['package registry residue', checkLegacyPackageRegistryResidue(ROOT_DIR)],
     ['starter package deps', checkStarterPackageSelectionDependencies()],
+    ['Workers Builds web scripts', checkWorkersBuildScripts()],
     ['nuxt extends order', checkNuxtExtendsSelection()],
     ['app config ui shape', checkAppConfigUiShape()],
     ['og-image config', checkOgImageConfig()],
@@ -832,4 +979,6 @@ async function main() {
   process.exit(1)
 }
 
-void main()
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  void main()
+}
