@@ -41,7 +41,8 @@ function stripManagedAuthLines(content) {
     .filter(
       (line) =>
         !line.includes('//npm.pkg.github.com/:_authToken=') &&
-        !/\/\/[^/]+\/api\/packages\/.+\/npm\/:_authToken=/.test(line),
+        !/\/\/[^/]+\/api\/packages\/.+\/npm\/:_authToken=/.test(line) &&
+        !line.includes('/api/packages/'),
     )
     .join('\n')
     .trimEnd()

@@ -4,68 +4,17 @@
 
 Preferred flow:
 
-```bash
-curl -X POST https://platform.nard.uk/api/fleet/provision \
-  -H "Authorization: Bearer $PROVISION_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"my-app","displayName":"My App","description":"Short product blurb for agents.","url":"https://my-app.nard.uk"}'
-```
+Create or adopt the GitHub repo through the current control-plane workflow, and
+keep the generated `provision.json` as the source of truth for app identity,
+Cloudflare Workers Builds settings, and runtime requirements.
 
-The platform should persist **`description`** into the new repo (for example
-**`provision.json`** and the draft **`SPEC.md`**) so GitHub Agentic Workflows
-can read it without pasting secrets in chat.
+Fresh starter repos should already arrive with:
 
-Template-owned fresh-app materialization is now:
-
-```bash
-pnpm exec tsx tools/materialize-starter.ts \
-  --name=my-app \
-  --display-name="My App" \
-  --description="Short product blurb for agents." \
-  --site-url=https://my-app.workers.dev \
-  --force
-```
-
-That path is intentionally separate from `sync-template`. It exports a clean
-starter, replaces placeholders, writes `.setup-complete`, and generates repo
-workflow callers pinned to the exported template ref.
-
-Alternative when you explicitly want a **GitHub repo** plus **Cloudflare Workers
-Builds** to own the build and deploy step:
-
-```bash
-pnpm exec tsx tools/bootstrap-github-worker-app.ts \
-  --name=my-app \
-  --display-name="My App" \
-  --description="Short product blurb for agents." \
-  --site-url=https://my-app.workers.dev \
-  --create-github-repo \
-  --force
-```
-
-This bootstrap path:
-
-1. materializes the starter with `seo,auth,analytics,uploads` by default
-2. hydrates `provision.json`, README placeholders, and the app identity
-3. writes `.setup-complete` so local dev/build/deploy commands are unblocked
-4. generates repo workflow callers pinned to the exported template ref
-5. initializes a local git repository on `main` with an initial commit
-6. defaults package installs to GitHub Packages for GitHub-hosted repos
-7. creates and pushes the GitHub repo when `--create-github-repo` is passed
-8. leaves Cloudflare runtime bindings in automatic-provisioning form so Workers
-   Builds can create KV, D1, and R2 on first deploy
-
-Generated repo workflow callers:
-
-- `.github/workflows/ci.yml`
-- `.github/workflows/bootstrap-starter.yml`
-- `.github/workflows/deploy-production.yml`
-- `.github/workflows/deploy-staging.yml`
-
-These callers target reusable workflows published from
-`narduk-enterprises/narduk-template/.github/workflows/` and are pinned to the
-same template SHA recorded in `.template-version` unless the materializer gets
-`--workflow-ref=<sha|tag|branch>`.
+- `.setup-complete` written so the local repo scripts are unblocked
+- the app name, display name, URL, and short description hydrated into repo
+  metadata
+- Cloudflare bindings left in automatic-provisioning form so Workers Builds can
+  create KV, D1, and R2 on first deploy when the selected bundles need them
 
 For the connected Worker, use these Cloudflare Workers Builds settings:
 
@@ -95,7 +44,7 @@ commands can configure GitHub Packages auth before running
 Workers Builds also requires the Cloudflare account to have an active GitHub
 integration. Creating and pushing the GitHub repo is necessary, but it is not
 sufficient on its own if Cloudflare has not been authorized against that GitHub
-account/org yet.
+account or org yet.
 
 Required build/runtime variables for a minimal local-auth app:
 
@@ -127,9 +76,8 @@ pnpm run dev
 ```
 
 There is no legacy `tools/init.ts` or `.github/workflows/provision-app.yml`
-flow. Use either the platform provision API or `tools/materialize-starter.ts` /
-`tools/bootstrap-github-worker-app.ts`; do not resurrect the old authoring-era
-init path.
+flow. Do not resurrect the old authoring-era init path or repo-local starter
+materializers.
 
 Bootstrap guard:
 
@@ -140,11 +88,9 @@ Bootstrap guard:
 
 ## Deployment And D1 Migrations
 
-Deployment is local-only unless you intentionally adopt Cloudflare Workers
-Builds or the generated repo workflow callers. The authoring workspace on
-`narduk-template` does **not** auto-deploy downstream apps on push to `main`; it
-only publishes reusable workflows and layer packages. Downstream repos own when
-they dispatch `Bootstrap Starter`, `Production Deploy`, or `Staging Deploy`.
+The canonical deploy path for a connected downstream app is Cloudflare Workers
+Builds. CI may run quality checks, but rollout should happen through the repo's
+connected build trigger rather than a template-owned deploy workflow.
 
 Standard flow:
 
@@ -153,14 +99,15 @@ Standard flow:
    ```bash
    doppler run --project <app> --config prd -- pnpm --filter web run db:migrate -- --remote
    ```
-3. Deploy the app:
+3. Push the validated branch and let Workers Builds deploy it, or use the local
+   deploy command only for intentional recovery / smoke work:
    ```bash
-   # Deploy happens automatically on push to main
+   pnpm --filter web run deploy
    ```
 4. Push afterward as normal git hygiene.
 
-Fleet-wide deploy, repo repair, and remote orchestration belong to
-`platform.nard.uk` or `narduk-cli`, not this template checkout.
+Registry mutations, fleet-wide deploy orchestration, and shared operator repair
+flows belong to the control plane, not this downstream app checkout.
 
 Local development migrations still go through the app entrypoint so shared layer
 SQL runs before app-owned SQL.
@@ -227,15 +174,9 @@ committed files.
 GitHub SCM defaults are platform-owned; no self-hosted host or owner override is
 needed in app repos.
 
-Existing apps can adopt the same repo assets with:
-
-```bash
-pnpm run sync-template -- ~/code/your-app
-pnpm run sync-template -- ~/code/your-app --template-ref=<sha>
-```
-
-That sync updates the repo-owned preview files. The remaining platform step is
-to add or update the repo manifest in `narduk-infrastructure`.
+Existing apps receive the same repo assets through the platform-controlled sync
+flow or a fresh starter export. Do not copy the files manually. The remaining
+platform step is to add or update the repo manifest in `narduk-infrastructure`.
 
 ## Generated Starter Notes
 
@@ -248,12 +189,13 @@ authoring-only scripts. After setup, the main remaining template tasks are:
 
 ## Secrets And Environment
 
-Vault is the single source of truth for secrets. Do not create `.env` or
-`.env.example` files.
+Do not create `.env` or `.env.example` files.
 
-Secrets are resolved by Vault and synced to GitHub repository secrets by the
-platform. For local development, secrets are injected via the Vault CLI or set
-in `.dev.vars` for Wrangler-based workflows.
+Deployed runtime config belongs in Cloudflare vars and secrets plus Workers
+Builds secrets. During migration or bootstrap, Doppler may still be the operator
+source for shared tokens. For local development, inject values with
+`doppler run --project <app> --config <env> -- ...` or use `.dev.vars` only when
+a Wrangler-based flow explicitly requires it.
 
 Declare secrets explicitly in `runtimeConfig`:
 
@@ -340,41 +282,21 @@ The canonical record lives in the app's D1 `api_keys` table, not in Doppler.
 
 Preferred mint and store flow:
 
-1. Use the supported CLI mint command from the app repo root:
-   ```bash
-   pnpm run agent-admin-key:mint -- \
-     --remote \
-     --admin-email <admin-email> \
-     --name agents-admin \
-     --scope users:read \
-     --site-url "$SITE_URL" \
-     --verify-path /api/users
-   ```
-   `command` is special. Its control-plane token uses:
-   ```bash
-   pnpm run agent-admin-key:mint -- \
-     --remote \
-     --admin-email <admin-email> \
-     --name command-registry-operator \
-     --scopes registry:read,registry:write,operations:read,operations:write \
-     --site-url "$SITE_URL" \
-     --verify-path /api/admin/registry/apps
-   ```
-2. The command writes a new `api_keys` row directly into the app database,
-   verifies the live bearer path, and returns the raw `nk_...` token once.
-3. Export the raw token temporarily while you verify it, then copy that same
+1. Use the signed-in UI at `/settings/api-keys` to mint a scoped key for the
+   current app.
+2. Export the raw token temporarily while you verify it, then copy that same
    value into the automation secret store you are bootstrapping. Because only
    the hash is stored in D1, mint a replacement instead of trying to recover an
    old key later:
    ```bash
    export AGENT_ADMIN_API_KEY='<raw nk_... token>'
    ```
-4. Verify it before handing it to automation:
+3. Verify it before handing it to automation:
    ```bash
    curl -sS "$SITE_URL/api/users" \
      -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
    ```
-5. Use it for the scoped admin routes the automation actually needs:
+4. Use it for the scoped admin routes the automation actually needs:
    ```bash
    curl -sS "$SITE_URL/api/admin/users" \
      -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
@@ -383,7 +305,7 @@ Preferred mint and store flow:
 UI fallback flow:
 
 1. Login as an existing admin, or use the signed-in UI at `/settings/api-keys`
-   and choose the operator profile that matches the app. CLI mint path:
+   and choose the operator profile that matches the app:
    ```bash
    curl -sS "$SITE_URL/api/auth/login" \
      -H "Content-Type: application/json" \
@@ -409,16 +331,12 @@ UI fallback flow:
    ```bash
    export AGENT_ADMIN_API_KEY='<raw nk_... token>'
    ```
-   The raw token is not recoverable from D1 later. Recommended default:
+   The raw token is not recoverable from D1 later.
 
-- Prefer `pnpm run agent-admin-key:mint -- --remote ...` for operator recovery
-  and automation bootstrap. It does not depend on a browser session or a
-  remembered password.
 - Use the UI token profile that matches the automation surface instead of
   minting an unscoped long-lived key.
-- `command` is special: its registry control plane uses `registry:read`,
-  `registry:write`, `operations:read`, and `operations:write`, and it verifies
-  tokens against `/api/admin/registry/apps`.
+- `command` is special: its registry control plane is driven by platform-owned
+  workflows and verifies tokens against `/api/admin/registry/apps`.
 - Keep the token scoped only to the routes the agent needs.
 - Prefer a 30-day expiry unless the automation truly needs a longer-lived
   credential.
@@ -440,14 +358,5 @@ organization:
 If this is left at `none`, app deploy workflows fail with
 `workflow was not found` even when the reusable workflow file exists on `main`.
 
-Older fleet apps can be backfilled by running the same mint command inside the
-app repo and targeting the correct verification path:
-
-```bash
-pnpm run agent-admin-key:mint -- \
-  --remote \
-  --admin-email <admin-email> \
-  --scope users:read \
-  --site-url "$SITE_URL" \
-  --verify-path /api/users
-```
+Older fleet apps can be backfilled from the app UI or through the platform
+workflow that manages the repo’s admin credentials.

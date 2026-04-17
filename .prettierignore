@@ -1,15 +1,74 @@
-# Cloudflare Wrangler — frequently touched by provisioning and wrangler CLI;
-# formatting churn does not buy much and breaks fleet quality checks.
+# Prettier ignore — keep in sync with .gitignore for build outputs.
+# .gitignore is also consumed by Prettier (--ignore-path defaults), but
+# Prettier looks at .prettierignore first, so we restate the high-impact
+# entries here for clarity and to add formatter-only ignores below.
+
+# ── Dependencies ────────────────────────────────────────────────────────
+node_modules
+
+# ── Build outputs / generated trees ─────────────────────────────────────
+.nuxt
+.output
+.nitro
+.turbo
+.cache
+.wrangler
+.fleet
+dist
+build
+coverage
+playwright-report
+test-results
+output/
+
+# ── Local data / fixtures (per-machine) ─────────────────────────────────
+.data
+apps/web/.data
+.snapshots
+
+# ── Local env files ─────────────────────────────────────────────────────
+.env
+.env.*
+.dev.vars
+
+# ── Lockfiles (pnpm owns formatting) ────────────────────────────────────
+# pnpm v9+ lockfile uses YAML keys Prettier cannot parse
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# ── Cloudflare Wrangler ─────────────────────────────────────────────────
+# Frequently touched by provisioning and the wrangler CLI; formatting churn
+# does not buy much and breaks fleet quality checks.
 **/wrangler.json
 **/wrangler.jsonc
 
-# pnpm v9+ lockfile uses YAML keys Prettier cannot parse
-pnpm-lock.yaml
-output/
-# Accidental ESLint output dumps (not valid JSON for Prettier)
+# ── Drizzle SQL migrations (committed by the layer; do not reformat) ───
+**/drizzle/**/*.sql
+**/drizzle/meta/**
+
+# ── Generated docs / OpenAPI (regenerated, not authored) ────────────────
+**/.openapi/**
+**/openapi.json
+
+# ── Accidental ESLint output dumps (not valid JSON for Prettier) ───────
 **/eslint-results.json
 **/lint-results.json
-# Skills directories — external/vendored code, not ours to format
+
+# ── Skills directories — external/vendored code, not ours to format ────
 .agents/skills/
 .agent/skills/
 .github/skills/
+
+# ── Vendored dependencies ───────────────────────────────────────────────
+vendor/
+
+# ── Worktrees and archives ──────────────────────────────────────────────
+.worktrees/
+.codex-worktrees/
+**/.archived/**
+
+# ── Snapshots and dump files ────────────────────────────────────────────
+*.dump
+*.sql.gz
+*.tar.gz

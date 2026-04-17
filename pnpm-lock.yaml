@@ -55,6 +55,9 @@ importers:
       '@narduk-enterprises/narduk-skills':
         specifier: 0.3.0
         version: 0.3.0
+      '@narduk-enterprises/narduk-starter-toolkit':
+        specifier: ^1.17.2
+        version: 1.17.2
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
@@ -929,6 +932,10 @@ packages:
       eslint: '>=9.0.0'
       vue-eslint-parser: '>=10.0.0'
 
+  '@narduk-enterprises/narduk-cli@1.17.2':
+    resolution: {integrity: sha512-O9+F+h0ZglLGXFaJHcPw8aK6aHK4C2L+etQjBIuA5Wo1iKyuDy8R2HhvX1726bfLLG1hmafDxWLZImRd2rFcRQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-cli/1.17.2/d754ad5e2ba3d5f7cfce4b5f2af97155510d1058}
+    hasBin: true
+
   '@narduk-enterprises/narduk-cli@1.18.1':
     resolution: {integrity: sha512-z60xTWrdqhtRgH9Zkigj71YQneZacYK2zkC7SwqmVUH/QNVnMhYENe3XEJQqpt3lBJweJd2cMqgGC4RPGTcknw==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-cli/1.18.1/4407c522dab09f941beeaac316b104cdb6ce8509}
     hasBin: true
@@ -983,12 +990,19 @@ packages:
       wrangler:
         optional: true
 
+  '@narduk-enterprises/narduk-platform@1.17.2':
+    resolution: {integrity: sha512-nJ+MnQ91PyYfvrbSK3+dgZh7TPOaAFlT2GPu55lhLXqcGs8xOXwxUvGpDPL+O0Vwfd9cJIoheEzC6CG1420MQQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-platform/1.17.2/6f5b09026c5397a9582588d315708d9436a60216}
+
   '@narduk-enterprises/narduk-platform@1.18.1':
     resolution: {integrity: sha512-cWEDGD+lmzxLXMs6X7x1l1J9WtJCXx/+kVXyDBRhvLmrmbX8FVLlVCbQU+CsHL0EYtKved7QkVS4GwQgMDrabg==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-platform/1.18.1/1121391c03508e9815de7a50d741b56d1335e207}
 
   '@narduk-enterprises/narduk-skills@0.3.0':
     resolution: {integrity: sha512-LDTPyDNMgMKu4DS3PO3blX7OZ25NfN+gaqV0u9K+SYQCCYutNbTTbLMYJPHR/YUSfIkLdiZLbMESnCnJoR7JMQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-skills/0.3.0/bca8e698b5ec79cff5ef9d0bf114c2590f960784}
     engines: {node: '>=20'}
+    hasBin: true
+
+  '@narduk-enterprises/narduk-starter-toolkit@1.17.2':
+    resolution: {integrity: sha512-u+dZacfXdkqjSPBGgOUVcy8SAr9lDz4cx4rqGYPXfFsWhh8DjlM87RqZKa72yZutXfmVzrp95cE+uHsUBnM+bA==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-starter-toolkit/1.17.2/91484324116aab75fe2b828950e993afafc71643}
     hasBin: true
 
   '@nodable/entities@1.1.0':
@@ -7836,6 +7850,12 @@ snapshots:
       - typescript
       - vitest
 
+  '@narduk-enterprises/narduk-cli@1.17.2':
+    dependencies:
+      '@narduk-enterprises/narduk-platform': 1.17.2
+      sharp: 0.34.5
+      tsx: 4.21.0
+
   '@narduk-enterprises/narduk-cli@1.18.1':
     dependencies:
       '@narduk-enterprises/narduk-platform': 1.18.1
@@ -8481,9 +8501,18 @@ snapshots:
       - yjs
       - yup
 
+  '@narduk-enterprises/narduk-platform@1.17.2': {}
+
   '@narduk-enterprises/narduk-platform@1.18.1': {}
 
   '@narduk-enterprises/narduk-skills@0.3.0': {}
+
+  '@narduk-enterprises/narduk-starter-toolkit@1.17.2':
+    dependencies:
+      '@narduk-enterprises/narduk-cli': 1.17.2
+      '@narduk-enterprises/narduk-platform': 1.17.2
+      sharp: 0.34.5
+      tsx: 4.21.0
 
   '@nodable/entities@1.1.0': {}
 

@@ -9,7 +9,8 @@ shared infrastructure that supports it.
 The generated starter keeps:
 
 - `apps/web/` as the main application
-- `tools/` as local Node.js automation
+- starter-managed helper commands as `package.json` scripts backed by the shared
+  starter toolkit
 - `scripts/` as shell helpers such as `dev-kill.sh`
 - `deploy/preview/` as the repo-managed PR preview surface
 
@@ -23,12 +24,12 @@ The generated starter keeps:
 
 ## Where Code Goes
 
-| Area              | Use it for                                 | Avoid                      |
-| ----------------- | ------------------------------------------ | -------------------------- |
-| `apps/web/`       | Product-specific app work                  | Rebuilding bundle features |
-| `deploy/preview/` | Repo-managed Docker assets for PR previews | Host manifests or secrets  |
-| `tools/`          | Local or CI automation in Node.js          | Edge runtime code          |
-| `scripts/`        | Shell convenience scripts                  | TypeScript automation      |
+| Area                   | Use it for                                 | Avoid                      |
+| ---------------------- | ------------------------------------------ | -------------------------- |
+| `apps/web/`            | Product-specific app work                  | Rebuilding bundle features |
+| `deploy/preview/`      | Repo-managed Docker assets for PR previews | Host manifests or secrets  |
+| `package.json` scripts | Starter helper commands via the toolkit    | Edge runtime code          |
+| `scripts/`             | Shell convenience scripts                  | TypeScript automation      |
 
 ## Bundle Inventory
 

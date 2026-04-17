@@ -11,13 +11,13 @@ Use this file as the entry point for agent work in this repository.
 
 ## Where Changes Belong
 
-| Change type                               | Preferred location                      |
-| ----------------------------------------- | --------------------------------------- |
-| App-specific product work                 | `apps/web/`                             |
-| Shared reusable app functionality         | Published bundle packages or `apps/web` |
-| Shared ESLint rules and plugins           | `apps/web/`                             |
-| Local Node.js automation and sync tooling | `tools/`                                |
-| Shell helper scripts                      | `scripts/`                              |
+| Change type                       | Preferred location                      |
+| --------------------------------- | --------------------------------------- |
+| App-specific product work         | `apps/web/`                             |
+| Shared reusable app functionality | Published bundle packages or `apps/web` |
+| Shared ESLint rules and plugins   | `apps/web/`                             |
+| Starter-managed helper commands   | `package.json` scripts + toolkit        |
+| Shell helper scripts              | `scripts/`                              |
 
 Do not recreate bundle-provided composables, plugins, middleware, auth helpers,
 rate limiting, OG image building blocks, or base schema files inside `apps/web`
@@ -59,7 +59,7 @@ them to see local customizations.
 | Area               | Working copy         | Synced baseline                          |
 | ------------------ | -------------------- | ---------------------------------------- |
 | Main app           | `apps/web/AGENTS.md` | `.template-reference/apps/web/AGENTS.md` |
-| Automation scripts | `tools/AGENTS.md`    | `.template-reference/tools/AGENTS.md`    |
+| Automation scripts | starter toolkit docs | shared starter toolkit package           |
 
 ## Quality Commands
 
@@ -84,6 +84,8 @@ Open only the docs relevant to the task:
 
 ## Template Sync
 
-This file and the `.template-reference/` baselines are kept in sync with the
-upstream template via `pnpm run sync-template`. Do not hand-edit
-template-managed files when the change belongs upstream.
+This file is starter-managed. Downstream repos should not carry copied root
+`tools/` files or local `sync-template`/`check-sync-health`/guardrail helpers.
+Starter-managed helper commands should resolve through the published
+`@narduk-enterprises/narduk-starter-toolkit` dependency instead of copied
+`packages/starter-toolkit/` source files.

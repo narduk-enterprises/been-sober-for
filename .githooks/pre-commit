@@ -1,14 +1,44 @@
 #!/bin/sh
 #
-# Pre-commit hook: Prevent lockfile drift
-# Ensures pnpm-lock.yaml is updated when dependency-related fields in package.json change.
-# Script-only edits (e.g. changing a "scripts" entry) do NOT require a lockfile update.
+# Pre-commit hook. Runs two independent guards before allowing a commit:
+#
+#   1. Prettier auto-format pass on staged formattable files. Runs
+#      `prettier --write` (via narduk-starter-toolkit format-staged-files,
+#      fallback tools/format-staged-files.cjs) so the hook actively fixes
+#      editor-formatter drift (e.g. Cursor/VS Code's built-in HTML
+#      formatter collapsing multi-attribute Vue tags) and restages the
+#      formatted files. Prettier respects .prettierignore, so generated
+#      trees are skipped automatically.
+#   2. Lockfile parity: pnpm-lock.yaml must be updated when dependency-related
+#      fields in package.json or dependency-affecting lines in .npmrc change.
+#      Script-only edits (e.g. changing a "scripts" entry) do NOT require a
+#      lockfile update.
+#
+# Escape hatch for rescue commits on a broken tree:
+#   SKIP_PRETTIER_HOOK=1 git commit -m "rescue: ..."
+# The lockfile guard and the .npmrc.auth guard cannot be bypassed.
 #
 # Install: git config core.hooksPath .githooks
-# This hook is automatically synced to all fleet apps by sync-template.ts.
+# This hook is synced into fleet apps through the starter export flow.
 
-if [ -d node_modules ]; then
-  pnpm exec narduk-fleet format-staged-files || exit 1
+ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$ROOT_DIR"
+
+# ── Prettier auto-format pass on staged formattable files ───────────────
+# Delegates to the starter toolkit (or the vendored fallback formatter) so
+# the same formatter runs in the editor, the hook, and CI. The toolkit
+# stashes unstaged edits, runs `prettier --write`, restages, then restores.
+# This is a mutating pass, not a read-only check.
+if [ -z "$SKIP_PRETTIER_HOOK" ]; then
+  if [ -x "$ROOT_DIR/node_modules/.bin/narduk-starter-toolkit" ] || [ -x "$ROOT_DIR/node_modules/.bin/narduk-starter-toolkit.cmd" ]; then
+    pnpm exec narduk-starter-toolkit format-staged-files || exit 1
+  elif [ -f "$ROOT_DIR/tools/format-staged-files.cjs" ]; then
+    node tools/format-staged-files.cjs || exit 1
+  else
+    echo ""
+    echo "Skipping staged-file formatting until the starter toolkit or legacy formatter has been installed."
+    echo ""
+  fi
 fi
 
 STAGED=$(git diff --cached --name-only)
