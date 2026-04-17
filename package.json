@@ -100,14 +100,14 @@
     "node": "22.22.0"
   },
   "devDependencies": {
+    "@narduk-enterprises/narduk-cli": "^1.18.3",
+    "@narduk-enterprises/narduk-skills": "0.3.0",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.19.13",
     "prettier": "^3.8.1",
     "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "turbo": "^2.8.12",
-    "wait-on": "^9.0.4",
-    "@narduk-enterprises/narduk-skills": "0.3.0",
-    "@narduk-enterprises/narduk-cli": "^1.18.1"
+    "wait-on": "^9.0.4"
   }
 }
