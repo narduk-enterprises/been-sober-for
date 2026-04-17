@@ -13,47 +13,15 @@ curl -X POST https://platform.nard.uk/api/fleet/provision \
 
 The platform should persist **`description`** into the new repo (for example
 **`provision.json`** and the draft **`SPEC.md`**) so GitHub Agentic Workflows
-can read it without pasting secrets in chat.
+can read it without pasting secrets in chat. Fresh starter repos are created by
+the platform and exported from the template workspace; downstream app repos do
+not run a local materializer, sync, or guardrail command.
 
-Template-owned fresh-app materialization is now:
-
-```bash
-pnpm exec tsx tools/materialize-starter.ts \
-  --name=my-app \
-  --display-name="My App" \
-  --description="Short product blurb for agents." \
-  --site-url=https://my-app.workers.dev \
-  --force
-```
-
-That path is intentionally separate from `sync-template`. It exports a clean
-starter, replaces placeholders, writes `.setup-complete`, and generates repo
-workflow callers pinned to the exported template ref.
-
-Alternative when you explicitly want a **GitHub repo** plus **Cloudflare Workers
-Builds** to own the build and deploy step:
-
-```bash
-pnpm exec tsx tools/bootstrap-github-worker-app.ts \
-  --name=my-app \
-  --display-name="My App" \
-  --description="Short product blurb for agents." \
-  --site-url=https://my-app.workers.dev \
-  --create-github-repo \
-  --force
-```
-
-This bootstrap path:
-
-1. materializes the starter with `seo,auth,analytics,uploads` by default
-2. hydrates `provision.json`, README placeholders, and the app identity
-3. writes `.setup-complete` so local dev/build/deploy commands are unblocked
-4. generates repo workflow callers pinned to the exported template ref
-5. initializes a local git repository on `main` with an initial commit
-6. defaults package installs to GitHub Packages for GitHub-hosted repos
-7. creates and pushes the GitHub repo when `--create-github-repo` is passed
-8. leaves Cloudflare runtime bindings in automatic-provisioning form so Workers
-   Builds can create KV, D1, and R2 on first deploy
+If you need a GitHub repo plus Cloudflare Workers Builds to own build and
+deploy, use the platform bootstrap flow. It hydrates the starter, writes
+`.setup-complete`, creates the repo, and leaves Cloudflare runtime bindings in
+automatic-provisioning form so Workers Builds can create KV, D1, and R2 on the
+first deploy.
 
 Generated repo workflow callers:
 
@@ -127,9 +95,8 @@ pnpm run dev
 ```
 
 There is no legacy `tools/init.ts` or `.github/workflows/provision-app.yml`
-flow. Use either the platform provision API or `tools/materialize-starter.ts` /
-`tools/bootstrap-github-worker-app.ts`; do not resurrect the old authoring-era
-init path.
+flow. Use the platform provision API or the platform bootstrap flow; do not
+resurrect the old authoring-era init path.
 
 Bootstrap guard:
 
@@ -227,15 +194,9 @@ committed files.
 GitHub SCM defaults are platform-owned; no self-hosted host or owner override is
 needed in app repos.
 
-Existing apps can adopt the same repo assets with:
-
-```bash
-pnpm run sync-template -- ~/code/your-app
-pnpm run sync-template -- ~/code/your-app --template-ref=<sha>
-```
-
-That sync updates the repo-owned preview files. The remaining platform step is
-to add or update the repo manifest in `narduk-infrastructure`.
+Existing apps receive the same repo assets through the platform-controlled sync
+flow or a fresh starter export. Do not copy the files manually. The remaining
+platform step is to add or update the repo manifest in `narduk-infrastructure`.
 
 ## Generated Starter Notes
 
@@ -340,41 +301,21 @@ The canonical record lives in the app's D1 `api_keys` table, not in Doppler.
 
 Preferred mint and store flow:
 
-1. Use the supported CLI mint command from the app repo root:
-   ```bash
-   pnpm run agent-admin-key:mint -- \
-     --remote \
-     --admin-email <admin-email> \
-     --name agents-admin \
-     --scope users:read \
-     --site-url "$SITE_URL" \
-     --verify-path /api/users
-   ```
-   `command` is special. Its control-plane token uses:
-   ```bash
-   pnpm run agent-admin-key:mint -- \
-     --remote \
-     --admin-email <admin-email> \
-     --name command-registry-operator \
-     --scopes registry:read,registry:write,operations:read,operations:write \
-     --site-url "$SITE_URL" \
-     --verify-path /api/admin/registry/apps
-   ```
-2. The command writes a new `api_keys` row directly into the app database,
-   verifies the live bearer path, and returns the raw `nk_...` token once.
-3. Export the raw token temporarily while you verify it, then copy that same
+1. Use the signed-in UI at `/settings/api-keys` to mint a scoped key for the
+   current app.
+2. Export the raw token temporarily while you verify it, then copy that same
    value into the automation secret store you are bootstrapping. Because only
    the hash is stored in D1, mint a replacement instead of trying to recover an
    old key later:
    ```bash
    export AGENT_ADMIN_API_KEY='<raw nk_... token>'
    ```
-4. Verify it before handing it to automation:
+3. Verify it before handing it to automation:
    ```bash
    curl -sS "$SITE_URL/api/users" \
      -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
    ```
-5. Use it for the scoped admin routes the automation actually needs:
+4. Use it for the scoped admin routes the automation actually needs:
    ```bash
    curl -sS "$SITE_URL/api/admin/users" \
      -H "Authorization: Bearer $AGENT_ADMIN_API_KEY"
@@ -383,7 +324,7 @@ Preferred mint and store flow:
 UI fallback flow:
 
 1. Login as an existing admin, or use the signed-in UI at `/settings/api-keys`
-   and choose the operator profile that matches the app. CLI mint path:
+   and choose the operator profile that matches the app:
    ```bash
    curl -sS "$SITE_URL/api/auth/login" \
      -H "Content-Type: application/json" \
@@ -409,16 +350,12 @@ UI fallback flow:
    ```bash
    export AGENT_ADMIN_API_KEY='<raw nk_... token>'
    ```
-   The raw token is not recoverable from D1 later. Recommended default:
+   The raw token is not recoverable from D1 later.
 
-- Prefer `pnpm run agent-admin-key:mint -- --remote ...` for operator recovery
-  and automation bootstrap. It does not depend on a browser session or a
-  remembered password.
 - Use the UI token profile that matches the automation surface instead of
   minting an unscoped long-lived key.
-- `command` is special: its registry control plane uses `registry:read`,
-  `registry:write`, `operations:read`, and `operations:write`, and it verifies
-  tokens against `/api/admin/registry/apps`.
+- `command` is special: its registry control plane is driven by platform-owned
+  workflows and verifies tokens against `/api/admin/registry/apps`.
 - Keep the token scoped only to the routes the agent needs.
 - Prefer a 30-day expiry unless the automation truly needs a longer-lived
   credential.
@@ -440,14 +377,5 @@ organization:
 If this is left at `none`, app deploy workflows fail with
 `workflow was not found` even when the reusable workflow file exists on `main`.
 
-Older fleet apps can be backfilled by running the same mint command inside the
-app repo and targeting the correct verification path:
-
-```bash
-pnpm run agent-admin-key:mint -- \
-  --remote \
-  --admin-email <admin-email> \
-  --scope users:read \
-  --site-url "$SITE_URL" \
-  --verify-path /api/users
-```
+Older fleet apps can be backfilled from the app UI or through the platform
+workflow that manages the repo’s admin credentials.
