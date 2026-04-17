@@ -1,6 +1,34 @@
 #!/bin/sh
 set -eu
 
-[ -d node_modules ] || exit 0
+ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$ROOT_DIR"
 
-pnpm exec narduk-fleet ensure-worktree-install post-checkout "$@" || true
+if [ "$3" != "1" ]; then
+  exit 0
+fi
+
+if [ -x "$ROOT_DIR/node_modules/.bin/narduk-starter-toolkit" ] || [ -x "$ROOT_DIR/node_modules/.bin/narduk-starter-toolkit.cmd" ]; then
+  pnpm exec narduk-starter-toolkit ensure-worktree-install post-checkout "$@" || true
+  exit 0
+fi
+
+if [ -f "$ROOT_DIR/tools/ensure-worktree-install.cjs" ]; then
+  node tools/ensure-worktree-install.cjs post-checkout "$@" || true
+  exit 0
+fi
+
+if [ "${NARDUK_SKIP_AUTO_INSTALL:-}" = "1" ]; then
+  exit 0
+fi
+
+if [ -n "${CI:-}" ] && [ "$CI" != "0" ] && [ "$CI" != "false" ]; then
+  exit 0
+fi
+
+if [ -n "${NARDUK_PLATFORM_GH_PACKAGES_READ:-${NARDUK_PLATFORM_GH_PACKAGES_RW:-}}" ]; then
+  pnpm run package-registry:auth
+  NPM_CONFIG_USERCONFIG="$ROOT_DIR/.npmrc.auth" NPM_CONFIG_GLOBALCONFIG=/dev/null pnpm install || true
+else
+  pnpm install || true
+fi

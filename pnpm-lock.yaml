@@ -55,6 +55,9 @@ importers:
       '@narduk-enterprises/narduk-skills':
         specifier: 0.3.0
         version: 0.3.0
+      '@narduk-enterprises/narduk-starter-toolkit':
+        specifier: ^1.17.2
+        version: 1.17.4
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
@@ -998,6 +1001,10 @@ packages:
   '@narduk-enterprises/narduk-skills@0.3.0':
     resolution: {integrity: sha512-LDTPyDNMgMKu4DS3PO3blX7OZ25NfN+gaqV0u9K+SYQCCYutNbTTbLMYJPHR/YUSfIkLdiZLbMESnCnJoR7JMQ==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-skills/0.3.0/bca8e698b5ec79cff5ef9d0bf114c2590f960784}
     engines: {node: '>=20'}
+    hasBin: true
+
+  '@narduk-enterprises/narduk-starter-toolkit@1.17.4':
+    resolution: {integrity: sha512-k+jLquoCLcChZKCYF0INCWN64F2n+rUm5OjE0P6F4aWIySVRNpVJLJf4zIoLPa4F+Pk6C5YAhmc+ov5R/rXh1Q==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/narduk-starter-toolkit/1.17.4/926781cb8ffd885bc72cd8f48548eeee7ed7d369}
     hasBin: true
 
   '@nodable/entities@1.1.0':
@@ -8626,6 +8633,13 @@ snapshots:
   '@narduk-enterprises/narduk-platform@1.18.3': {}
 
   '@narduk-enterprises/narduk-skills@0.3.0': {}
+
+  '@narduk-enterprises/narduk-starter-toolkit@1.17.4':
+    dependencies:
+      '@narduk-enterprises/narduk-cli': 1.18.3
+      '@narduk-enterprises/narduk-platform': 1.18.3
+      sharp: 0.34.5
+      tsx: 4.21.0
 
   '@nodable/entities@1.1.0': {}
 

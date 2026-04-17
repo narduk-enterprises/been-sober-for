@@ -20,6 +20,9 @@ handbook file that matches the work you are doing.
   shared Supabase auth contract into the bundled layer packages
 - `skills.md` - local-skill to repo-mirror workflow plus installation methods
   (`npx skills add`, `/skill-create`)
+- The starter no longer ships a copied root `tools/` tree. Use the shared
+  `@narduk-enterprises/narduk-starter-toolkit` dependency through the repo root
+  scripts instead.
 - `../e2e-testing.md` - shared Playwright baseline, fixtures, and extension
   guidance
 
@@ -29,4 +32,3 @@ Before changing files, prefer the closest scoped `AGENTS.md`:
 
 - `apps/web/AGENTS.md`
 - `layers/AGENTS.md`
-- `tools/AGENTS.md`
